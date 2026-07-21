@@ -1,6 +1,14 @@
 import type { TuiPlugin, TuiPluginApi, TuiPluginModule, TuiThemeCurrent } from "@opencode-ai/plugin/tui"
 import { createEffect, createMemo, For, Show, createSignal, onCleanup } from "solid-js"
-import { readOpenSpec, isComplete, isGroupComplete, summaryEquals, type FileClient, type OpenSpecSummary } from "./openspec"
+import {
+  readOpenSpec,
+  isComplete,
+  isGroupComplete,
+  summaryEquals,
+  type FileClient,
+  type OpenSpecChange,
+  type OpenSpecSummary,
+} from "./openspec"
 
 // Renders a progress bar for `done`/`total`; nothing at all when there are no tasks.
 function ProgressBar(props: { theme: () => TuiThemeCurrent; done: number; total: number }) {
@@ -17,19 +25,57 @@ function ProgressBar(props: { theme: () => TuiThemeCurrent; done: number; total:
   )
 }
 
+// Task groups of a single change; opened from the list so the sidebar stays short.
+function ChangeDetail(props: { theme: () => TuiThemeCurrent; change: OpenSpecChange; onBack: () => void }) {
+  const theme = props.theme
+  const change = () => props.change
+  const [backHover, setBackHover] = createSignal(false)
+  return (
+    <box>
+      <box
+        backgroundColor={backHover() ? theme().textMuted : undefined}
+        onMouseDown={props.onBack}
+        onMouseOver={() => setBackHover(true)}
+        onMouseOut={() => setBackHover(false)}
+      >
+        <text fg={theme().accent}>← back</text>
+      </box>
+      <text>
+        <span style={{ fg: isComplete(change()) ? theme().success : theme().warning }}>• </span>
+        <span style={{ fg: theme().text }}>{change().name}</span>
+      </text>
+      <text fg={theme().textMuted}>{`  ${change().totalTasks} tasks`}</text>
+      <ProgressBar theme={theme} done={change().completedTasks} total={change().totalTasks} />
+      <box paddingTop={1}>
+        <For each={change().groups}>
+          {(group, index) => (
+            <box paddingTop={index() === 0 ? 0 : 1}>
+              <Show when={group.title}>
+                <text fg={isGroupComplete(group) ? theme().textMuted : theme().secondary}>{`  ${group.title}`}</text>
+              </Show>
+              <For each={group.tasks}>
+                {(t) => (
+                  <box flexDirection="row" gap={0}>
+                    <text flexShrink={0} style={{ fg: t.done ? theme().success : theme().textMuted }}>{t.done ? "✓ " : "  "}</text>
+                    <text flexGrow={1} wrapMode="word" style={{ fg: t.done ? theme().textMuted : theme().text }}>{t.text}</text>
+                  </box>
+                )}
+              </For>
+            </box>
+          )}
+        </For>
+      </box>
+    </box>
+  )
+}
+
 function View(props: { api: TuiPluginApi }) {
   const theme = () => props.api.theme.current
   const [summary, setSummary] = createSignal<OpenSpecSummary | null>(null, { equals: summaryEquals })
   const [changesOpen, setChangesOpen] = createSignal(true)
   const [specsOpen, setSpecsOpen] = createSignal(true)
-  // Per-change task expansion, keyed by change name so it survives poll-driven re-renders.
-  const [expanded, setExpanded] = createSignal<Set<string>>(new Set())
-  const toggleTasks = (name: string) =>
-    setExpanded((prev) => {
-      const next = new Set(prev)
-      next.has(name) ? next.delete(name) : next.add(name)
-      return next
-    })
+  const [selected, setSelected] = createSignal<string | null>(null)
+  const [hovered, setHovered] = createSignal<string | null>(null)
 
   const client: FileClient = {
     list: (path) => props.api.client.file.list({ path }).then((r) => r?.data ?? []),
@@ -61,6 +107,11 @@ function View(props: { api: TuiPluginApi }) {
   const completedTasks = createMemo(() => summary()?.changes.reduce((sum, c) => sum + c.completedTasks, 0) ?? 0)
   const activeChanges = createMemo(() => (summary()?.changes.filter((c) => c.completedTasks < c.totalTasks).length ?? 0))
   const completedChanges = createMemo(() => (summary()?.changes.filter((c) => isComplete(c)).length ?? 0))
+  // Resolved from the live summary so the detail view keeps updating while polling.
+  const selectedChange = createMemo(() => {
+    const name = selected()
+    return name ? (summary()?.changes.find((c) => c.name === name) ?? null) : null
+  })
 
   return (
     <box>
@@ -72,107 +123,101 @@ function View(props: { api: TuiPluginApi }) {
             </text>
             <text fg={theme().borderSubtle}>─────────────────────────────────────</text>
 
-            <text>
-              <span style={{ fg: theme().accent }}>• Specs:</span>
-              <span style={{ fg: theme().text }}> {data().specCount}</span>
-              <span style={{ fg: theme().accent }}> Requirements:</span>
-              <span style={{ fg: theme().text }}> {data().requirementCount}</span>
-            </text>
-            <text>
-              <span style={{ fg: theme().warning }}>• Active Changes:</span>
-              <span style={{ fg: theme().text }}> {activeChanges()}</span>
-            </text>
-            <text>
-              <span style={{ fg: theme().success }}>• Completed Changes:</span>
-              <span style={{ fg: theme().text }}> {completedChanges()}</span>
-            </text>
-            <text>
-              <span style={{ fg: theme().secondary }}>• Task Progress:</span>
-              <span style={{ fg: theme().text }}> {completedTasks()}/{totalTasks()}</span>
-            </text>
-            <ProgressBar theme={theme} done={completedTasks()} total={totalTasks()} />
-
-            <Show when={data().changes.length > 0}>
-              <box paddingTop={1}>
-                <box flexDirection="row" gap={1} onMouseDown={() => setChangesOpen((x) => !x)}>
-                  <text fg={theme().text}>{changesOpen() ? "▼" : "▶"}</text>
-                  <text fg={theme().warning}>
-                    <b>Active Changes</b>
+            <Show
+              when={selectedChange()}
+              fallback={
+                <box>
+                  <text>
+                    <span style={{ fg: theme().accent }}>• Specs:</span>
+                    <span style={{ fg: theme().text }}> {data().specCount}</span>
+                    <span style={{ fg: theme().accent }}> Requirements:</span>
+                    <span style={{ fg: theme().text }}> {data().requirementCount}</span>
                   </text>
-                </box>
-                <Show when={changesOpen()}>
-                  <text fg={theme().borderSubtle}>─────────────────────────────────────</text>
-                  <For each={data().changes}>
-                    {(change) => {
-                      const done = isComplete(change)
-                      return (
-                        <box>
-                          <text>
-                            <span style={{ fg: done ? theme().success : theme().warning }}>• </span>
-                            <span style={{ fg: theme().text }}>{change.name}</span>
-                          </text>
-
-                          <Show when={change.groups.length > 0}>
-                            <box flexDirection="row" gap={1} onMouseDown={() => toggleTasks(change.name)}>
-                              <text fg={theme().textMuted}>{`  ${expanded().has(change.name) ? "▼" : "▶"}`}</text>
-                              <text fg={theme().textMuted}>{`${change.totalTasks} tasks`}</text>
-                            </box>
-                            <Show when={expanded().has(change.name)}>
-                              <For each={change.groups}>
-                                {(group, index) => (
-                                  <box paddingTop={index() === 0 ? 0 : 1}>
-                                    <Show when={group.title}>
-                                      <text fg={isGroupComplete(group) ? theme().textMuted : theme().secondary}>{`  ${group.title}`}</text>
-                                    </Show>
-                                    <For each={group.tasks}>
-                                      {(t) => (
-                                        <box flexDirection="row" gap={0}>
-                                          <text flexShrink={0} style={{ fg: t.done ? theme().success : theme().textMuted }}>{t.done ? "✓ " : "  "}</text>
-                                          <text flexGrow={1} wrapMode="word" style={{ fg: t.done ? theme().textMuted : theme().text }}>{t.text}</text>
-                                        </box>
-                                      )}
-                                    </For>
-                                  </box>
-                                )}
-                              </For>
-                            </Show>
-                          </Show>
-
-                          <ProgressBar theme={theme} done={change.completedTasks} total={change.totalTasks} />
-                        </box>
-                      )
-                    }}
-                  </For>
-                </Show>
-              </box>
-            </Show>
-
-            <Show when={data().specs.length > 0}>
-              <box paddingTop={1}>
-                <box flexDirection="row" gap={1} onMouseDown={() => setSpecsOpen((x) => !x)}>
-                  <text fg={theme().text}>{specsOpen() ? "▼" : "▶"}</text>
-                  <text fg={theme().accent}>
-                    <b>Specifications</b>
+                  <text>
+                    <span style={{ fg: theme().warning }}>• Active Changes:</span>
+                    <span style={{ fg: theme().text }}> {activeChanges()}</span>
                   </text>
-                </box>
-                <Show when={specsOpen()}>
-                  <text fg={theme().borderSubtle}>─────────────────────────────────────</text>
-                  <For each={data().specs}>
-                    {(spec) => (
-                      <box>
-                        <text>
-                          <span style={{ fg: theme().accent }}>▪ </span>
-                          <span style={{ fg: theme().text }}>{spec.name}</span>
+                  <text>
+                    <span style={{ fg: theme().success }}>• Completed Changes:</span>
+                    <span style={{ fg: theme().text }}> {completedChanges()}</span>
+                  </text>
+                  <text>
+                    <span style={{ fg: theme().secondary }}>• Task Progress:</span>
+                    <span style={{ fg: theme().text }}> {completedTasks()}/{totalTasks()}</span>
+                  </text>
+                  <ProgressBar theme={theme} done={completedTasks()} total={totalTasks()} />
+
+                  <Show when={data().changes.length > 0}>
+                    <box paddingTop={1}>
+                      <box flexDirection="row" gap={1} onMouseDown={() => setChangesOpen((x) => !x)}>
+                        <text fg={theme().text}>{changesOpen() ? "▼" : "▶"}</text>
+                        <text fg={theme().warning}>
+                          <b>Active Changes</b>
                         </text>
-                        <text fg={theme().textMuted}>{`  ${spec.requirements} requirements`}</text>
                       </box>
-                    )}
-                  </For>
-                </Show>
-              </box>
-            </Show>
+                      <Show when={changesOpen()}>
+                        <text fg={theme().borderSubtle}>─────────────────────────────────────</text>
+                        <For each={data().changes}>
+                          {(change) => {
+                            const done = isComplete(change)
+                            const hover = () => hovered() === change.name
+                            return (
+                              <box>
+                                <box
+                                  width="100%"
+                                  backgroundColor={hover() ? theme().textMuted : undefined}
+                                  onMouseDown={() => setSelected(change.name)}
+                                  onMouseOver={() => setHovered(change.name)}
+                                  onMouseOut={() => setHovered((h) => (h === change.name ? null : h))}
+                                >
+                                  <text>
+                                    <span style={{ fg: done ? theme().success : theme().warning }}>• </span>
+                                    <span style={{ fg: theme().text }}>{change.name}</span>
+                                  </text>
+                                  <Show when={change.groups.length > 0}>
+                                    <text fg={hover() ? theme().text : theme().textMuted}>{`  ${change.totalTasks} tasks`}</text>
+                                  </Show>
+                                </box>
+                                <ProgressBar theme={theme} done={change.completedTasks} total={change.totalTasks} />
+                              </box>
+                            )
+                          }}
+                        </For>
+                      </Show>
+                    </box>
+                  </Show>
 
-            <text fg={theme().borderSubtle}>─────────────────────────────────────</text>
+                  <Show when={data().specs.length > 0}>
+                    <box paddingTop={1}>
+                      <box flexDirection="row" gap={1} onMouseDown={() => setSpecsOpen((x) => !x)}>
+                        <text fg={theme().text}>{specsOpen() ? "▼" : "▶"}</text>
+                        <text fg={theme().accent}>
+                          <b>Specifications</b>
+                        </text>
+                      </box>
+                      <Show when={specsOpen()}>
+                        <text fg={theme().borderSubtle}>─────────────────────────────────────</text>
+                        <For each={data().specs}>
+                          {(spec) => (
+                            <box>
+                              <text>
+                                <span style={{ fg: theme().accent }}>▪ </span>
+                                <span style={{ fg: theme().text }}>{spec.name}</span>
+                              </text>
+                              <text fg={theme().textMuted}>{`  ${spec.requirements} requirements`}</text>
+                            </box>
+                          )}
+                        </For>
+                      </Show>
+                    </box>
+                  </Show>
+
+                  <text fg={theme().borderSubtle}>─────────────────────────────────────</text>
+                </box>
+              }
+            >
+              {(change) => <ChangeDetail theme={theme} change={change()} onBack={() => setSelected(null)} />}
+            </Show>
           </box>
         )}
       </Show>
