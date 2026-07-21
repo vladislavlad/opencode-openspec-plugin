@@ -1,0 +1,28 @@
+{
+  "name": "@darkmatter/openspec-tui",
+  "version": "0.1.0",
+  "type": "module",
+  "license": "MIT",
+  "exports": {
+    "./tui": "./dist/index.js"
+  },
+  "files": [
+    "dist"
+  ],
+  "scripts": {
+    "build": "bun run build.ts"
+  },
+  "peerDependencies": {
+    "@opencode-ai/plugin": ">=1.18.0",
+    "solid-js": ">=1.9.0"
+  },
+  "devDependencies": {
+    "@babel/core": "7",
+    "@babel/preset-typescript": "7",
+    "@opencode-ai/plugin": "^1.18.0",
+    "@types/node": "^24.0.0",
+    "babel-preset-solid": "^1.9.12",
+    "solid-js": "^1.9.0",
+    "typescript": "^5.8.0"
+  }
+}
