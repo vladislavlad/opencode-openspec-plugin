@@ -1,6 +1,6 @@
 {
   "name": "@vladislavlad/opencode-openspec-plugin",
-  "version": "0.1.4",
+  "version": "0.1.7",
   "description": "OpenSpec TUI sidebar plugin for opencode – browse specs, review change proposals, and drive the OpenSpec flow from the terminal.",
   "type": "module",
   "license": "MIT",
@@ -36,7 +36,7 @@
     "access": "public"
   },
   "scripts": {
-    "build": "bun run build.ts",
+    "build": "NODE_ENV=production bun run build.ts",
     "test": "bun test",
     "prepublishOnly": "bun run build"
   },

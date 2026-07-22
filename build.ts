@@ -1,42 +1,27 @@
-import { transformSync } from "@babel/core"
-import { mkdirSync, rmSync, readFileSync, writeFileSync, readdirSync } from "fs"
-import { dirname, join, relative } from "path"
+import { rmSync } from "fs"
+import { createSolidTransformPlugin } from "@opentui/solid/bun-plugin"
 
-const srcDir = "src"
 const outDir = "dist"
 rmSync(outDir, { recursive: true, force: true })
-mkdirSync(outDir, { recursive: true })
 
-// Collect every .ts/.tsx under src/, recursing into subdirectories.
-function sources(dir: string): string[] {
-  const out: string[] = []
-  for (const entry of readdirSync(dir, { withFileTypes: true })) {
-    const full = join(dir, entry.name)
-    if (entry.isDirectory()) out.push(...sources(full))
-    else if (/\.tsx?$/.test(entry.name)) out.push(full)
-  }
-  return out
-}
+// Bundle into a single ESM file. JSX is transformed with @opentui/solid's own Solid
+// transform → universal codegen that imports the renderer from "@opentui/solid" (its main
+// entry). opencode rewrites the bare "@opentui/solid" and "solid-js" specifiers to its own
+// running instances at plugin load, so the plugin shares the host's single Solid runtime.
+// (The "@opentui/solid/jsx-runtime" subpath is NOT rewritten — going through it gives the
+// plugin a second Solid instance whose effects never flush, so we must avoid it.)
+const result = await Bun.build({
+  entrypoints: ["src/index.tsx"],
+  outdir: outDir,
+  target: "bun",
+  format: "esm",
+  external: ["@opencode-ai/*", "@opentui/*", "solid-js", "solid-js/*"],
+  plugins: [createSolidTransformPlugin()],
+})
 
-// Transform every source module; opencode's TUI renders through @opentui/solid (a terminal renderer),
-// so use universal codegen against that runtime rather than the default solid-js/web DOM.
-for (const file of sources(srcDir)) {
-  const result = transformSync(readFileSync(file, "utf8"), {
-    filename: file,
-    presets: [
-      "@babel/preset-typescript",
-      ["babel-preset-solid", { generate: "universal", moduleName: "@opentui/solid" }],
-    ],
-    configFile: false,
-  })
-  if (!result?.code) {
-    console.error("Babel transformation failed:", file)
-    process.exit(1)
-  }
-  // Mirror the src/ layout under dist/ so relative imports keep resolving.
-  const outPath = join(outDir, relative(srcDir, file).replace(/\.tsx?$/, ".js"))
-  mkdirSync(dirname(outPath), { recursive: true })
-  writeFileSync(outPath, result.code)
+if (!result.success) {
+  for (const log of result.logs) console.error(log)
+  process.exit(1)
 }
 
 console.log("Build complete:", outDir)
