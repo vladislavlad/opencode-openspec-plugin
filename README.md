@@ -22,16 +22,18 @@ spec → change → implement → archive loop without leaving your editor.
 
 ## Install
 
-Add the plugin to your opencode config (`opencode.json` or `~/.config/opencode/opencode.json`):
+TUI plugins are configured in opencode's **`tui.json`** (not `opencode.json`).
+Add the plugin to `~/.config/opencode/tui.json`:
 
 ```json
 {
-  "plugin": ["@vladislavlad/opencode-openspec-plugin/tui"]
+  "plugin": ["@vladislavlad/opencode-openspec-plugin"]
 }
 ```
 
-opencode resolves the package from npm on next launch. The sidebar appears
-automatically when the current project contains an `openspec/` directory.
+opencode resolves the package from npm on next launch and shows the sidebar in
+the session panel. Make sure you launch opencode in a project that contains an
+`openspec/` directory, and that the session sidebar is open.
 
 ## Development
 

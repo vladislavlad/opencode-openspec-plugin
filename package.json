@@ -21,8 +21,9 @@
     "sidebar",
     "solid-js"
   ],
+  "main": "./dist/index.js",
   "exports": {
-    "./tui": "./dist/index.js"
+    ".": "./dist/index.js"
   },
   "files": [
     "dist"
