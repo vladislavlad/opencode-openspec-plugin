@@ -27,7 +27,7 @@ export interface Requirement {
 }
 
 export interface OpenSpecSpec {
-  name: string // capability directory name — stable id and the label shown in the list
+  name: string // capability directory name - stable id and the label shown in the list
   title: string // display title parsed from the `#` heading, or the dir name when absent
   description: string // paragraph between the title and the first `##` section
   purpose: string // text under `## Purpose`
@@ -35,7 +35,7 @@ export interface OpenSpecSpec {
 }
 
 export interface OpenSpecSummary {
-  root: string // "openspec" or ".openspec" — the directory the data was read from
+  root: string // "openspec" or ".openspec" - the directory the data was read from
   specCount: number
   requirementCount: number
   specs: OpenSpecSpec[]

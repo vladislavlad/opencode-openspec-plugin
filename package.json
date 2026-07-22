@@ -1,7 +1,7 @@
 {
   "name": "@vladislavlad/opencode-openspec-plugin",
   "version": "0.1.0",
-  "description": "OpenSpec TUI sidebar plugin for opencode — browse specs, review change proposals, and drive the OpenSpec flow from the terminal.",
+  "description": "OpenSpec TUI sidebar plugin for opencode – browse specs, review change proposals, and drive the OpenSpec flow from the terminal.",
   "type": "module",
   "license": "MIT",
   "author": "Vladislav Kartashov",

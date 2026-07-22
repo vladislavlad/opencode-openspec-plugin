@@ -14,7 +14,7 @@ async function deleteChange(api: TuiPluginApi, name: string) {
       await fs.rm(`${dir}/${root}/changes/${name}`, { recursive: true, force: true }).catch(() => {})
     }
   } catch {
-    // No filesystem access from the plugin host — hand the deletion to the agent.
+    // No filesystem access from the plugin host - hand the deletion to the agent.
     void sendPrompt(api, `delete openspec change ${name}`)
   }
   // The sidebar polls every few seconds, so the removed change drops out on its own.
