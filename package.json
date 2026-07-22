@@ -23,7 +23,8 @@
   ],
   "main": "./dist/index.js",
   "exports": {
-    ".": "./dist/index.js"
+    ".": "./dist/index.js",
+    "./tui": "./dist/index.js"
   },
   "files": [
     "dist"
@@ -41,6 +42,7 @@
   },
   "peerDependencies": {
     "@opencode-ai/plugin": ">=1.18.0",
+    "@opentui/solid": ">=0.1.0",
     "solid-js": ">=1.9.0"
   },
   "devDependencies": {
