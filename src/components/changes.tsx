@@ -42,11 +42,11 @@ export function ChangeRow(props: {
   )
 }
 
-// The Apply/Update/Delete button row under a change's progress bar.
+// The Apply/Update/Delete button row for an active change. Apply/Update fill the prompt (no submit).
 function ChangeActions(props: {
   theme: Theme
   name: string
-  onCommand: (text: string) => void
+  onCommand: (text: string, submit?: boolean) => void
   onRequestDelete: () => void
 }) {
   const theme = props.theme
@@ -55,6 +55,21 @@ function ChangeActions(props: {
       <Button theme={theme} label="Apply" color={theme().success} onClick={() => props.onCommand(`/opsx-apply ${props.name}`)} />
       <Button theme={theme} label="Update" color={theme().warning} onClick={() => props.onCommand(`/opsx-update ${props.name}`)} />
       <Button theme={theme} label="Delete" color={theme().error} onClick={props.onRequestDelete} />
+    </box>
+  )
+}
+
+// The Archive/Update button row for a completed change. Archive runs immediately; Update only fills.
+function CompletedChangeActions(props: {
+  theme: Theme
+  name: string
+  onCommand: (text: string, submit?: boolean) => void
+}) {
+  const theme = props.theme
+  return (
+    <box flexDirection="row" gap={1} paddingTop={1} paddingLeft={2}>
+      <Button theme={theme} label="Archive" color={theme().success} onClick={() => props.onCommand(`/opsx-archive ${props.name}`, true)} />
+      <Button theme={theme} label="Update" color={theme().warning} onClick={() => props.onCommand(`/opsx-update ${props.name}`)} />
     </box>
   )
 }
@@ -87,7 +102,7 @@ export function ChangeDetail(props: {
   theme: Theme
   change: OpenSpecChange
   onBack: () => void
-  onCommand: (text: string) => void
+  onCommand: (text: string, submit?: boolean) => void
   onDelete: (name: string) => void
 }) {
   const theme = props.theme
@@ -119,24 +134,31 @@ export function ChangeDetail(props: {
       <text fg={theme().textMuted}>{`  ${change().totalTasks} tasks`}</text>
       <ProgressBar theme={theme} done={change().completedTasks} total={change().totalTasks} />
       <Show
-        when={confirming()}
+        when={isComplete(change())}
         fallback={
-          <ChangeActions
-            theme={theme}
-            name={change().name}
-            onCommand={props.onCommand}
-            onRequestDelete={() => setConfirming(true)}
-          />
+          <Show
+            when={confirming()}
+            fallback={
+              <ChangeActions
+                theme={theme}
+                name={change().name}
+                onCommand={props.onCommand}
+                onRequestDelete={() => setConfirming(true)}
+              />
+            }
+          >
+            <ChangeDeletionConfirm
+              theme={theme}
+              onCancel={() => setConfirming(false)}
+              onConfirm={() => {
+                props.onDelete(change().name)
+                props.onBack()
+              }}
+            />
+          </Show>
         }
       >
-        <ChangeDeletionConfirm
-          theme={theme}
-          onCancel={() => setConfirming(false)}
-          onConfirm={() => {
-            props.onDelete(change().name)
-            props.onBack()
-          }}
-        />
+        <CompletedChangeActions theme={theme} name={change().name} onCommand={props.onCommand} />
       </Show>
       <box paddingTop={1}>
         <For each={change().groups}>

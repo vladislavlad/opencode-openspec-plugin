@@ -221,7 +221,7 @@ export function OpenSpecSidebar(props: { api: TuiPluginApi; onDelete: (name: str
                   theme={theme}
                   change={change()}
                   onBack={back}
-                  onCommand={(text) => void sendPrompt(props.api, text)}
+                  onCommand={(text, submit) => void sendPrompt(props.api, text, { submit })}
                   onDelete={props.onDelete}
                 />
               )}

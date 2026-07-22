@@ -64,15 +64,34 @@ export function DetailHeader(props: { theme: Theme; label: string; onBack: () =>
   )
 }
 
-// Renders a `\n`-joined block as stacked word-wrapped rows; blank lines become spacers.
+// Splits a line so `SHALL` (OpenSpec's requirement keyword) can be coloured separately.
+function splitShall(line: string): { text: string; keyword: boolean }[] {
+  const parts: { text: string; keyword: boolean }[] = []
+  const re = /\bSHALL\b/g
+  let last = 0
+  let m: RegExpExecArray | null
+  while ((m = re.exec(line))) {
+    if (m.index > last) parts.push({ text: line.slice(last, m.index), keyword: false })
+    parts.push({ text: m[0], keyword: true })
+    last = m.index + m[0].length
+  }
+  if (last < line.length) parts.push({ text: line.slice(last), keyword: false })
+  return parts.length ? parts : [{ text: line || " ", keyword: false }]
+}
+
+// Renders a `\n`-joined block as stacked word-wrapped rows; blank lines become spacers, and every
+// `SHALL` keyword is highlighted in accent.
 export function Paragraph(props: { theme: Theme; text: string; fg?: string }) {
   const theme = props.theme
+  const base = () => props.fg ?? theme().text
   return (
     <For each={props.text.split("\n")}>
       {(line) => (
         <box flexDirection="row">
-          <text flexGrow={1} wrapMode="word" style={{ fg: props.fg ?? theme().text }}>
-            {line || " "}
+          <text flexGrow={1} wrapMode="word">
+            {splitShall(line).map((seg) => (
+              <span style={{ fg: seg.keyword ? theme().accent : base() }}>{seg.text}</span>
+            ))}
           </text>
         </box>
       )}

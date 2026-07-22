@@ -51,7 +51,7 @@ export interface FileClient {
 const TASK_LINE = /^[-*]\s+\[([\sxX])\]\s?(.*)$/
 const HEADING_LINE = /^#{1,6}\s+(.*)$/
 
-function parseTasks(content: string): { total: number; completed: number; groups: TaskGroup[] } {
+export function parseTasks(content: string): { total: number; completed: number; groups: TaskGroup[] } {
   let total = 0
   let completed = 0
   const groups: TaskGroup[] = []

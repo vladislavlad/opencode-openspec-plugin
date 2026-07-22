@@ -1,16 +1,42 @@
 {
-  "name": "@darkmatter/openspec-tui",
+  "name": "@vladislavlad/opencode-openspec-plugin",
   "version": "0.1.0",
+  "description": "OpenSpec TUI sidebar plugin for opencode — browse specs, review change proposals, and drive the OpenSpec flow from the terminal.",
   "type": "module",
   "license": "MIT",
+  "author": "Vladislav Kartashov",
+  "homepage": "https://github.com/vladislavlad/opencode-openspec-plugin#readme",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/vladislavlad/opencode-openspec-plugin.git"
+  },
+  "bugs": {
+    "url": "https://github.com/vladislavlad/opencode-openspec-plugin/issues"
+  },
+  "keywords": [
+    "opencode",
+    "opencode-plugin",
+    "openspec",
+    "tui",
+    "sidebar",
+    "solid-js"
+  ],
   "exports": {
     "./tui": "./dist/index.js"
   },
   "files": [
     "dist"
   ],
+  "engines": {
+    "node": ">=18"
+  },
+  "publishConfig": {
+    "access": "public"
+  },
   "scripts": {
-    "build": "bun run build.ts"
+    "build": "bun run build.ts",
+    "test": "bun test",
+    "prepublishOnly": "bun run build"
   },
   "peerDependencies": {
     "@opencode-ai/plugin": ">=1.18.0",

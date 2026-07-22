@@ -20,19 +20,20 @@ export const CONFIG_PROMPT = [
   '   - "Style" (single): "Technical", "Product", or "Balanced".',
   '   On multi-select, the user may tick your option, tick it and add more via "Type your own answer", or type their own. Merge what they pick and type.',
   '4. Ask "Configure detailed rules?" (single: "Yes" / "No").',
-  "   - No: leave `rules` as is, go to step 6.",
+  "   - No: skip the rules questions and write the config.",
   "   - Yes: ask one more `question` call:",
   '     - "Proposal" (single): detail level — "Brief", "Standard", "Detailed".',
   '     - "Non-goals" (single): "Yes" / "No" — always require a Non-goals section in proposals?',
   '     - "Tasks" (single): breakdown granularity — "Coarse", "Medium", "Fine".',
   '5. Turn those answers into short rules under `rules.proposal` / `rules.tasks`. Proposal detail: Brief = keep it short / Standard = default / Detailed = add rationale and alternatives. Non-goals Yes = add "Always include a Non-goals section". Tasks: Coarse = a few high-level tasks / Medium = ~half-day tasks / Fine = small ~1-2h tasks with sub-tasks. Keep any existing rules for `specs` and `design`.',
-  "6. Write `openspec/config.yaml` and confirm what you wrote. Example:",
+  "6. Write `openspec/config.yaml` and confirm what you wrote. Omit the `rules:` block entirely if the user set no rules. Example:",
   "",
   "```yaml",
   "schema: spec-driven",
   "context: |",
   "  Tech stack: <stack>",
   "  Language: <language>",
+  "  Write requirement statements, scenarios and task text in the language above. Keep unchanged: OpenSpec keywords (Purpose, Requirements, Requirement, Scenario, SHALL, WHEN, THEN) and code identifiers (class/function/file names, API terms).",
   "  Writing style: <style>",
   "  <2-4 sentence summary>",
   "rules:",
@@ -72,6 +73,7 @@ const SPEC_DERIVE_PROMPT = [
   "```",
   "",
   "Every requirement uses SHALL and has at least one WHEN/THEN scenario. Keep them atomic.",
+  "Write ALL prose in the config language — the requirement statement (e.g. `Система SHALL …`), scenario text, everything. Keep unchanged only: the structural tokens `## Purpose`, `## Requirements`, `### Requirement:`, `#### Scenario:`, SHALL, WHEN, THEN, and code identifiers (class/function/file names). Don't leave `The system SHALL …` in English.",
   "",
   "Work in phases so you never hold the whole codebase at once (the model may be small):",
   "",
@@ -89,28 +91,27 @@ const SPEC_DERIVE_PROMPT = [
   "- Idempotent: re-running refines, never duplicates.",
 ].join("\n")
 
-// `/opsx-baseline`: make sure the config is set, then derive specs from the existing code.
+// `/opsx-baseline`: require the config (else point to /opsx-config), then derive specs from the code.
 export const SPEC_BASELINE_PROMPT = [
-  "Bring this existing project into OpenSpec: set up the config, then derive specs.",
-  "",
-  "Step 1 — Config. If `openspec/config.yaml` already has a `context` block, keep it and go to Step 2. Otherwise:",
-  "",
-  CONFIG_PROMPT,
-  "",
-  "Step 2 — Derive specs:",
+  "First check: if `openspec/config.yaml` does not exist or has no `context` block, tell me to run `/opsx-config` first and stop.",
   "",
   SPEC_DERIVE_PROMPT,
 ].join("\n")
 
-// Init button: install OpenSpec, then offer to baseline specs immediately.
+// Init button: install OpenSpec, always set up config, then optionally derive specs.
 export const OPENSPEC_INIT_PROMPT = [
   `run "${OPENSPEC_INIT_CMD}"`,
   "",
   "If init fails, report the error and stop.",
-  'If it succeeds, ask with the `question` tool: header "Specs", "OpenSpec is ready. Derive specs from the existing project now?", options "Yes" / "No".',
+  "",
+  "Step 1 — Config (always). Set up openspec/config.yaml:",
+  "",
+  CONFIG_PROMPT,
+  "",
+  'Step 2 — Ask with the `question` tool: header "Specs", "Config is set. Derive specs from the existing project now?", options "Yes" / "No".',
   'If "No", stop. If "Yes", do this:',
   "",
-  SPEC_BASELINE_PROMPT,
+  SPEC_DERIVE_PROMPT,
 ].join("\n")
 
 // Fallback when `/opsx-baseline` failed to register: just run the installer, no follow-up to offer.
