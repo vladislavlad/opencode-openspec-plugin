@@ -1,0 +1,14 @@
+schema: spec-driven
+
+context: |
+  Tech stack: TypeScript, SolidJS, Babel, Bun, OpenCode Plugin API
+  Language: Russian
+  Writing style: Product
+  OpenCode plugin that integrates OpenSpec into the terminal UI. Provides slash commands for init, config, and spec derivation. Parses OpenSpec markdown files (specs, changes, tasks) to display structured data in a sidebar. Built with SolidJS JSX compiled via Babel for terminal rendering.
+
+rules:
+  proposal:
+    - Use standard detail level
+    - Always include a Non-goals section
+  tasks:
+    - Break tasks into ~half-day chunks
