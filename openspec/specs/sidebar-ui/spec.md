@@ -1,51 +1,115 @@
 ## Purpose
-Боковая панель OpenSpec отображает актуальное состояние проекта: прогресс задач, активные и завершённые изменения, спецификации. Панель опрашивает данные в реальном времени и предоставляет навигацию с детализацией по уровням.
+Боковая панель OpenSpec отображает актуальное состояние проекта (прогресс задач, активные и завершённые изменения, спецификации), предоставляет быстрые действия и навигацию с детализацией, а также ведёт инициализацию проекта прямо из интерфейса.
 
 ## Requirements
 
 ### Requirement: Опрос данных openspec
-The sidebar SHALL periodically poll the openspec directory for updated data and re-render the UI accordingly.
+Панель SHALL периодически опрашивать директорию openspec и реестр команд opencode, обновляя интерфейс.
 
 #### Scenario: Периодический опрос
-- **WHEN** боковая панель активна и рабочая директория установлена
+- **WHEN** панель активна и рабочая директория установлена
 - **THEN** данные перезагружаются каждые 3 секунды через `setInterval`
 
 #### Scenario: Смена директории
 - **WHEN** значение `props.api.state.path.directory` изменяется
 - **THEN** выполняется немедленная перезагрузка данных
 
+#### Scenario: Проверка загруженности команд
+- **WHEN** во время опроса запрашивается список команд через `api.client.command.list`
+- **THEN** флаг `commandsReady` устанавливается по наличию команды `opsx-propose`; при ошибке запроса флаг сохраняет прежнее значение
+
 #### Scenario: Ошибка загрузки
 - **WHEN** запрос к файловой системе завершается с ошибкой
 - **THEN** summary сбрасывается в `null`, а состояние инициализации устанавливается в `false`
 
 ### Requirement: Экран инициализации
-The sidebar SHALL display the init screen when openspec tooling is not detected in the project.
+Панель SHALL показывать экран инициализации, когда openspec-тулинг не обнаружен и настройка не выполняется.
 
 #### Scenario: Показ экрана инициализации
-- **WHEN** флаг `initialised` равен `false`
-- **THEN** отображается компонент `NotInitialised` с кнопкой инициализации
+- **WHEN** флаг `initialised` равен `false` и настройка не идёт (`setupInProgress` равен `false`)
+- **THEN** отображается компонент `NotInitialised` с кнопкой Init
 
-#### Scenario: Нажатие кнопки инициализации
-- **WHEN** пользователь нажимает кнопку инициализации
-- **THEN** отправляется промпт `OPENSPEC_INIT_PROMPT`, который выполняет последовательность: установка openspec → настройка config.yaml (всегда) → опционально derivation specs
+#### Scenario: Кнопка Init заблокирована во время работы агента
+- **WHEN** пользователь нажимает Init, пока агент занят
+- **THEN** промпт не отправляется, показывается тост «Wait until the agent finishes working»
 
-#### Scenario: Пропуск baseline
-- **WHEN** пользователь на этапе init отказывается от derivation specs
-- **THEN** проект остаётся с установленным openspec и настроенным config.yaml, готовым к ручному запуску `/opsx-baseline` позже
+#### Scenario: Нажатие кнопки Init
+- **WHEN** пользователь нажимает Init при простое агента
+- **THEN** устанавливается `setupInProgress`, помечается ожидание эфемерной установки и отправляется промпт `OPENSPEC_INIT_PROMPT` (или `OPENSPEC_INIT_ONLY_PROMPT`), который: гарантирует наличие CLI openspec → выполняет `openspec init` → настраивает config.yaml → опционально выводит спецификации
 
-### Requirement: Прогресс-бар задач
-The sidebar SHALL display an overall tasks progress bar aggregating completed and total tasks across all changes.
+### Requirement: Индикатор инициализации
+Панель SHALL показывать индикатор «Initializing» с анимированной бегущей точкой на всё время настройки, поверх экрана инициализации и браузера.
 
-#### Scenario: Отображение прогресса
-- **WHEN** проект инициализирован и summary содержит изменения
-- **THEN** отображается строка «Tasks Progress» с текстом `completed/total` и компонентом `ProgressBar`
+#### Scenario: Отображение во время настройки
+- **WHEN** `setupInProgress` равен `true`
+- **THEN** вместо экрана инициализации и браузера показывается строка «Initializing» с тремя точками
 
-#### Scenario: Отсутствие задач
-- **WHEN** в summary нет изменений или все счётчики равны нулю
-- **THEN** прогресс отображается как `0/0`
+#### Scenario: Анимация точки
+- **WHEN** идёт настройка
+- **THEN** одна из трёх точек подсвечена цветом `text`, остальные — `textMuted`, и подсвеченная точка перемещается по кругу каждые 500 мс
+
+#### Scenario: Завершение настройки
+- **WHEN** сессия переходит из занятости в простой после запуска init
+- **THEN** `setupInProgress` снимается, индикатор скрывается
+
+### Requirement: Ряд действий в обзоре
+Панель SHALL показывать вверху обзора ряд действий с кнопками Explore, Propose и Archive.
+
+#### Scenario: Explore и Propose
+- **WHEN** пользователь нажимает Explore или Propose
+- **THEN** в промпт дописывается `/opsx-explore ` или `/opsx-propose ` без отправки, курсор готов к вводу описания
+
+#### Scenario: Archive виден при завершённых изменениях
+- **WHEN** количество завершённых изменений больше нуля
+- **THEN** в ряду действий отображается кнопка Archive цвета `success`
+
+#### Scenario: Запуск Archive
+- **WHEN** пользователь нажимает Archive
+- **THEN** команда `/opsx-archive` отправляется как ход агента (инпут очищается перед отправкой); при одном завершённом изменении его имя передаётся сразу, при нескольких команда запрашивает выбор
+
+### Requirement: Блокировка действий во время работы агента
+Панель SHALL блокировать кнопки-действия, отправляющие промпт, пока агент занят, и сообщать причину.
+
+#### Scenario: Кнопка в заблокированном состоянии
+- **WHEN** агент занят (статус сессии `busy` или `retry`)
+- **THEN** кнопки-действия отображаются приглушённо (цвет `textMuted`), а клик показывает тост «Wait until the agent finishes working» вместо выполнения
+
+#### Scenario: Навигация не блокируется
+- **WHEN** агент занят
+- **THEN** навигация (кнопка «назад», строки списков, сворачивание секций) остаётся доступной
+
+### Requirement: Временная загрузка команд после инициализации
+Панель SHALL после инициализации регистрировать записанные командой init файлы `/opsx-*` эфемерно, чтобы они работали до перезапуска, и информировать о необходимости перезапуска.
+
+#### Scenario: Успешная эфемерная регистрация
+- **WHEN** ход init завершился (переход занятости в простой) и файлы команд зарегистрированы
+- **THEN** над рядом действий показывается предупреждение «Reopen opencode for full OpenSpec support — commands are loaded temporarily»
+
+#### Scenario: Неудачная регистрация
+- **WHEN** после init команды не удалось зарегистрировать
+- **THEN** показывается красный текст «OpenSpec commands didn't load — reopen opencode to finish setup» и кнопка Reload, закрывающая opencode командой `app.exit`
+
+#### Scenario: Скрытие во время работы агента
+- **WHEN** агент занят или команды уже загружены нативно
+- **THEN** ни предупреждение, ни красный блок не показываются
+
+### Requirement: Прогресс задач под активными изменениями
+Панель SHALL показывать сводный прогресс задач активных изменений под заголовком свёрнутой секции «Active Changes».
+
+#### Scenario: Сводка при свёрнутом разделе
+- **WHEN** секция «Active Changes» свёрнута и активных изменений больше нуля
+- **THEN** под заголовком отображается `X/Y tasks done` (цвет `textMuted`) и прогресс-бар, агрегированные по активным изменениям
+
+#### Scenario: Скрытие при раскрытии
+- **WHEN** секция «Active Changes» раскрыта
+- **THEN** сводка не показывается — вместо неё видны строки изменений
+
+#### Scenario: Нет активных изменений
+- **WHEN** активных изменений нет
+- **THEN** сводка не показывается
 
 ### Requirement: Секция активных изменений
-The sidebar SHALL render a collapsible "Active Changes" section listing all changes that are not yet complete.
+Панель SHALL отображать сворачиваемую секцию «Active Changes» со всеми незавершёнными изменениями.
 
 #### Scenario: Отображение активных изменений
 - **WHEN** summary содержит изменения, для которых `isComplete()` возвращает `false`
@@ -60,14 +124,14 @@ The sidebar SHALL render a collapsible "Active Changes" section listing all chan
 - **THEN** секция переключается между свёрнутым и развёрнутым состоянием
 
 ### Requirement: Секция завершённых изменений
-The sidebar SHALL render a collapsible "Completed Changes" section listing all changes marked as complete.
+Панель SHALL отображать сворачиваемую секцию «Completed Changes» со всеми завершёнными изменениями.
 
 #### Scenario: Отображение завершённых изменений
 - **WHEN** summary содержит изменения, для которых `isComplete()` возвращает `true`
 - **THEN** секция «Completed Changes» отображает строки `ChangeRow` с количеством элементов в заголовке
 
 ### Requirement: Секция спецификаций
-The sidebar SHALL render a collapsible "Specifications" section listing all specs from the summary.
+Панель SHALL отображать сворачиваемую секцию «Specifications» со всеми спецификациями из summary.
 
 #### Scenario: Отображение спецификаций
 - **WHEN** summary содержит список спецификаций
@@ -78,7 +142,7 @@ The sidebar SHALL render a collapsible "Specifications" section listing all spec
 - **THEN** секция автоматически раскрывается один раз
 
 ### Requirement: Навигация с детализацией
-The sidebar SHALL support drill-in navigation through changes, specs, and requirements with mutually exclusive selection state.
+Панель SHALL поддерживать детализированную навигацию по изменениям, спецификациям и требованиям со взаимоисключающим состоянием выделения.
 
 #### Scenario: Открытие деталей изменения
 - **WHEN** пользователь выбирает строку из списка изменений
@@ -86,9 +150,9 @@ The sidebar SHALL support drill-in navigation through changes, specs, and requir
 
 #### Scenario: Открытие деталей спецификации
 - **WHEN** пользователь выбирает строку из списка спецификаций
-- **THEN** отображается `SpecDetail`, а выделение change и requirement сбрасывается
+- **THEN** отображается `SpecDetail`, а выделения change и requirement сбрасываются
 
-#### Scenario: Открытие-details требования
+#### Scenario: Открытие деталей требования
 - **WHEN** пользователь выбирает требование внутри спецификации
 - **THEN** отображается `RequirementDetail` поверх `SpecDetail`
 

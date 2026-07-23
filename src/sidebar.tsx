@@ -2,13 +2,14 @@ import { createEffect, createMemo, createSignal, For, onCleanup, Show } from "so
 import type { TuiPluginApi } from "@opencode-ai/plugin/tui"
 import { hasOpenSpecTooling, isComplete, readOpenSpec, summaryEquals, type FileClient, type OpenSpecSummary } from "./lib/openspec"
 import { OPENSPEC_INIT_ONLY_PROMPT, OPENSPEC_INIT_PROMPT } from "./lib/prompts"
-import { sendPrompt } from "./lib/send-prompt"
-import { CollapsibleSection, Divider, NotInitialised, ProgressBar } from "./components/primitives"
+import { quitOpencode, runCommand, sendPrompt } from "./lib/send-prompt"
+import { registerOpsxFsCommands } from "./features/commands"
+import { Button, CollapsibleSection, Divider, NotInitialised, ProgressBar } from "./components/primitives"
 import { ChangeDetail, ChangeRow } from "./components/changes"
 import { RequirementDetail, SpecDetail, SpecRow } from "./components/specs"
 
 // The sidebar root: polls the openspec dir and renders the list or a drill-in detail view.
-export function OpenSpecSidebar(props: { api: TuiPluginApi; onDelete: (name: string) => void; baselineAvailable: boolean }) {
+export function OpenSpecSidebar(props: { api: TuiPluginApi; sessionId: string; onDelete: (name: string) => void; baselineAvailable: boolean }) {
   const theme = () => props.api.theme.current
   const [summary, setSummary] = createSignal<OpenSpecSummary | null>(null, { equals: summaryEquals })
   // null while the first load is in flight, so we don't flash the Init screen on startup.
@@ -20,16 +21,33 @@ export function OpenSpecSidebar(props: { api: TuiPluginApi; onDelete: (name: str
   const [selectedSpec, setSelectedSpec] = createSignal<string | null>(null)
   const [selectedReq, setSelectedReq] = createSignal<string | null>(null)
   const [hovered, setHovered] = createSignal<string | null>(null)
+  // false once we know the init /opsx-* commands aren't loaded (written this session but pre-restart).
+  const [commandsReady, setCommandsReady] = createSignal<boolean | null>(null)
+  // Init pressed; hold "Initializing…" until the agent goes idle.
+  const [setupInProgress, setSetupInProgress] = createSignal(false)
+  const [ephemeralResult, setEphemeralResult] = createSignal<"idle" | "loaded" | "failed">("idle")
+  const [dot, setDot] = createSignal(0) // 0..2 — which of the "Initializing" dots is lit
+  let pendingEphemeral = false // register the /opsx-* files once the init turn ends
 
-  // With the command registered, Init offers to derive specs after install; otherwise it just installs.
-  const initOpenSpec = () =>
+  // After the init turn the /opsx-* files are on disk; register them ephemerally. Warn on success,
+  // reload prompt on failure.
+  const installEphemeral = async () => {
+    if (commandsReady() === true) return // already loaded natively
+    const n = await registerOpsxFsCommands(props.api, client.read)
+    setEphemeralResult(n > 0 ? "loaded" : "failed")
+  }
+
+  const initOpenSpec = () => {
+    setSetupInProgress(true)
+    setEphemeralResult("idle")
+    pendingEphemeral = true
     void sendPrompt(props.api, props.baselineAvailable ? OPENSPEC_INIT_PROMPT : OPENSPEC_INIT_ONLY_PROMPT, {
       clear: true,
       submit: true,
     })
+  }
 
-  // Navigation clears the row hover (the unmounted row never fires onMouseOut) and keeps the
-  // change/spec/requirement selections mutually exclusive so only one detail view is ever active.
+  // Clear row hover (unmounted rows never fire onMouseOut) and keep selections mutually exclusive.
   const openChange = (name: string) => {
     setHovered(null)
     setSelectedSpec(null)
@@ -73,6 +91,12 @@ export function OpenSpecSidebar(props: { api: TuiPluginApi; onDelete: (name: str
       const s = await readOpenSpec(client)
       setSummary(s)
       setInitialised(s !== null && (await hasOpenSpecTooling(client)))
+      // Are the init commands actually loaded? Stay optimistic on a fetch error.
+      const cmds = await props.api.client.command
+        .list()
+        .then((r) => r?.data ?? null)
+        .catch(() => null)
+      if (cmds) setCommandsReady(cmds.some((c) => c.name === "opsx-propose"))
     } catch {
       setSummary(null)
       setInitialised(false)
@@ -89,8 +113,29 @@ export function OpenSpecSidebar(props: { api: TuiPluginApi; onDelete: (name: str
     onCleanup(() => clearInterval(id)) // createEffect's return value isn't a cleanup; clear here so intervals don't stack
   })
 
-  // Auto-expand the Active Changes / Specifications sections once, when their items first appear;
-  // afterwards the user's own collapse/expand is respected.
+  // Move the lit "Initializing" dot while setup runs.
+  createEffect(() => {
+    if (!setupInProgress()) return setDot(0)
+    const id = setInterval(() => setDot((d) => (d + 1) % 3), 500)
+    onCleanup(() => clearInterval(id))
+  })
+
+  // Init turn ends on busy→idle: clear "Initializing…" and register the fresh /opsx-* commands.
+  // sawBusy guards against firing before the turn has actually started.
+  let sawBusy = false
+  createEffect(() => {
+    if (busy()) sawBusy = true
+    else if (sawBusy) {
+      sawBusy = false
+      setSetupInProgress(false)
+      if (pendingEphemeral) {
+        pendingEphemeral = false
+        void installEphemeral()
+      }
+    }
+  })
+
+  // Auto-expand Active Changes / Specifications once their items first appear; then respect the user.
   let autoOpenedChanges = false
   createEffect(() => {
     if (autoOpenedChanges) return
@@ -108,11 +153,27 @@ export function OpenSpecSidebar(props: { api: TuiPluginApi; onDelete: (name: str
     }
   })
 
-  const totalTasks = createMemo(() => summary()?.changes.reduce((sum, c) => sum + c.totalTasks, 0) ?? 0)
-  const completedTasks = createMemo(() => summary()?.changes.reduce((sum, c) => sum + c.completedTasks, 0) ?? 0)
   const activeList = createMemo(() => summary()?.changes.filter((c) => !isComplete(c)) ?? [])
   const completedList = createMemo(() => summary()?.changes.filter((c) => isComplete(c)) ?? [])
-  // Resolved from the live summary so the detail views keep updating while polling.
+  // Agent mid-turn — used to disable actions and hide the reload prompt.
+  const busy = createMemo(() => {
+    const st = props.api.state.session.status(props.sessionId)
+    return st?.type === "busy" || st?.type === "retry"
+  })
+  const toastBusy = () => props.api.ui.toast({ variant: "info", message: "Wait until the agent finishes working" })
+  const disabledProps = { disabled: busy, onDisabledClick: toastBusy }
+
+  // Above the action row: none while busy/native, warn if bridged ephemerally, error if that failed.
+  const banner = createMemo<"none" | "warn" | "error">(() => {
+    if (busy() || commandsReady() === true) return "none"
+    if (ephemeralResult() === "loaded") return "warn"
+    if (ephemeralResult() === "failed") return "error"
+    return "none"
+  })
+  // Task progress across active changes (shown under the collapsed header).
+  const activeTotal = createMemo(() => activeList().reduce((sum, c) => sum + c.totalTasks, 0))
+  const activeDone = createMemo(() => activeList().reduce((sum, c) => sum + c.completedTasks, 0))
+  // Resolved from the live summary so detail views keep updating while polling.
   const selectedChange = createMemo(() => {
     const name = selected()
     return name ? (summary()?.changes.find((c) => c.name === name) ?? null) : null
@@ -134,21 +195,23 @@ export function OpenSpecSidebar(props: { api: TuiPluginApi; onDelete: (name: str
       </text>
       <Divider theme={theme} />
 
-      <Show when={initialised() === false}>
-        <NotInitialised theme={theme} onInit={initOpenSpec} />
+      {/* Hold "Initializing" (with a running dot) over everything for the whole init turn. */}
+      <Show when={setupInProgress()}>
+        <text fg={theme().textMuted}>
+          Initializing
+          <span style={{ fg: dot() === 0 ? theme().text : theme().textMuted }}>.</span>
+          <span style={{ fg: dot() === 1 ? theme().text : theme().textMuted }}>.</span>
+          <span style={{ fg: dot() === 2 ? theme().text : theme().textMuted }}>.</span>
+        </text>
       </Show>
 
-      <Show when={initialised() === true && summary()}>
+      <Show when={!setupInProgress() && initialised() === false}>
+        <NotInitialised theme={theme} onInit={initOpenSpec} {...disabledProps} />
+      </Show>
+
+      <Show when={!setupInProgress() && initialised() === true && summary()}>
         {(data) => (
           <box>
-            <text>
-              <b>
-                <span style={{ fg: theme().secondary }}>• Tasks Progress:</span>
-                <span style={{ fg: theme().text }}> {completedTasks()}/{totalTasks()}</span>
-              </b>
-            </text>
-            <ProgressBar theme={theme} done={completedTasks()} total={totalTasks()} />
-
             <Show
               when={selectedChange()}
               fallback={
@@ -159,6 +222,49 @@ export function OpenSpecSidebar(props: { api: TuiPluginApi; onDelete: (name: str
                       when={selectedSpecData()}
                       fallback={
                         <box>
+                          {/* banner: warn = ephemeral bridge active (reopen for full flow), error = it failed. */}
+                          <Show
+                            when={banner() === "error"}
+                            fallback={
+                              <box>
+                                <Show when={banner() === "warn"}>
+                                  <box paddingBottom={1}>
+                                    <text fg={theme().warning} wrapMode="word">
+                                      Reopen opencode for full OpenSpec support — commands are loaded temporarily
+                                    </text>
+                                  </box>
+                                </Show>
+                                <box flexDirection="row" gap={2}>
+                                  <Button theme={theme} label="Explore" color={theme().accent} {...disabledProps} onClick={() => void sendPrompt(props.api, "/opsx-explore ")} />
+                                  <Button theme={theme} label="Propose" color={theme().secondary} {...disabledProps} onClick={() => void sendPrompt(props.api, "/opsx-propose ")} />
+                                  <Show when={completedList().length > 0}>
+                                    {/* One completed change → archive it directly; several → let the command prompt. */}
+                                    <Button
+                                      theme={theme}
+                                      label="Archive"
+                                      color={theme().success}
+                                      {...disabledProps}
+                                      onClick={() =>
+                                        void runCommand(
+                                          props.api,
+                                          completedList().length === 1 ? `/opsx-archive ${completedList()[0].name}` : "/opsx-archive",
+                                        )
+                                      }
+                                    />
+                                  </Show>
+                                </box>
+                              </box>
+                            }
+                          >
+                            <box paddingBottom={1}>
+                              <text fg={theme().error} wrapMode="word">
+                                OpenSpec commands didn't load — reopen opencode to finish setup
+                              </text>
+                            </box>
+                            <box flexDirection="row">
+                              <Button theme={theme} label="Reload" color={theme().error} {...disabledProps} onClick={() => quitOpencode(props.api)} />
+                            </box>
+                          </Show>
                           <CollapsibleSection
                             theme={theme}
                             open={changesOpen}
@@ -166,6 +272,12 @@ export function OpenSpecSidebar(props: { api: TuiPluginApi; onDelete: (name: str
                             label="Active Changes"
                             labelColor={theme().warning}
                             count={activeList().length}
+                            collapsedSummary={
+                              <Show when={activeList().length > 0}>
+                                <text fg={theme().textMuted}>{`  ${activeDone()}/${activeTotal()} tasks done`}</text>
+                                <ProgressBar theme={theme} done={activeDone()} total={activeTotal()} />
+                              </Show>
+                            }
                           >
                             <For each={activeList()}>
                               {(change) => (
@@ -221,8 +333,13 @@ export function OpenSpecSidebar(props: { api: TuiPluginApi; onDelete: (name: str
                   theme={theme}
                   change={change()}
                   onBack={back}
-                  onCommand={(text, submit) => void sendPrompt(props.api, text, { submit })}
+                  // Apply/Update fill the prompt; Archive (submit) runs the command.
+                  onCommand={(text, submit) => {
+                    if (submit) void runCommand(props.api, text)
+                    else void sendPrompt(props.api, text)
+                  }}
                   onDelete={props.onDelete}
+                  gate={disabledProps}
                 />
               )}
             </Show>

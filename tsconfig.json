@@ -3,7 +3,7 @@
     "target": "esnext",
     "module": "esnext",
     "moduleResolution": "bundler",
-    "jsx": "react-jsx",
+    "jsx": "preserve",
     "jsxImportSource": "@opentui/solid",
     "types": ["bun"],
     "strict": true,

@@ -42,18 +42,23 @@ export function ChangeRow(props: {
   )
 }
 
+// Props that grey out prompt-submitting buttons while the agent is busy.
+type Gate = { disabled?: () => boolean; onDisabledClick?: () => void }
+
 // The Apply/Update/Delete button row for an active change. Apply/Update fill the prompt (no submit).
 function ChangeActions(props: {
   theme: Theme
   name: string
   onCommand: (text: string, submit?: boolean) => void
   onRequestDelete: () => void
+  gate: Gate
 }) {
   const theme = props.theme
   return (
     <box flexDirection="row" gap={1} paddingTop={1} paddingLeft={2}>
-      <Button theme={theme} label="Apply" color={theme().success} onClick={() => props.onCommand(`/opsx-apply ${props.name}`)} />
-      <Button theme={theme} label="Update" color={theme().warning} onClick={() => props.onCommand(`/opsx-update ${props.name}`)} />
+      <Button theme={theme} label="Apply" color={theme().success} {...props.gate} onClick={() => props.onCommand(`/opsx-apply ${props.name}`)} />
+      <Button theme={theme} label="Update" color={theme().warning} {...props.gate} onClick={() => props.onCommand(`/opsx-update ${props.name}`)} />
+      {/* Delete only opens the local confirm — safe while busy, so it stays enabled. */}
       <Button theme={theme} label="Delete" color={theme().error} onClick={props.onRequestDelete} />
     </box>
   )
@@ -64,12 +69,13 @@ function CompletedChangeActions(props: {
   theme: Theme
   name: string
   onCommand: (text: string, submit?: boolean) => void
+  gate: Gate
 }) {
   const theme = props.theme
   return (
     <box flexDirection="row" gap={1} paddingTop={1} paddingLeft={2}>
-      <Button theme={theme} label="Archive" color={theme().success} onClick={() => props.onCommand(`/opsx-archive ${props.name}`, true)} />
-      <Button theme={theme} label="Update" color={theme().warning} onClick={() => props.onCommand(`/opsx-update ${props.name}`)} />
+      <Button theme={theme} label="Archive" color={theme().success} {...props.gate} onClick={() => props.onCommand(`/opsx-archive ${props.name}`, true)} />
+      <Button theme={theme} label="Update" color={theme().warning} {...props.gate} onClick={() => props.onCommand(`/opsx-update ${props.name}`)} />
     </box>
   )
 }
@@ -104,6 +110,7 @@ export function ChangeDetail(props: {
   onBack: () => void
   onCommand: (text: string, submit?: boolean) => void
   onDelete: (name: string) => void
+  gate: Gate
 }) {
   const theme = props.theme
   const change = () => props.change
@@ -144,6 +151,7 @@ export function ChangeDetail(props: {
                 name={change().name}
                 onCommand={props.onCommand}
                 onRequestDelete={() => setConfirming(true)}
+                gate={props.gate}
               />
             }
           >
@@ -158,7 +166,7 @@ export function ChangeDetail(props: {
           </Show>
         }
       >
-        <CompletedChangeActions theme={theme} name={change().name} onCommand={props.onCommand} />
+        <CompletedChangeActions theme={theme} name={change().name} onCommand={props.onCommand} gate={props.gate} />
       </Show>
       <box paddingTop={1}>
         <For each={change().groups}>

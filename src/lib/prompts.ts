@@ -1,8 +1,8 @@
 // Prompts and commands the sidebar submits to the model. Kept text-only so they're easy to tweak.
 // The multi-line ones are arrays joined with "\n" so the ``` fences inside don't end a template literal.
 
-// The shell command that installs OpenSpec + the opencode command/skill tooling.
-export const OPENSPEC_INIT_CMD = `npx -y @fission-ai/openspec@latest init --tools opencode`
+// Scaffolds openspec/ + the opencode /opsx-* commands and skills (CLI must be on PATH — see preflight).
+export const OPENSPEC_INIT_CMD = `openspec init --tools opencode`
 
 // `/opsx-config`: infer stack/language/context and write them into openspec/config.yaml, so every
 // OpenSpec artifact (specs, proposals, …) is generated with that context and in the chosen language.
@@ -13,9 +13,10 @@ export const CONFIG_PROMPT = [
   "",
   "1. Read `openspec/config.yaml`; use any existing `context`/`rules` as defaults.",
   "2. Skim the README and package manifests (package.json, pyproject.toml, go.mod, Cargo.toml). Your AGENTS.md context is already loaded. Infer: tech stack, the language the docs are written in, a 2-4 sentence project summary, and a fitting writing style.",
+  "   - If the project is empty or new (no code, README or manifests to read), treat the context as unknown and go straight to step 3 with no pre-filled suggestions — the user provides everything there. Do NOT offer to create or pick a different project.",
   "3. Ask with the `question` tool (one call):",
   '   - "Stack" (multi-select): the tech stack. Offer the stack you detected as one option.',
-  '   - "Language" (single): language to write specs in. Offer the detected language and "English".',
+  '   - "Language" (single): the natural (human) language the specs are written in. NEVER propose a programming or markup languages. Offer the language detected from the docs and "English".',
   '   - "Context" (multi-select): a 2-4 sentence project summary. Offer your summary as one option.',
   '   - "Style" (single): "Technical", "Product", or "Balanced".',
   '   On multi-select, the user may tick your option, tick it and add more via "Type your own answer", or type their own. Merge what they pick and type.',
@@ -98,13 +99,25 @@ export const SPEC_BASELINE_PROMPT = [
   SPEC_DERIVE_PROMPT,
 ].join("\n")
 
-// Init button: install OpenSpec, always set up config, then optionally derive specs.
+// Preflight for the Init button: ensure the `openspec` CLI is available — the generated /opsx-*
+// commands shell out to it — installing it globally with the user's chosen package manager if it is
+// missing, then run init. A `npx` one-shot would not leave the CLI on PATH for later commands.
+const OPENSPEC_INIT_PREFLIGHT = [
+  "Set up OpenSpec in this project. First ensure the `openspec` CLI is available — the generated commands shell out to it.",
+  "",
+  "1. Run `openspec --version`. If it succeeds, the CLI is installed — skip to step 5.",
+  "2. If it is missing, detect which package managers exist: run `npm -v`, `pnpm -v`, `yarn -v`, `bun --version` and keep the ones that succeed.",
+  '3. Ask with the `question` tool (single-select), header "Install": "The OpenSpec CLI is required but not installed. It will be installed globally. Choose a package manager:". Offer one option per detected manager, plus "Cancel". If the user picks "Cancel", stop immediately and do nothing else.',
+  "4. Install `@fission-ai/openspec@latest` globally using the chosen package manager (npm: `install -g`, pnpm/bun: `add -g`, yarn: `global add`).",
+  `5. Run \`${OPENSPEC_INIT_CMD}\`. If it fails, report the error and stop.`,
+].join("\n")
+
+// Init button: ensure the CLI + init, always set up config, then optionally derive specs.
 export const OPENSPEC_INIT_PROMPT = [
-  `run "${OPENSPEC_INIT_CMD}"`,
+  OPENSPEC_INIT_PREFLIGHT,
+  "6. Once init succeeds, always continue with the steps below — do not stop and do not skip Step 1.",
   "",
-  "If init fails, report the error and stop.",
-  "",
-  "Step 1 — Config (always). Set up openspec/config.yaml:",
+  "Step 1 — Config (always, do this first). Set up openspec/config.yaml:",
   "",
   CONFIG_PROMPT,
   "",
@@ -112,7 +125,13 @@ export const OPENSPEC_INIT_PROMPT = [
   'If "No", stop. If "Yes", do this:',
   "",
   SPEC_DERIVE_PROMPT,
+  "",
+  "Finally, once setup is done:",
+  '- If the project was empty and no specs were derived, tell the user exactly (two lines):',
+  '  project directory is empty, so no specs were derived. When you\'re ready to implement features, run:',
+  '  /opsx-propose "describe the feature to implement"',
+  "- Otherwise, invite them to create their first change proposal with `/opsx-propose <describe the feature to implement>`.",
 ].join("\n")
 
-// Fallback when `/opsx-baseline` failed to register: just run the installer, no follow-up to offer.
-export const OPENSPEC_INIT_ONLY_PROMPT = `run "${OPENSPEC_INIT_CMD}"`
+// Fallback when `/opsx-baseline` failed to register: just ensure the CLI + init, no follow-up.
+export const OPENSPEC_INIT_ONLY_PROMPT = OPENSPEC_INIT_PREFLIGHT

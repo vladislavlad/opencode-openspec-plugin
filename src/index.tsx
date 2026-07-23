@@ -25,8 +25,15 @@ const tui: TuiPlugin = async (api) => {
   api.slots.register({
     order: 600,
     slots: {
-      sidebar_content() {
-        return <OpenSpecSidebar api={api} onDelete={(name) => void deleteChange(api, name)} baselineAvailable={baselineAvailable} />
+      sidebar_content(_ctx, value) {
+        return (
+          <OpenSpecSidebar
+            api={api}
+            sessionId={value.session_id}
+            onDelete={(name) => void deleteChange(api, name)}
+            baselineAvailable={baselineAvailable}
+          />
+        )
       },
     },
   })

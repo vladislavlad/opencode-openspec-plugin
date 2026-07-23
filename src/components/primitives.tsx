@@ -1,9 +1,8 @@
 import { createSignal, For, Show, type JSX } from "solid-js"
-import type { Theme } from "../lib/theme"
+import type { Color, Theme } from "../lib/theme"
 
-// Progress bar for `done`/`total`; renders nothing when there are no tasks. `muted` overrides the
-// dim colour (used on hover so the whole row lights up).
-export function ProgressBar(props: { theme: Theme; done: number; total: number; muted?: string }) {
+// Progress bar for `done`/`total`; nothing when there are no tasks. `muted` overrides the dim colour.
+export function ProgressBar(props: { theme: Theme; done: number; total: number; muted?: Color }) {
   const percent = () => Math.round((props.done / props.total) * 100)
   const filled = () => Math.round((props.done / props.total) * 24)
   const muted = () => props.muted ?? props.theme().textMuted
@@ -18,19 +17,31 @@ export function ProgressBar(props: { theme: Theme; done: number; total: number; 
   )
 }
 
-// A small clickable button; fills its background with `color` on hover.
-export function Button(props: { theme: Theme; label: string; color: string; onClick: () => void }) {
+// Clickable button; fills its background with `color` on hover. `disabled` renders it muted and
+// routes clicks to `onDisabledClick` (used to block actions while the agent is busy).
+export function Button(props: {
+  theme: Theme
+  label: string
+  color: Color
+  onClick: () => void
+  disabled?: () => boolean
+  onDisabledClick?: () => void
+}) {
   const [hover, setHover] = createSignal(false)
+  const theme = props.theme
+  const disabled = () => props.disabled?.() ?? false
   return (
     <box
       paddingLeft={1}
       paddingRight={1}
-      backgroundColor={hover() ? props.color : undefined}
-      onMouseDown={props.onClick}
+      backgroundColor={hover() ? (disabled() ? theme().textMuted : props.color) : undefined}
+      onMouseDown={() => (disabled() ? props.onDisabledClick?.() : props.onClick())}
       onMouseOver={() => setHover(true)}
       onMouseOut={() => setHover(false)}
     >
-      <text fg={hover() ? props.theme().background : props.color}>{props.label}</text>
+      <text fg={hover() ? (disabled() ? theme().text : theme().background) : disabled() ? theme().textMuted : props.color}>
+        {props.label}
+      </text>
     </box>
   )
 }
@@ -79,9 +90,8 @@ function splitShall(line: string): { text: string; keyword: boolean }[] {
   return parts.length ? parts : [{ text: line || " ", keyword: false }]
 }
 
-// Renders a `\n`-joined block as stacked word-wrapped rows; blank lines become spacers, and every
-// `SHALL` keyword is highlighted in accent.
-export function Paragraph(props: { theme: Theme; text: string; fg?: string }) {
+// Renders `\n`-joined text as stacked word-wrapped rows; highlights the `SHALL` keyword in accent.
+export function Paragraph(props: { theme: Theme; text: string; fg?: Color }) {
   const theme = props.theme
   const base = () => props.fg ?? theme().text
   return (
@@ -105,9 +115,11 @@ export function CollapsibleSection(props: {
   open: () => boolean
   onToggle: () => void
   label: string
-  labelColor: string
+  labelColor: Color
   count: number
   children: JSX.Element
+  // Optional preview rendered under the header while the section is collapsed.
+  collapsedSummary?: JSX.Element
 }) {
   const theme = props.theme
   return (
@@ -121,7 +133,7 @@ export function CollapsibleSection(props: {
           </b>
         </text>
       </box>
-      <Show when={props.open()}>
+      <Show when={props.open()} fallback={props.collapsedSummary}>
         <Divider theme={theme} />
         {props.children}
       </Show>
@@ -130,7 +142,12 @@ export function CollapsibleSection(props: {
 }
 
 // Shown when the project has no openspec/ dir or is missing the opencode tooling.
-export function NotInitialised(props: { theme: Theme; onInit: () => void }) {
+export function NotInitialised(props: {
+  theme: Theme
+  onInit: () => void
+  disabled?: () => boolean
+  onDisabledClick?: () => void
+}) {
   const theme = props.theme
   return (
     <box>
@@ -140,7 +157,14 @@ export function NotInitialised(props: { theme: Theme; onInit: () => void }) {
         </text>
       </box>
       <box flexDirection="row" paddingTop={1}>
-        <Button theme={theme} label="Init" color={theme().secondary} onClick={props.onInit} />
+        <Button
+          theme={theme}
+          label="Init"
+          color={theme().secondary}
+          disabled={props.disabled}
+          onDisabledClick={props.onDisabledClick}
+          onClick={props.onInit}
+        />
       </box>
     </box>
   )

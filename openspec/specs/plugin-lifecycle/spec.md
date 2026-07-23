@@ -18,8 +18,8 @@
 - **THEN** метод `api.slots.register` вызван один раз с параметром `{ order: 600, slots: { sidebar_content } }`
 
 #### Scenario: Слот возвращает компонент боковой панели
-- **WHEN** зарегистрированный слот `sidebar_content` вызывается
-- **THEN** возвращается JSX-компонент `<OpenSpecSidebar>` с пропсами `api`, `onDelete` и `baselineAvailable`
+- **WHEN** зарегистрированный слот `sidebar_content` вызывается с контекстом слота
+- **THEN** возвращается JSX-компонент `<OpenSpecSidebar>` с пропсами `api`, `sessionId` (из `value.session_id`), `onDelete` и `baselineAvailable`
 
 ### Requirement: Регистрация команд
 Система SHALL вызвать функцию `registerCommands(api)` при инициализации плагина для регистрации CLI-команд.
