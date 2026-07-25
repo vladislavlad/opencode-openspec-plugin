@@ -81,11 +81,57 @@
 
 #### Scenario: Кнопка Settings при hover строки
 - **WHEN** курсор находится над строкой заголовка
-- **THEN** кнопка Settings меняет цвет на `warn`
+- **THEN** кнопка Settings меняет цвет на `accent`
+
+#### Scenario: Обновление доступно — постоянный accent кнопки Settings
+- **WHEN** `pluginUpdate` или `cliUpdate` не равны `null`
+- **THEN** кнопка Settings отображается цветом `accent` независимо от hover
 
 #### Scenario: Нажатие кнопки Settings
 - **WHEN** пользователь нажимает кнопку Settings
 - **THEN** открывается экран Settings, перекрывающий текущий контент
+
+### Requirement: Баннер предупреждения о доступных обновлениях в sidebar
+Панель SHALL показывать баннер над рядом действий (Explore/Propose), если доступно обновление плагина или CLI.
+
+#### Scenario: Показ banner при наличии обновлений
+- **WHEN** `pluginUpdate` или `cliUpdate` не равны `null` и banner не dismissed
+- **THEN** отображается строка с текстом `textMuted` о доступных обновлениях, кнопкой Dismiss (`warn`) и кнопкой Settings (`accent`)
+
+#### Scenario: Скрытие banner по Dismiss
+- **WHEN** пользователь нажимает Dismiss
+- **THEN** banner скрывается до следующей перезагрузки данных или нажатия Check Versions в Settings
+
+#### Scenario: Нажатие Settings в banner
+- **WHEN** пользователь нажимает Settings в banner
+- **THEN** открывается экран Settings, banner остаётся скрытым
+
+#### Scenario: Banner не показывается при отсутствии обновлений
+- **WHEN** обновления недоступны или проверка завершилась ошибкой
+- **THEN** banner не отображается, ряд действий виден сразу
+
+### Requirement: Баннер post-update в sidebar
+Панель SHALL показывать баннер "Run checks after update" над рядом действий, если в config.yaml обнаружен флаг `plugin.update-in-progress` и новая версия совпадает с загруженной.
+
+#### Scenario: Показ banner после перезагрузки
+- **WHEN** плагин загружается, `updateFlag` содержит `{ old, new }` и `flag.new === VERSION`
+- **THEN** отображается баннер с текстом о необходимости завершения обновления и кнопкой Complete Update (`accent`)
+
+#### Scenario: Новая версия не подхватилась
+- **WHEN** `updateFlag` содержит `{ old, new }`, но `flag.new !== VERSION`
+- **THEN** вместо кнопки Complete Update показывается мягкий хинт «reopen opencode to finish update», миграции не запускаются
+
+#### Scenario: Нажатие Complete Update
+- **WHEN** пользователь нажимает Complete Update при простое агента
+- **THEN** плагин формирует промпт из миграционных инструкций для диапазона `(old, new]` и отправляет агенту напрямую; кнопки блокируются до завершения хода агента
+
+#### Scenario: Complete Update заблокирован во время работы агента
+- **WHEN** агент занят и пользователь нажимает Complete Update
+- **THEN** промпт не отправляется, показывается тост «Wait until the agent finishes working»
+
+#### Scenario: Успешное завершение миграции
+- **WHEN** агент завершил ход после Complete Update и снял `plugin.update-in-progress` из config.yaml
+- **THEN** `updateFlag` становится `null`, banner скрывается
 
 ### Requirement: Блокировка действий во время работы агента
 Панель SHALL блокировать кнопки-действия, отправляющие промпт, пока агент занят, и сообщать причину.
