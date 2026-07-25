@@ -51,24 +51,36 @@ export function Divider(props: { theme: Theme }) {
   return <text fg={props.theme().borderSubtle}>─────────────────────────────────────</text>
 }
 
+// Navigation "← back" button. Accent text; on hover fills accent with the text flipped to the
+// background colour, plus 1-char side padding — matching the look of Button. Reused everywhere a
+// detail or settings view offers a way back.
+export function BackButton(props: { theme: Theme; onBack: () => void }) {
+  const [hover, setHover] = createSignal(false)
+  const t = props.theme
+  return (
+    <box
+      paddingLeft={1}
+      paddingRight={1}
+      backgroundColor={hover() ? t().accent : undefined}
+      onMouseDown={props.onBack}
+      onMouseOver={() => setHover(true)}
+      onMouseOut={() => setHover(false)}
+    >
+      <text fg={hover() ? t().background : t().accent}>← back</text>
+    </box>
+  )
+}
+
 // A detail-view header: bold accent label on the left, a clickable "← back" on the right.
 export function DetailHeader(props: { theme: Theme; label: string; onBack: () => void }) {
   const theme = props.theme
-  const [backHover, setBackHover] = createSignal(false)
   return (
     <box paddingTop={1}>
       <box flexDirection="row" justifyContent="space-between">
         <text fg={theme().accent}>
           <b>{props.label}</b>
         </text>
-        <box
-          backgroundColor={backHover() ? theme().textMuted : undefined}
-          onMouseDown={props.onBack}
-          onMouseOver={() => setBackHover(true)}
-          onMouseOut={() => setBackHover(false)}
-        >
-          <text fg={theme().accent}>← back</text>
-        </box>
+        <BackButton theme={theme} onBack={props.onBack} />
       </box>
       <Divider theme={theme} />
     </box>

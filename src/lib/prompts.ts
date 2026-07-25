@@ -1,6 +1,8 @@
 // Prompts and commands the sidebar submits to the model. Kept text-only so they're easy to tweak.
 // The multi-line ones are arrays joined with "\n" so the ``` fences inside don't end a template literal.
 
+import { CLI_PKG } from "./updates"
+
 // Scaffolds openspec/ + the opencode /opsx-* commands and skills (CLI must be on PATH — see preflight).
 export const OPENSPEC_INIT_CMD = `openspec init --tools opencode`
 
@@ -135,3 +137,47 @@ export const OPENSPEC_INIT_PROMPT = [
 
 // Fallback when `/opsx-baseline` failed to register: just ensure the CLI + init, no follow-up.
 export const OPENSPEC_INIT_ONLY_PROMPT = OPENSPEC_INIT_PREFLIGHT
+
+// Which components an update turn should touch. Plugin carries `current` so the agent can stamp the
+// migration flag; CLI only needs the target version. Fields are independent — Update All sets both.
+export interface UpdateTargets {
+  plugin?: { current: string; next: string }
+  cli?: { next: string }
+}
+
+const PLUGIN_PKG = "@vladislavlad/opencode-openspec-plugin"
+
+// The update prompt sent straight to the agent (no palette command). Composed from self-contained
+// blocks: the plugin is bumped by editing its `tui.json` specifier (opencode reinstalls on restart),
+// the CLI by a global npm install + `openspec update`. Only the plugin block writes the migration
+// flag. Reload is asked once, at the end. Passing both targets is how Update All works.
+export function buildUpdatePrompt(t: UpdateTargets): string {
+  const parts = ["Update the OpenSpec tooling as described below. Do ONLY the steps listed — do not touch anything else."]
+  if (t.plugin) {
+    parts.push(
+      "",
+      "## Update the plugin",
+      `1. Find the \`tui.json\` that registers this plugin — check \`<project>/.opencode/tui.json\` first, then \`~/.config/opencode/tui.json\`. Its \`"plugin"\` array contains \`"${PLUGIN_PKG}"\` (optionally with a \`@version\` suffix). The entry may be a plain string or a \`["${PLUGIN_PKG}", { …options }]\` tuple — edit the string part.`,
+      `   - If that entry is a local filesystem path (e.g. it ends in \`dist/index.js\`), this is a dev checkout: SKIP the plugin update and tell me so.`,
+      `2. Set the specifier to \`"${PLUGIN_PKG}@${t.plugin.next}"\`.`,
+      "3. In `openspec/config.yaml`, add this block (keep `schema`, `context`, `rules` intact):",
+      "```yaml",
+      "plugin:",
+      "  update-in-progress:",
+      `    old: ${t.plugin.current}`,
+      `    new: ${t.plugin.next}`,
+      "```",
+    )
+  }
+  if (t.cli) {
+    parts.push(
+      "",
+      "## Update the openspec CLI",
+      "1. Detect which package manager owns the global `openspec` binary (`npm -v`, `pnpm -v`, `yarn -v`, `bun --version`) and install the new version globally:",
+      `   npm: \`npm i -g ${CLI_PKG}@${t.cli.next}\` · pnpm/bun: \`add -g\` · yarn: \`global add\`.`,
+      "2. Run `openspec update --force` to regenerate the `.opencode` commands and skills.",
+    )
+  }
+  parts.push("", "## Finally", "Tell me to reopen opencode to apply the update.")
+  return parts.join("\n")
+}

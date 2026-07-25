@@ -1,7 +1,7 @@
 import { createSignal, For, Show } from "solid-js"
 import { isComplete, isGroupComplete, type OpenSpecChange } from "../lib/openspec"
 import type { Theme } from "../lib/theme"
-import { Button, ProgressBar } from "./primitives"
+import { BackButton, Button, ProgressBar } from "./primitives"
 
 // A single change row in the Active/Completed lists; hover highlight + click to open.
 export function ChangeRow(props: {
@@ -114,7 +114,6 @@ export function ChangeDetail(props: {
 }) {
   const theme = props.theme
   const change = () => props.change
-  const [backHover, setBackHover] = createSignal(false)
   const [confirming, setConfirming] = createSignal(false)
   return (
     <box>
@@ -123,14 +122,7 @@ export function ChangeDetail(props: {
           <text fg={isComplete(change()) ? theme().success : theme().warning}>
             <b>{isComplete(change()) ? "Completed Change" : "Active Change"}</b>
           </text>
-          <box
-            backgroundColor={backHover() ? theme().textMuted : undefined}
-            onMouseDown={props.onBack}
-            onMouseOver={() => setBackHover(true)}
-            onMouseOut={() => setBackHover(false)}
-          >
-            <text fg={theme().accent}>← back</text>
-          </box>
+          <BackButton theme={theme} onBack={props.onBack} />
         </box>
         <text fg={theme().borderSubtle}>─────────────────────────────────────</text>
       </box>

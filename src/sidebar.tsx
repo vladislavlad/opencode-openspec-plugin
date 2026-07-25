@@ -2,26 +2,40 @@ import { createEffect, createMemo, createSignal, For, onCleanup, Show } from "so
 import type { TuiPluginApi } from "@opencode-ai/plugin/tui"
 import type { Theme } from "./lib/theme"
 import { hasOpenSpecTooling, isComplete, readOpenSpec, summaryEquals, type FileClient, type OpenSpecSummary } from "./lib/openspec"
-import { OPENSPEC_INIT_ONLY_PROMPT, OPENSPEC_INIT_PROMPT } from "./lib/prompts"
+import { OPENSPEC_INIT_ONLY_PROMPT, OPENSPEC_INIT_PROMPT, buildUpdatePrompt, type UpdateTargets } from "./lib/prompts"
+import { checkVersions, readUpdateFlag, type Update, type UpdateFlag } from "./lib/updates"
+import { buildMigrationPrompt } from "./lib/migrations"
 import { quitOpencode, runCommand, sendPrompt } from "./lib/send-prompt"
 import { registerOpsxFsCommands } from "./features/commands"
-import { Button, CollapsibleSection, Divider, NotInitialised, ProgressBar } from "./components/primitives"
+import { BackButton, Button, CollapsibleSection, Divider, NotInitialised, ProgressBar } from "./components/primitives"
 import { ChangeDetail, ChangeRow } from "./components/changes"
 import { RequirementDetail, SpecDetail, SpecRow } from "./components/specs"
 import { SettingsView } from "./components/settings"
 import { VERSION } from "./lib/version"
 
-// Back button in the header row when Settings is open (same style as DetailHeader).
-function HeaderBack(props: { onBack: () => void; theme: Theme }) {
-  const [hover, setHover] = createSignal(false)
+// Banner above the action row when an update is available: a muted line + Dismiss / Settings.
+function UpdateBanner(props: {
+  theme: Theme
+  pluginUpdate: () => Update | null
+  cliUpdate: () => Update | null
+  onDismiss: () => void
+  onSettings: () => void
+}) {
+  const t = props.theme
+  const summary = () => {
+    const parts: string[] = []
+    if (props.pluginUpdate()) parts.push("plugin")
+    if (props.cliUpdate()) parts.push("openspec CLI")
+    return parts.join(" and ")
+  }
   return (
-    <box
-      backgroundColor={hover() ? props.theme().textMuted : undefined}
-      onMouseDown={props.onBack}
-      onMouseOver={() => setHover(true)}
-      onMouseOut={() => setHover(false)}
-    >
-      <text fg={props.theme().accent}>← back</text>
+    <box paddingBottom={1}>
+      <text fg={t().textMuted} wrapMode="word">{`Update available for ${summary()}`}</text>
+      <box flexDirection="row" gap={2} paddingTop={1}>
+        <Button theme={t} label="Settings" color={t().accent} onClick={props.onSettings} />
+        <Button theme={t} label="Dismiss" color={t().warning} onClick={props.onDismiss} />
+      </box>
+      <Divider theme={t} />
     </box>
   )
 }
@@ -47,7 +61,15 @@ export function OpenSpecSidebar(props: { api: TuiPluginApi; sessionId: string; o
   const [showSettings, setShowSettings] = createSignal(false)
   const [headerHover, setHeaderHover] = createSignal(false)
   const [dot, setDot] = createSignal(0) // 0..2 — which of the "Initializing" dots is lit
+  // Version tracking: current CLI version + pending updates, the post-update flag, and banner state.
+  const [pluginUpdate, setPluginUpdate] = createSignal<Update | null>(null)
+  const [cliUpdate, setCliUpdate] = createSignal<Update | null>(null)
+  const [cliCurrent, setCliCurrent] = createSignal<string | null>(null)
+  const [updateFlag, setUpdateFlag] = createSignal<UpdateFlag | null>(null)
+  const [bannerDismissed, setBannerDismissed] = createSignal(false)
+  const [reloadPending, setReloadPending] = createSignal(false)
   let pendingEphemeral = false // register the /opsx-* files once the init turn ends
+  let pendingReload = false // show the reload prompt once an update turn ends
 
   // After the init turn the /opsx-* files are on disk; register them ephemerally. Warn on success,
   // reload prompt on failure.
@@ -103,6 +125,36 @@ export function OpenSpecSidebar(props: { api: TuiPluginApi; sessionId: string; o
     read: (path) => props.api.client.file.read({ path }).then((r) => r?.data?.content ?? ""),
   }
 
+  // Hit the npm registry once (per directory / manual Check Versions) — not on every poll. A fresh
+  // check re-shows a previously dismissed banner.
+  // `notify` toasts the outcome — used by the manual Check Versions button, not the silent auto-check.
+  // Available updates aren't toasted: they surface in the banner / Settings rows instead.
+  const runVersionCheck = async (notify = false) => {
+    const s = await checkVersions(client)
+    setCliCurrent(s.cliCurrent)
+    setPluginUpdate(s.plugin)
+    setCliUpdate(s.cli)
+    setBannerDismissed(false)
+    if (!notify) return
+    if (!s.reachable) props.api.ui.toast({ variant: "warning", message: "Couldn't reach npm registry" })
+    else if (!s.plugin && !s.cli) props.api.ui.toast({ variant: "success", message: "All versions are up to date" })
+  }
+  const updateAvailable = createMemo(() => pluginUpdate() != null || cliUpdate() != null)
+
+  // Update / Update All / Complete Update: build the prompt and hand a real turn to the agent (same
+  // pattern as Init). All are blocked while the agent is busy.
+  const sendUpdate = (targets: UpdateTargets) => {
+    if (busy()) return void toastBusy()
+    pendingReload = true
+    void sendPrompt(props.api, buildUpdatePrompt(targets), { clear: true, submit: true })
+  }
+  const completeUpdate = () => {
+    const f = updateFlag()
+    if (!f) return
+    if (busy()) return void toastBusy()
+    void sendPrompt(props.api, buildMigrationPrompt(f), { clear: true, submit: true })
+  }
+
   let loading = false
   async function load() {
     if (loading) return
@@ -111,6 +163,8 @@ export function OpenSpecSidebar(props: { api: TuiPluginApi; sessionId: string; o
       const s = await readOpenSpec(client)
       setSummary(s)
       setInitialised(s !== null && (await hasOpenSpecTooling(client)))
+      // Cheap file read every poll so the post-update banner clears once the agent removes the flag.
+      setUpdateFlag(await readUpdateFlag(client))
       // Are the init commands actually loaded? Stay optimistic on a fetch error.
       const cmds = await props.api.client.command
         .list()
@@ -129,6 +183,7 @@ export function OpenSpecSidebar(props: { api: TuiPluginApi; sessionId: string; o
     const dir = props.api.state.path.directory
     if (!dir) return
     void load()
+    void runVersionCheck() // once per directory, off the render path
     const id = setInterval(load, 3000)
     onCleanup(() => clearInterval(id)) // createEffect's return value isn't a cleanup; clear here so intervals don't stack
   })
@@ -151,6 +206,10 @@ export function OpenSpecSidebar(props: { api: TuiPluginApi; sessionId: string; o
       if (pendingEphemeral) {
         pendingEphemeral = false
         void installEphemeral()
+      }
+      if (pendingReload) {
+        pendingReload = false
+        setReloadPending(true)
       }
     }
   })
@@ -222,8 +281,13 @@ export function OpenSpecSidebar(props: { api: TuiPluginApi; sessionId: string; o
             {" "}<span style={{ fg: theme().textMuted }}>{VERSION}</span>
           </Show>
         </text>
-        <Show when={!showSettings()} fallback={<HeaderBack theme={theme} onBack={() => setShowSettings(false)} />}>
-          <Button theme={theme} label="Settings" color={headerHover() ? theme().warning : theme().textMuted} onClick={() => setShowSettings(true)} />
+        <Show when={!showSettings()} fallback={<BackButton theme={theme} onBack={() => setShowSettings(false)} />}>
+          <Button
+            theme={theme}
+            label="Settings"
+            color={updateAvailable() || headerHover() ? theme().accent : theme().textMuted}
+            onClick={() => setShowSettings(true)}
+          />
         </Show>
       </box>
       <Divider theme={theme} />
@@ -239,7 +303,17 @@ export function OpenSpecSidebar(props: { api: TuiPluginApi; sessionId: string; o
       </Show>
 
       <Show when={showSettings()}>
-        <SettingsView theme={theme} />
+        <SettingsView
+          theme={theme}
+          cliCurrent={cliCurrent}
+          pluginUpdate={pluginUpdate}
+          cliUpdate={cliUpdate}
+          onCheck={() => void runVersionCheck(true)}
+          onUpdate={sendUpdate}
+          reloadPending={reloadPending}
+          onReload={() => quitOpencode(props.api)}
+          gate={disabledProps}
+        />
       </Show>
 
       <Show when={!setupInProgress() && !showSettings() && initialised() === false}>
@@ -259,6 +333,41 @@ export function OpenSpecSidebar(props: { api: TuiPluginApi; sessionId: string; o
                       when={selectedSpecData()}
                       fallback={
                         <box>
+                          {/* Update available → banner over the actions; Settings button already turns accent. */}
+                          <Show when={updateAvailable() && !bannerDismissed()}>
+                            <UpdateBanner
+                              theme={theme}
+                              pluginUpdate={pluginUpdate}
+                              cliUpdate={cliUpdate}
+                              onDismiss={() => setBannerDismissed(true)}
+                              onSettings={() => {
+                                setBannerDismissed(true)
+                                setShowSettings(true)
+                              }}
+                            />
+                          </Show>
+                          {/* Post-update: flag left by the update turn. Migrate only if the new build actually loaded. */}
+                          <Show when={updateFlag()}>
+                            {(f) => (
+                              <box paddingBottom={1}>
+                                <Show
+                                  when={f().new === VERSION}
+                                  fallback={
+                                    <text fg={theme().warning} wrapMode="word">
+                                      {`Reopen opencode to finish updating to ${f().new}`}
+                                    </text>
+                                  }
+                                >
+                                  <text fg={theme().textMuted} wrapMode="word">
+                                    Run checks after update
+                                  </text>
+                                  <box flexDirection="row" paddingTop={1}>
+                                    <Button theme={theme} label="Complete Update" color={theme().accent} {...disabledProps} onClick={completeUpdate} />
+                                  </box>
+                                </Show>
+                              </box>
+                            )}
+                          </Show>
                           {/* banner: warn = ephemeral bridge active (reopen for full flow), error = it failed. */}
                           <Show
                             when={banner() === "error"}
