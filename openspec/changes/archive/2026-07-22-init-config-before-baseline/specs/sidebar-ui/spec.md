@@ -1,7 +1,7 @@
 ## MODIFIED Requirements
 
 ### Requirement: Экран инициализации
-The sidebar SHALL display the init screen when openspec tooling is not detected in the project.
+Панель SHALL показывать экран инициализации, когда openspec-тулинг не обнаружен в проекте.
 
 #### Scenario: Показ экрана инициализации
 - **WHEN** флаг `initialised` равен `false`

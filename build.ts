@@ -1,5 +1,6 @@
 import { rmSync } from "fs"
 import { createSolidTransformPlugin } from "@opentui/solid/bun-plugin"
+import pkg from "./package.json"
 
 const outDir = "dist"
 rmSync(outDir, { recursive: true, force: true })
@@ -16,6 +17,7 @@ const result = await Bun.build({
   target: "bun",
   format: "esm",
   external: ["@opencode-ai/*", "@opentui/*", "solid-js", "solid-js/*"],
+  define: { "__PLUGIN_VERSION__": JSON.stringify(pkg.version) },
   plugins: [createSolidTransformPlugin()],
 })
 

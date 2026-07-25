@@ -1,4 +1,4 @@
-## 1. Restructure prompts in src/lib/prompts.ts
+## 1. Реструктуризация промптов в src/lib/prompts.ts
 
 - [x] 1.1 Обновить `OPENSPEC_INIT_PROMPT`: после успешного init всегда запускать config setup (через CONFIG_PROMPT), затем спрашивать про derivation specs
 - [x] 1.2 Упростить `SPEC_BASELINE_PROMPT`: убрать встроенный config, оставить только SPEC_DERIVE_PROMPT; добавить проверку наличия config.yaml в начале

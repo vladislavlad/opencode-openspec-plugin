@@ -1,5 +1,6 @@
 import { createEffect, createMemo, createSignal, For, onCleanup, Show } from "solid-js"
 import type { TuiPluginApi } from "@opencode-ai/plugin/tui"
+import type { Theme } from "./lib/theme"
 import { hasOpenSpecTooling, isComplete, readOpenSpec, summaryEquals, type FileClient, type OpenSpecSummary } from "./lib/openspec"
 import { OPENSPEC_INIT_ONLY_PROMPT, OPENSPEC_INIT_PROMPT } from "./lib/prompts"
 import { quitOpencode, runCommand, sendPrompt } from "./lib/send-prompt"
@@ -7,6 +8,23 @@ import { registerOpsxFsCommands } from "./features/commands"
 import { Button, CollapsibleSection, Divider, NotInitialised, ProgressBar } from "./components/primitives"
 import { ChangeDetail, ChangeRow } from "./components/changes"
 import { RequirementDetail, SpecDetail, SpecRow } from "./components/specs"
+import { SettingsView } from "./components/settings"
+import { VERSION } from "./lib/version"
+
+// Back button in the header row when Settings is open (same style as DetailHeader).
+function HeaderBack(props: { onBack: () => void; theme: Theme }) {
+  const [hover, setHover] = createSignal(false)
+  return (
+    <box
+      backgroundColor={hover() ? props.theme().textMuted : undefined}
+      onMouseDown={props.onBack}
+      onMouseOver={() => setHover(true)}
+      onMouseOut={() => setHover(false)}
+    >
+      <text fg={props.theme().accent}>← back</text>
+    </box>
+  )
+}
 
 // The sidebar root: polls the openspec dir and renders the list or a drill-in detail view.
 export function OpenSpecSidebar(props: { api: TuiPluginApi; sessionId: string; onDelete: (name: string) => void; baselineAvailable: boolean }) {
@@ -26,6 +44,8 @@ export function OpenSpecSidebar(props: { api: TuiPluginApi; sessionId: string; o
   // Init pressed; hold "Initializing…" until the agent goes idle.
   const [setupInProgress, setSetupInProgress] = createSignal(false)
   const [ephemeralResult, setEphemeralResult] = createSignal<"idle" | "loaded" | "failed">("idle")
+  const [showSettings, setShowSettings] = createSignal(false)
+  const [headerHover, setHeaderHover] = createSignal(false)
   const [dot, setDot] = createSignal(0) // 0..2 — which of the "Initializing" dots is lit
   let pendingEphemeral = false // register the /opsx-* files once the init turn ends
 
@@ -190,9 +210,22 @@ export function OpenSpecSidebar(props: { api: TuiPluginApi; sessionId: string; o
 
   return (
     <box>
-      <text fg={theme().text}>
-        <b>OpenSpec</b>
-      </text>
+      <box
+        flexDirection="row"
+        justifyContent="space-between"
+        onMouseOver={() => setHeaderHover(true)}
+        onMouseOut={() => setHeaderHover(false)}
+      >
+        <text fg={theme().text}>
+          <b>OpenSpec</b>
+          <Show when={headerHover()}>
+            {" "}<span style={{ fg: theme().textMuted }}>{VERSION}</span>
+          </Show>
+        </text>
+        <Show when={!showSettings()} fallback={<HeaderBack theme={theme} onBack={() => setShowSettings(false)} />}>
+          <Button theme={theme} label="Settings" color={headerHover() ? theme().warning : theme().textMuted} onClick={() => setShowSettings(true)} />
+        </Show>
+      </box>
       <Divider theme={theme} />
 
       {/* Hold "Initializing" (with a running dot) over everything for the whole init turn. */}
@@ -205,11 +238,15 @@ export function OpenSpecSidebar(props: { api: TuiPluginApi; sessionId: string; o
         </text>
       </Show>
 
-      <Show when={!setupInProgress() && initialised() === false}>
+      <Show when={showSettings()}>
+        <SettingsView theme={theme} />
+      </Show>
+
+      <Show when={!setupInProgress() && !showSettings() && initialised() === false}>
         <NotInitialised theme={theme} onInit={initOpenSpec} {...disabledProps} />
       </Show>
 
-      <Show when={!setupInProgress() && initialised() === true && summary()}>
+      <Show when={!setupInProgress() && !showSettings() && initialised() === true && summary()}>
         {(data) => (
           <box>
             <Show
