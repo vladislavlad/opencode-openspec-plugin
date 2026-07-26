@@ -21,8 +21,9 @@ export function recordVersion(api: TuiPluginApi) {
 
 // The range to migrate, or null when there's nothing to do: no record yet (we don't know where the
 // user came from, so replaying every release note would be made up), the same version, or a
-// downgrade — migrations only apply forwards. A dev checkout has no numeric VERSION, so it never
-// produces a range, which is what we want.
+// downgrade — migrations only apply forwards. This fires in a dev checkout as well: `build.ts` bakes
+// the `package.json` version into every build, so a version bump plus a rebuild is indistinguishable
+// from an update — which is right, that's what it is.
 export function pendingVersionRange(last: string | null, current = VERSION): VersionRange | null {
   return last && semverGt(current, last) ? { old: last, new: current } : null
 }

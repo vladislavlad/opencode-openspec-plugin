@@ -1,80 +1,40 @@
 import { createEffect, createMemo, createSignal, For, Match, onCleanup, Show, Switch } from "solid-js"
 import type { TuiPluginApi } from "@opencode-ai/plugin/tui"
-import type { Theme } from "./lib/theme"
 import { hasOpenSpecTooling, isComplete, readOpenSpec, summaryEquals, type FileClient, type OpenSpecSummary } from "./lib/openspec"
-import { INIT_STAGES, clearInitMarker, readPluginState, writeInitMarker, type InitStage, type InitState, type UpdateFlag } from "./lib/config"
-import {
-  INIT_DISMISS_PROMPT,
-  buildInitOnlyPrompt,
-  buildInitPrompt,
-  buildUpdatePrompt,
-  type UpdateTargets,
-} from "./lib/prompts"
+import { clearInitMarker, readPluginState, writeInitMarker, type InitStage, type PluginState } from "./lib/config"
+import { INIT_DISMISS_PROMPT, buildInitOnlyPrompt, buildInitPrompt } from "./lib/init-prompts"
+import { buildUpdatePrompt, type UpdateTargets } from "./lib/update-prompt"
 import { checkVersions, type Update } from "./lib/updates"
 import { buildMigrationPrompt, hasMigrations } from "./lib/migrations"
 import { decideMigration, readLastVersion, recordVersion } from "./lib/version-history"
 import { deleteChange } from "./lib/delete-change"
 import { quitOpencode, sendPrompt, submitPrompt } from "./lib/send-prompt"
 import { registerOpsxFsCommands } from "./features/commands"
-import { BackButton, Button, CollapsibleSection, Divider, NotInitialised, ProgressBar, type Gate } from "./components/primitives"
+import { BackButton, Button, CollapsibleSection, Divider, ProgressBar, type Gate } from "./components/primitives"
 import { ChangeDetail, ChangeRow } from "./components/changes"
 import { RequirementDetail, SpecDetail, SpecRow } from "./components/specs"
 import { SearchField } from "./components/search"
 import { SettingsView } from "./components/settings"
+import {
+  EphemeralReloadBanner,
+  InitBanner,
+  InitScreen,
+  InitStatus,
+  ephemeralBanner,
+  initIncomplete,
+  needsInit as needsInitDecision,
+  setupStage,
+  type EphemeralResult,
+} from "./components/init-flow"
+import { PostUpdateBanner, UpdateBanner } from "./components/update-flow"
 import { searchSpecs } from "./lib/search"
 import { VERSION } from "./lib/version"
 
-// What the status line says while a stage runs, and what the banner says if it stopped there.
-const SETUP_LABELS: Record<InitStage | "validate", { phase: string; stopped: string }> = {
-  tooling: { phase: "Installing OpenSpec", stopped: "while installing OpenSpec" },
-  config: { phase: "Configuring project", stopped: "while configuring the project" },
-  specs: { phase: "Deriving specs", stopped: "while deriving specs" },
-  validate: { phase: "Validating specs", stopped: "while validating specs" },
-}
+const NO_PLUGIN_STATE: PluginState = { update: null, init: { inProgress: false, done: [] } }
 
-// Banner above the action row when an update is available.
-function UpdateBanner(props: {
-  theme: Theme
-  pluginUpdate: () => Update | null
-  cliUpdate: () => Update | null
-  onDismiss: () => void
-  onSettings: () => void
-}) {
-  const t = props.theme
-  const summary = () => {
-    const parts: string[] = []
-    if (props.pluginUpdate()) parts.push("plugin")
-    if (props.cliUpdate()) parts.push("openspec CLI")
-    return parts.join(" and ")
-  }
-  return (
-    <box paddingBottom={1}>
-      <text fg={t().textMuted} wrapMode="word">{`Update available for ${summary()}`}</text>
-      <box flexDirection="row" gap={2} paddingTop={1}>
-        <Button theme={t} label="Settings" color={t().accent} onClick={props.onSettings} />
-        <Button theme={t} label="Dismiss" color={t().warning} onClick={props.onDismiss} />
-      </box>
-      <Divider theme={t} />
-    </box>
-  )
-}
-
-// Shown when config.yaml still carries the init marker but no turn is running — setup was interrupted.
-function InitBanner(props: { theme: Theme; stoppedAt: () => string; onResume: () => void; onDismiss: () => void; gate: Gate }) {
-  const t = props.theme
-  return (
-    <box paddingBottom={1}>
-      <text fg={t().warning} wrapMode="word">{`Initialization stopped ${props.stoppedAt()}`}</text>
-      <box flexDirection="row" gap={2} paddingTop={1}>
-        <Button theme={t} label="Resume" color={t().secondary} {...props.gate} onClick={props.onResume} />
-        <Button theme={t} label="Dismiss" color={t().warning} onClick={props.onDismiss} />
-      </box>
-      <Divider theme={t} />
-    </box>
-  )
-}
-
-// The sidebar root: polls the openspec dir and renders the list or a drill-in detail view.
+// The sidebar root: owns the single poll, every signal and the agent's busy state, and renders the
+// list or a drill-in detail view. The setup and update flows get their values from here — they never
+// poll or subscribe on their own.
 export function OpenSpecSidebar(props: { api: TuiPluginApi; sessionId: string; baselineAvailable: boolean }) {
   const theme = () => props.api.theme.current
   const [summary, setSummary] = createSignal<OpenSpecSummary | null>(null, { equals: summaryEquals })
@@ -93,18 +53,18 @@ export function OpenSpecSidebar(props: { api: TuiPluginApi; sessionId: string; b
   // Init pressed; hold the status line until the agent goes idle.
   const [setupInProgress, setSetupInProgress] = createSignal(false)
   const [setupFailed, setSetupFailed] = createSignal(false) // the init turn ended without tooling
-  const [ephemeralResult, setEphemeralResult] = createSignal<"idle" | "loaded" | "failed">("idle")
+  const [ephemeralResult, setEphemeralResult] = createSignal<EphemeralResult>("idle")
   const [showSettings, setShowSettings] = createSignal(false)
   const [headerHover, setHeaderHover] = createSignal(false)
   const [dot, setDot] = createSignal(0) // 0..2 — which of the "Initializing" dots is lit
   const [pluginUpdate, setPluginUpdate] = createSignal<Update | null>(null)
   const [cliUpdate, setCliUpdate] = createSignal<Update | null>(null)
   const [cliCurrent, setCliCurrent] = createSignal<string | null>(null)
-  const [updateFlag, setUpdateFlag] = createSignal<UpdateFlag | null>(null)
   const [bannerDismissed, setBannerDismissed] = createSignal(false)
   const [reloadPending, setReloadPending] = createSignal(false)
-  // Setup marker from config.yaml: drives the status line, the interrupted banner and Resume.
-  const [initState, setInitState] = createSignal<InitState>({ inProgress: false, done: [] })
+  // The whole `plugin:` block from config.yaml, filled by one read per poll: the setup marker drives
+  // the status line, the interrupted banner and Resume; the update flag drives the post-update banner.
+  const [pluginState, setPluginState] = createSignal<PluginState>(NO_PLUGIN_STATE)
   // Last version this plugin ran as, from `kv`. Filled in on the first poll where `kv` is ready.
   const [lastVersion, setLastVersion] = createSignal<string | null>(null)
   let pendingEphemeral = false // register the /opsx-* files once the init turn ends
@@ -134,28 +94,23 @@ export function OpenSpecSidebar(props: { api: TuiPluginApi; sessionId: string; b
   // Runs `action` as an agent turn, unless one is already going.
   const whenIdle = (action: () => void) => (busy() ? void toastBusy() : action())
 
-  const stageDone = (stage: InitStage) => initState().done.includes(stage)
-  // The first stage the agent hasn't checkpointed; "validate" once all three are recorded.
-  const setupStage = createMemo<InitStage | "validate">(() => INIT_STAGES.find((s) => !stageDone(s)) ?? "validate")
-  // Interrupted mid-setup. Before the tooling checkpoint we offer Init instead, so the banner waits.
-  const initIncomplete = createMemo(() => initState().inProgress && stageDone("tooling") && !busy() && !setupInProgress())
-  // Setup owns the screen until tooling is checkpointed.
-  const needsInit = createMemo(
-    () => initialised() === false || (initialised() === true && initState().inProgress && !stageDone("tooling")),
-  )
+  const initState = () => pluginState().init
+  const stage = createMemo(() => setupStage(initState()))
+  const initStopped = createMemo(() => initIncomplete({ init: initState(), busy: busy(), setupInProgress: setupInProgress() }))
+  const needsInit = createMemo(() => needsInitDecision({ initialised: initialised(), init: initState() }))
   const updateAvailable = createMemo(() => pluginUpdate() != null || cliUpdate() != null)
+
+  // Above the action row: the restart prompt for ephemerally bridged commands.
+  const banner = createMemo(() =>
+    ephemeralBanner({ busy: busy(), commandsReady: commandsReady(), init: initState(), ephemeral: ephemeralResult() }),
+  )
 
   // What to do about the version we're running on. Two sources — the flag an update turn left in
   // config.yaml, and a version bump that happened outside the sidebar entirely. The whole table
   // lives in `decideMigration`; here it's only wired to signals and rendered.
   const migration = createMemo(() =>
-    decideMigration({ flag: updateFlag(), last: lastVersion(), current: VERSION, hasEntries: hasMigrations }),
+    decideMigration({ flag: pluginState().update, last: lastVersion(), current: VERSION, hasEntries: hasMigrations }),
   )
-  const reopenTarget = createMemo(() => {
-    const d = migration()
-    return d.show === "reopen" ? d.range.new : null
-  })
-  const canMigrate = createMemo(() => migration().show === "migrate")
 
   // `kv` loads asynchronously, so read it on the poll rather than at mount — reading it too early
   // looks like "no record" and would silently swallow the banner.
@@ -172,15 +127,6 @@ export function OpenSpecSidebar(props: { api: TuiPluginApi; sessionId: string; b
       setLastVersion(VERSION)
     }
   }
-
-  // Above the action row: none while busy/native/mid-setup, warn if bridged ephemerally, error if
-  // that failed. Held back during setup so Reload and Resume never compete.
-  const banner = createMemo<"none" | "warn" | "error">(() => {
-    if (busy() || commandsReady() === true || initState().inProgress) return "none"
-    if (ephemeralResult() === "loaded") return "warn"
-    if (ephemeralResult() === "failed") return "error"
-    return "none"
-  })
 
   // Resolved from the live summary so detail views keep updating while polling.
   const selectedChange = createMemo(() => summary()?.changes.find((c) => c.name === selected()) ?? null)
@@ -216,11 +162,11 @@ export function OpenSpecSidebar(props: { api: TuiPluginApi; sessionId: string; b
     pendingEphemeral = true
 
     const marked = await writeInitMarker(props.api, !resume)
-    const state = await readPluginState(client).then((s) => s.init)
-    setInitState(state)
+    const state = await readPluginState(client)
+    setPluginState(state)
 
-    const stage = (s: InitStage) => resume && state.done.includes(s)
-    const done = { tooling: stage("tooling"), config: stage("config"), specs: stage("specs") }
+    const stageDone = (s: InitStage) => resume && state.init.done.includes(s)
+    const done = { tooling: stageDone("tooling"), config: stageDone("config"), specs: stageDone("specs") }
     void submitPrompt(
       props.api,
       props.baselineAvailable ? buildInitPrompt(done, marked) : buildInitOnlyPrompt(marked),
@@ -280,10 +226,9 @@ export function OpenSpecSidebar(props: { api: TuiPluginApi; sessionId: string; b
       const s = await readOpenSpec(client)
       setSummary(s)
       setInitialised(s !== null && (await hasOpenSpecTooling(client)))
-      // Cheap read every poll so the banners clear once the agent removes their markers.
-      const state = await readPluginState(client)
-      setUpdateFlag(state.update)
-      setInitState(state.init)
+      // One read of the `plugin:` block per poll, feeding both flows, so the banners clear as soon
+      // as the agent removes their markers.
+      setPluginState(await readPluginState(client))
       // Are the init commands actually loaded? Stay optimistic on a fetch error.
       const cmds = await props.api.client.command
         .list()
@@ -370,32 +315,10 @@ export function OpenSpecSidebar(props: { api: TuiPluginApi; sessionId: string; b
         />
       </Show>
 
-      {/* An update turn ran, but the build it installed isn't the one loaded yet. */}
-      <Show when={reopenTarget()}>
-        {(target) => (
-          <box paddingBottom={1}>
-            <text fg={theme().warning} wrapMode="word">{`Reopen opencode to finish updating to ${target()}`}</text>
-          </box>
-        )}
-      </Show>
+      <PostUpdateBanner theme={theme} decision={migration} onComplete={completeUpdate} gate={gate} />
 
-      <Show when={canMigrate()}>
-        <box paddingBottom={1}>
-          <text fg={theme().textMuted} wrapMode="word">Run checks after update</text>
-          <box flexDirection="row" paddingTop={1}>
-            <Button theme={theme} label="Complete Update" color={theme().accent} {...gate} onClick={completeUpdate} />
-          </box>
-        </box>
-      </Show>
-
-      {/* Same prompt whether the ephemeral bridge took or not — only a restart loads them properly. */}
       <Show when={banner() !== "none"}>
-        <box paddingBottom={1}>
-          <text fg={theme().warning} wrapMode="word">Reload opencode to activate new commands and skills</text>
-          <box flexDirection="row" paddingTop={1}>
-            <Button theme={theme} label="Reload OpenCode" color={theme().error} {...gate} onClick={() => quitOpencode(props.api)} />
-          </box>
-        </box>
+        <EphemeralReloadBanner theme={theme} onReload={() => quitOpencode(props.api)} gate={gate} />
       </Show>
 
       {/* Hidden when the bridge failed: the /opsx-* commands these fill in wouldn't resolve. */}
@@ -507,26 +430,12 @@ export function OpenSpecSidebar(props: { api: TuiPluginApi; sessionId: string; b
       </box>
       <Divider theme={theme} />
 
-      {/* Status line over the content (not instead of it) so specs fill in live during setup. */}
       <Show when={setupInProgress() && !showSettings()}>
-        <box paddingBottom={1}>
-          <text fg={theme().textMuted}>
-            {SETUP_LABELS[setupStage()].phase}
-            <span style={{ fg: dot() === 0 ? theme().text : theme().textMuted }}>.</span>
-            <span style={{ fg: dot() === 1 ? theme().text : theme().textMuted }}>.</span>
-            <span style={{ fg: dot() === 2 ? theme().text : theme().textMuted }}>.</span>
-          </text>
-        </box>
+        <InitStatus theme={theme} stage={stage} dot={dot} />
       </Show>
 
-      <Show when={!showSettings() && initIncomplete()}>
-        <InitBanner
-          theme={theme}
-          stoppedAt={() => SETUP_LABELS[setupStage()].stopped}
-          gate={gate}
-          onResume={resumeInit}
-          onDismiss={dismissInit}
-        />
+      <Show when={!showSettings() && initStopped()}>
+        <InitBanner theme={theme} stage={stage} gate={gate} onResume={resumeInit} onDismiss={dismissInit} />
       </Show>
 
       <Show when={showSettings()}>
@@ -544,12 +453,12 @@ export function OpenSpecSidebar(props: { api: TuiPluginApi; sessionId: string; b
       </Show>
 
       <Show when={!setupInProgress() && !showSettings() && needsInit()}>
-        <Show when={setupFailed() || initState().inProgress}>
-          <box paddingBottom={1}>
-            <text fg={theme().warning} wrapMode="word">Setup aborted – press "Init" to continue</text>
-          </box>
-        </Show>
-        <NotInitialised theme={theme} onInit={initOpenSpec} gate={gate} />
+        <InitScreen
+          theme={theme}
+          aborted={() => setupFailed() || initState().inProgress}
+          onInit={initOpenSpec}
+          gate={gate}
+        />
       </Show>
 
       <Show when={!showSettings() && !needsInit() && initialised() === true && summary()}>

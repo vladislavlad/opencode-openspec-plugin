@@ -33,12 +33,13 @@
 
 ## Impact
 
-- `src/lib/version-history.ts` — новый модуль: `readLastVersion(api)`, `recordVersion(api)`, ключ `kv`
+- `src/lib/version-history.ts` — новый модуль: `readLastVersion(api)`, `recordVersion(api)`, ключ `kv`, правило «только вперёд» в `pendingVersionRange`
+- `src/lib/version-history.ts` — `decideMigration({ flag, last, current, hasEntries })`: вся таблица исходов одной чистой функцией, вне Solid. Внутри сайдбара её было не проверить иначе как живым TUI
 - `src/lib/migrations.ts` — `hasMigrations(old, next)` для решения «показывать ли баннер по `kv`»
 - `src/lib/migrations.ts` — `buildMigrationPrompt(range, { clearFlag })`: строка о снятии флага только когда флаг действительно есть
-- `src/sidebar.tsx` — сигнал версии из `kv`, memo ожидающего диапазона поверх двух источников, фиксация версии по завершении хода
+- `src/sidebar.tsx` — сигнал версии из `kv`, memo поверх `decideMigration`, две ветки баннера вместо вложенного `Show`, фиксация версии по завершении хода
+- `test/version-history.test.ts` — чтение/запись `kv` и табличный тест решения: два источника × (первый запуск / совпадение / рост / откат / диапазон без записей)
 - `test/migrations.test.ts` — сборка диапазона, наличие/отсутствие строки о снятии флага
-- `test/version-history.test.ts` — первый запуск, рост версии, совпадение, откат назад
 - `src/lib/migrations.ts` — запись `MIGRATIONS` о релизе (изменение пользовательского поведения)
 
 ## Non-goals

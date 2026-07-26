@@ -1,12 +1,5 @@
 import { describe, expect, test } from "bun:test"
-import {
-  CONFIG_PROMPT,
-  INIT_DISMISS_PROMPT,
-  NO_STAGES_DONE,
-  SPEC_BASELINE_PROMPT,
-  buildInitOnlyPrompt,
-  buildInitPrompt,
-} from "../src/lib/prompts"
+import { INIT_DISMISS_PROMPT, NO_STAGES_DONE, buildInitOnlyPrompt, buildInitPrompt } from "../src/lib/init-prompts"
 
 // Anchors for the stages the builder can include or skip.
 const INIT_CMD = "openspec init --tools opencode"
@@ -111,48 +104,6 @@ describe("the pre-written marker", () => {
   })
 })
 
-describe("task breakdown granularity", () => {
-  // Two modes, described by scope: hours mean nothing when a person and an agent share the checklist.
-  test("offers High-level and Detailed", () => {
-    for (const p of [CONFIG_PROMPT, buildInitPrompt()]) {
-      expect(p).toContain('"High-level" (a few high-level tasks)')
-      expect(p).toContain('"Detailed" (sub-tasks grouped under high-level sections)')
-    }
-  })
-
-  test("maps each answer to a rule under rules.tasks", () => {
-    expect(CONFIG_PROMPT).toContain("High-level = a few broad top-level tasks")
-    expect(CONFIG_PROMPT).toContain("Detailed = sub-tasks grouped under high-level sections")
-  })
-})
-
-describe("the user's language", () => {
-  const GUARD = "Write questions, options and summaries in the language the user writes to you in"
-
-  test("every prompt that asks something carries the guard", () => {
-    for (const p of [CONFIG_PROMPT, SPEC_BASELINE_PROMPT, buildInitPrompt(), buildInitOnlyPrompt()]) {
-      expect(p).toContain(GUARD)
-      expect(p).toContain("Never transliterate them")
-    }
-  })
-
-  // Init embeds the config and derive bodies, so the guard must not come along with each of them.
-  test("init states it once, not once per embedded step", () => {
-    expect(buildInitPrompt().split(GUARD)).toHaveLength(2)
-  })
-})
-
-describe("the config step", () => {
-  const GUARD = "tell me to run OpenSpec init first and stop"
-
-  // Standalone /opsx-config can land on an unprepared project; inside init, the install step right
-  // above just created openspec/, so the same guard would only invite a pointless stop.
-  test("guards on a missing openspec/ only when it runs on its own", () => {
-    expect(CONFIG_PROMPT).toContain(GUARD)
-    expect(buildInitPrompt()).not.toContain(GUARD)
-  })
-})
-
 describe("a cancelled CLI install", () => {
   // The agent never saw the project before the turn, so cleanup has to be a rule it can check.
   test("cleans up by a checkable rule and ends the turn", () => {
@@ -194,69 +145,17 @@ describe("a cancelled CLI install", () => {
   test("the greeting says a partial derivation can be topped up", () => {
     expect(buildInitPrompt()).toContain("if the specs don't cover the whole project yet, running it again refines and extends")
   })
-
-  // Phase 2 is a multi-select over the capability list; an empty list needs an exit, not a question.
-  // The exit is narrow on purpose: a compose/manifest repo read it as "no application code" and bailed.
-  test("only a truly empty directory exits the derive phases", () => {
-    expect(SPEC_BASELINE_PROMPT).toContain("Skip Phases 2-4 only when the directory is empty or holds nothing but a README")
-    expect(SPEC_BASELINE_PROMPT).toContain("config files, manifests and scripts are capabilities")
-  })
-
-  // Agent type names differ per host — "general-purpose" is a Claude Code name and opencode rejects
-  // it. The tool lists its own valid types, so the prompt must not name one.
-  test("the detail phase names no agent type of its own", () => {
-    expect(SPEC_BASELINE_PROMPT).not.toContain("general-purpose")
-    expect(SPEC_BASELINE_PROMPT).toContain("Take the agent type from the list that tool itself offers")
-    expect(SPEC_BASELINE_PROMPT).toContain("do not retry with a guessed type")
-  })
-
-  // A 27b model rendered the capability list as single-select: "(multi-select)" in parentheses reads
-  // as a remark, so both places now say it as an instruction.
-  test("multiple selection is an instruction, not a parenthetical", () => {
-    expect(SPEC_BASELINE_PROMPT).toContain("Turn multiple selection ON: the user has to be able to pick several options at once, not one")
-    expect(CONFIG_PROMPT).toContain('"Stack" and "Context" must have multiple selection turned ON')
-  })
-
-  test("the confirm question asks about the listed capabilities, not extra ones", () => {
-    expect(SPEC_BASELINE_PROMPT).toContain("which of the capabilities you just listed should get specs")
-  })
-
-  test("an infrastructure repo is in scope for derivation", () => {
-    expect(SPEC_BASELINE_PROMPT).toContain("Not every project is an application")
-    expect(SPEC_BASELINE_PROMPT).toContain("the declared setup is the behavior")
-  })
 })
 
-describe("derive depth", () => {
-  // Asked before anything is read: working out the capability list is already studying the code, so
-  // the depth has to be settled first.
-  test("/opsx-baseline asks for it ahead of the orientation pass", () => {
-    expect(SPEC_BASELINE_PROMPT).toContain('header "Depth"')
-    expect(SPEC_BASELINE_PROMPT).toContain("much slower and far more tokens")
-    expect(SPEC_BASELINE_PROMPT.indexOf('header "Depth"')).toBeLessThan(SPEC_BASELINE_PROMPT.indexOf("Phase 1 — Orient"))
-  })
-
+describe("the derive gate inside init", () => {
   // Init folds the depth into the gate question, so the user answers once instead of twice — and the
   // derive body itself carries no question either way.
-  test("init carries it in the derive gate instead", () => {
+  test("carries the depth in the gate instead of a question of its own", () => {
     const p = buildInitPrompt()
     expect(p).toContain('"Yes — Overview", "Yes — Deep" and "No"')
     expect(p).toContain("much slower and far more tokens")
     expect(p).not.toContain('header "Depth"')
     expect(p.indexOf('"Yes — Deep"')).toBeLessThan(p.indexOf("Phase 1 — Orient"))
-  })
-
-  test("steers both the orientation pass and the subagent that details a capability", () => {
-    expect(SPEC_BASELINE_PROMPT).toContain("also read through each area's code instead of guessing capabilities from folder names")
-    expect(SPEC_BASELINE_PROMPT).toContain("chosen depth")
-    expect(SPEC_BASELINE_PROMPT).toContain('On "Overview" it reads entry points and main modules')
-    expect(SPEC_BASELINE_PROMPT).toContain('on "Deep" it follows that capability\'s code paths end to end')
-  })
-
-  // "Deep" is a depth of reading, not a mandate to open everything in the repo.
-  test("says outright that Deep is not every file", () => {
-    expect(SPEC_BASELINE_PROMPT).toContain('"Deep" is not "open every file"')
-    expect(SPEC_BASELINE_PROMPT).toContain("skip tests, fixtures, generated and vendored code")
   })
 
   test("a resume that skips the specs stage asks nothing about depth", () => {

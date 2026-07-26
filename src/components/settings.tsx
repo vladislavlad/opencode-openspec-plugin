@@ -1,7 +1,7 @@
 import { Show } from "solid-js"
 import type { Theme } from "../lib/theme"
 import type { Update } from "../lib/updates"
-import type { UpdateTargets } from "../lib/prompts"
+import type { UpdateTargets } from "../lib/update-prompt"
 import { VERSION } from "../lib/version"
 import { Button, Divider, type Gate } from "./primitives"
 

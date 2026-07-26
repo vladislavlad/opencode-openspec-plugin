@@ -1,6 +1,7 @@
 import type { TuiPluginApi } from "@opencode-ai/plugin/tui"
 import { OPSX_COMMANDS } from "../lib/openspec"
-import { CONFIG_PROMPT, SPEC_BASELINE_PROMPT } from "../lib/prompts"
+import { CONFIG_PROMPT } from "../lib/config-prompt"
+import { SPEC_BASELINE_PROMPT } from "../lib/derive-prompt"
 import { submitPrompt } from "../lib/send-prompt"
 
 // Register one ephemeral palette command that submits `prompt`. Returns whether it registered.

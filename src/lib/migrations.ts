@@ -1,4 +1,4 @@
-import { SPEAK_THE_USER_LANGUAGE } from "./prompts"
+import { SPEAK_THE_USER_LANGUAGE } from "./prompt-style"
 import { semverGt } from "./updates"
 
 export interface Migration {

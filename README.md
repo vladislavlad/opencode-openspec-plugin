@@ -67,8 +67,11 @@ hands the agent one turn that:
    skills into `.opencode/`;
 3. asks about your stack, spec language and project context, and writes them to
    `openspec/config.yaml`;
-4. offers to reverse-engineer baseline specs from your existing code;
-5. validates the result and invites you to write your first change proposal.
+4. offers to reverse-engineer baseline specs from your existing code — and asks how
+   deeply to study it first, since **Deep** costs noticeably more time and tokens
+   than **Overview**;
+5. validates the result and points you at **Explore** and **Propose** for your first
+   change proposal.
 
 Progress is checkpointed stage by stage. If the turn is interrupted, the sidebar
 says where it stopped and offers **Resume** — which picks up from the first
@@ -104,6 +107,11 @@ there is one, a banner appears above the actions and the **Settings** button tur
 accent-coloured. From Settings you can update either component or both; the agent
 edits your `tui.json`, installs the new CLI, and tells you to reload. After the
 restart, **Complete Update** runs any migration steps and summarises what changed.
+
+You get that summary however you updated. The sidebar also remembers which plugin
+version last ran, so an update that bypassed the button entirely — `npm i -g`, a
+hand-edited `tui.json`, or an unpinned specifier that opencode refreshed on its own —
+still offers **Complete Update** on the next launch.
 
 ## Development
 
