@@ -12,13 +12,8 @@ export async function sendPrompt(api: TuiPluginApi, text: string, opts: { clear?
   }
 }
 
-// Quit via native app.exit so opencode re-scans commands + skills on next launch.
 export function quitOpencode(api: TuiPluginApi) {
-  try {
-    api.keymap.dispatchCommand("app.exit")
-  } catch {
-    /* ignore */
-  }
+  void sendPrompt(api, "exit", { clear: true, submit: true })
 }
 
 // Run a slash command by submitting it (real agent turn). session.command needs an explicit

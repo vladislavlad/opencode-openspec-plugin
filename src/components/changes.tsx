@@ -1,7 +1,7 @@
 import { createSignal, For, Show } from "solid-js"
 import { isComplete, isGroupComplete, type OpenSpecChange } from "../lib/openspec"
 import type { Theme } from "../lib/theme"
-import { BackButton, Button, ProgressBar } from "./primitives"
+import { Button, DetailHeader, ProgressBar } from "./primitives"
 
 // A single change row in the Active/Completed lists; hover highlight + click to open.
 export function ChangeRow(props: {
@@ -117,15 +117,12 @@ export function ChangeDetail(props: {
   const [confirming, setConfirming] = createSignal(false)
   return (
     <box>
-      <box paddingTop={1}>
-        <box flexDirection="row" justifyContent="space-between">
-          <text fg={isComplete(change()) ? theme().success : theme().warning}>
-            <b>{isComplete(change()) ? "Completed Change" : "Active Change"}</b>
-          </text>
-          <BackButton theme={theme} onBack={props.onBack} />
-        </box>
-        <text fg={theme().borderSubtle}>─────────────────────────────────────</text>
-      </box>
+      <DetailHeader
+        theme={theme}
+        label={isComplete(change()) ? "Completed Change" : "Active Change"}
+        color={isComplete(change()) ? theme().success : theme().warning}
+        onBack={props.onBack}
+      />
       <text>
         <span style={{ fg: isComplete(change()) ? theme().success : theme().warning }}>• </span>
         <span style={{ fg: theme().text }}>{change().name}</span>

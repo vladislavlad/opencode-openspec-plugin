@@ -137,7 +137,6 @@ describe("parseSpec", () => {
     const spec = parseSpec("auth", md)
     expect(spec.name).toBe("auth")
     expect(spec.title).toBe("Auth") // "Specification" suffix stripped
-    expect(spec.description).toBe("Handles login and sessions.")
     expect(spec.purpose).toBe("Users sign in with email and password.")
     expect(spec.requirements).toHaveLength(1)
     const req = spec.requirements[0]
@@ -195,7 +194,6 @@ describe("summaryEquals", () => {
       {
         name: "auth",
         title: "Auth",
-        description: "",
         purpose: "",
         requirements: [{ name: "Login", description: "d", scenarios: [{ name: "s", lines: ["- **WHEN** x"] }] }],
       },
@@ -285,6 +283,19 @@ describe("readOpenSpec", () => {
     expect(summary?.specCount).toBe(1)
     expect(summary?.requirementCount).toBe(1)
     expect(summary?.specs[0].name).toBe("auth")
+  })
+
+  test("detects the root right after openspec init — config.yaml, no subdirs yet", async () => {
+    const client = mockClient({ list: { openspec: files("config.yaml") } })
+    const summary = await readOpenSpec(client)
+    expect(summary?.root).toBe("openspec")
+    expect(summary?.specs).toEqual([])
+    expect(summary?.changes).toEqual([])
+  })
+
+  test("ignores a directory with neither subdirs nor config.yaml", async () => {
+    const client = mockClient({ list: { openspec: files("README.md") } })
+    expect(await readOpenSpec(client)).toBeNull()
   })
 
   test("falls back to the .openspec root when openspec is empty", async () => {

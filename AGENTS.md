@@ -5,13 +5,13 @@ OpenCode TUI plugin that embeds OpenSpec in the terminal sidebar: browse specs, 
 ## Commands
 - `bun run typecheck` — types; run before finishing
 - `bun run build` — bundle to `dist/index.js`; run before finishing
-- `bun test` — unit tests
+- `bun run test` — unit tests (needs `--preload @opentui/solid/preload` for the `.tsx` render tests)
 
 ## Layout
 - `src/index.tsx` — entry; registers the `sidebar_content` slot
 - `src/sidebar.tsx` — sidebar root: polls the openspec dir, owns UI state
 - `src/components/` — UI (`primitives`, `changes`, `specs`, `settings`)
-- `src/lib/` — logic: `openspec` (parsing), `updates` (version checks), `migrations`, `prompts`, `send-prompt`
+- `src/lib/` — logic: `spec-driven` (the spec.md model + parser for that schema), `openspec` (reads the openspec dir, tasks, summary), `search`, `updates` (version checks), `migrations`, `prompts`, `send-prompt`
 
 ## Workflow
 - Build features as OpenSpec changes under `openspec/changes/`. Use the `/opsx-*` commands; follow `openspec/config.yaml` rules.
@@ -24,3 +24,4 @@ OpenCode TUI plugin that embeds OpenSpec in the terminal sidebar: browse specs, 
 ## Gotchas
 - Plugin version = `package.json` `version`, baked into `__PLUGIN_VERSION__` by `build.ts`. CLI version is read from `.opencode/skills/*/SKILL.md` `generatedBy`.
 - Never import `@opentui/solid/jsx-runtime` — it spawns a second Solid instance whose effects never flush. JSX goes through `@opentui/solid`'s transform (see `build.ts`).
+- `spec-driven.ts` is the only place that knows the schema's syntax (`### Requirement:`, SHALL/MUST, WHEN/THEN, markdown); it owns the spec model, the parser and `stripSyntax`. Another schema gets its own module.

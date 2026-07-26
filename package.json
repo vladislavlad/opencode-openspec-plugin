@@ -38,7 +38,7 @@
   "scripts": {
     "build": "NODE_ENV=production bun run build.ts",
     "typecheck": "tsc --noEmit",
-    "test": "bun test",
+    "test": "bun test --preload @opentui/solid/preload",
     "prepublishOnly": "bun run build"
   },
   "peerDependencies": {

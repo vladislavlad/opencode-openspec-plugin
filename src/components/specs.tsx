@@ -1,21 +1,30 @@
-import { createSignal, For, Show } from "solid-js"
+import { createMemo, createSignal, For, Show } from "solid-js"
+import type { CliRenderer } from "@opencode-ai/plugin/tui"
 import type { OpenSpecSpec, Requirement, Scenario } from "../lib/openspec"
+import { searchRequirements } from "../lib/search"
 import type { Theme } from "../lib/theme"
 import { DetailHeader, Divider, Paragraph } from "./primitives"
+import { SearchField } from "./search"
 
-// A single spec row in the Specifications list; hover highlight + click to open.
+// A single spec row in the Specifications list; hover highlight + click to open. With
+// `matchedRequirements` the row reports how many matched instead of the plain total.
 export function SpecRow(props: {
   theme: Theme
   spec: OpenSpecSpec
   hovered: () => string | null
   setHovered: (fn: (h: string | null) => string | null) => void
   onSelect: (name: string) => void
+  matchedRequirements?: number
 }) {
   const theme = props.theme
   const spec = () => props.spec
   // Namespaced so a spec never shares a hover key with a same-named change row.
   const key = () => `spec:${spec().name}`
   const hover = () => props.hovered() === key()
+  const meta = () => {
+    const matched = props.matchedRequirements ?? 0
+    return matched > 0 ? `  ${matched} matching requirements` : `  ${spec().requirements.length} requirements`
+  }
   return (
     <box>
       <box
@@ -29,25 +38,31 @@ export function SpecRow(props: {
           <span style={{ fg: theme().accent }}>▪ </span>
           <span style={{ fg: theme().text }}>{spec().name}</span>
         </text>
-        <text fg={hover() ? theme().text : theme().textMuted}>{`  ${spec().requirements.length} requirements`}</text>
+        <text fg={hover() ? theme().text : theme().textMuted}>{meta()}</text>
       </box>
     </box>
   )
 }
 
-// A clickable requirement row inside a spec's detail view.
+// A clickable requirement row inside a spec's detail view; `matchedScenarios` works like
+// `matchedRequirements` above.
 function RequirementRow(props: {
   theme: Theme
   req: Requirement
   hovered: () => string | null
   setHovered: (fn: (h: string | null) => string | null) => void
   onSelect: (name: string) => void
+  matchedScenarios?: number
 }) {
   const theme = props.theme
   const req = () => props.req
   // Namespaced so a requirement never shares a hover key with a same-named change/spec row.
   const key = () => `req:${req().name}`
   const hover = () => props.hovered() === key()
+  const meta = () => {
+    const matched = props.matchedScenarios ?? 0
+    return matched > 0 ? `  ${matched} matching scenarios` : `  ${req().scenarios.length} scenarios`
+  }
   return (
     <box
       width="100%"
@@ -62,21 +77,26 @@ function RequirementRow(props: {
           {req().name}
         </text>
       </box>
-      <text fg={hover() ? theme().text : theme().textMuted}>{`  ${req().scenarios.length} scenarios`}</text>
+      <text fg={hover() ? theme().text : theme().textMuted}>{meta()}</text>
     </box>
   )
 }
 
-// Spec overview: title + description, optional Purpose, and a clickable requirements list.
+// Spec overview: capability name, optional Purpose, and a filtered requirements list. The query is
+// the sidebar's, so it carries in from the list view and survives going back.
 export function SpecDetail(props: {
   theme: Theme
   spec: OpenSpecSpec
+  renderer: CliRenderer
+  query: () => string
+  onQuery: (value: string) => void
   onOpenReq: (name: string) => void
   onBack: () => void
 }) {
   const theme = props.theme
   const spec = () => props.spec
   const [hovered, setHovered] = createSignal<string | null>(null)
+  const matches = createMemo(() => searchRequirements(spec().requirements, props.query()))
   return (
     <box>
       <DetailHeader theme={theme} label="Specification" onBack={props.onBack} />
@@ -84,16 +104,6 @@ export function SpecDetail(props: {
         <span style={{ fg: theme().accent }}>▪ </span>
         <span style={{ fg: theme().text }}>{spec().name}</span>
       </text>
-      <box flexDirection="row" paddingTop={1}>
-        <text flexGrow={1} wrapMode="word">
-          <b>
-            <span style={{ fg: theme().text }}>{spec().title}</span>
-          </b>
-        </text>
-      </box>
-      <Show when={spec().description}>
-        <Paragraph theme={theme} text={spec().description} />
-      </Show>
       <Show when={spec().purpose}>
         <box paddingTop={1}>
           <text fg={theme().accent}>
@@ -106,14 +116,33 @@ export function SpecDetail(props: {
         <text>
           <b>
             <span style={{ fg: theme().accent }}>Requirements: </span>
-            <span style={{ fg: theme().text }}>{spec().requirements.length}</span>
+            <span style={{ fg: theme().text }}>{matches().length}</span>
           </b>
         </text>
         <Divider theme={theme} />
-        <Show when={spec().requirements.length > 0} fallback={<text fg={theme().textMuted}>{"  No requirements"}</text>}>
-          <For each={spec().requirements}>
-            {(req) => (
-              <RequirementRow theme={theme} req={req} hovered={hovered} setHovered={setHovered} onSelect={props.onOpenReq} />
+        <SearchField
+          theme={theme}
+          renderer={props.renderer}
+          value={props.query}
+          onInput={props.onQuery}
+          placeholder="Search requirements"
+        />
+        <Show
+          when={matches().length > 0}
+          fallback={
+            <text fg={theme().textMuted}>{spec().requirements.length === 0 ? "  No requirements" : "  No matches"}</text>
+          }
+        >
+          <For each={matches()}>
+            {(match) => (
+              <RequirementRow
+                theme={theme}
+                req={match.req}
+                hovered={hovered}
+                setHovered={setHovered}
+                onSelect={props.onOpenReq}
+                matchedScenarios={match.matchedScenarios}
+              />
             )}
           </For>
         </Show>

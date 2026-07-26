@@ -46,9 +46,10 @@ export function Button(props: {
   )
 }
 
-// The thin rule used to separate sections and headers across the sidebar.
+// The thin rule between sections. A box border, not a row of "─": a fixed-length string wraps in a
+// narrow sidebar and the stray tail reads as an empty row.
 export function Divider(props: { theme: Theme }) {
-  return <text fg={props.theme().borderSubtle}>─────────────────────────────────────</text>
+  return <box width="100%" height={1} border={["top"]} borderColor={props.theme().borderSubtle} />
 }
 
 // Navigation "← back" button. Accent text; on hover fills accent with the text flipped to the
@@ -71,13 +72,32 @@ export function BackButton(props: { theme: Theme; onBack: () => void }) {
   )
 }
 
-// A detail-view header: bold accent label on the left, a clickable "← back" on the right.
-export function DetailHeader(props: { theme: Theme; label: string; onBack: () => void }) {
+// The "✕" that empties a search field; accent fill on hover, like BackButton.
+export function ClearButton(props: { theme: Theme; onClear: () => void }) {
+  const [hover, setHover] = createSignal(false)
+  const t = props.theme
+  return (
+    <box
+      flexShrink={0}
+      paddingRight={1}
+      backgroundColor={hover() ? t().accent : undefined}
+      onMouseDown={props.onClear}
+      onMouseOver={() => setHover(true)}
+      onMouseOut={() => setHover(false)}
+    >
+      <text fg={hover() ? t().background : t().textMuted}>✕</text>
+    </box>
+  )
+}
+
+// A detail-view header: bold label left, "← back" right. Every detail screen goes through this, so
+// they all sit at the same height.
+export function DetailHeader(props: { theme: Theme; label: string; onBack: () => void; color?: Color }) {
   const theme = props.theme
   return (
     <box paddingTop={1}>
       <box flexDirection="row" justifyContent="space-between">
-        <text fg={theme().accent}>
+        <text fg={props.color ?? theme().accent}>
           <b>{props.label}</b>
         </text>
         <BackButton theme={theme} onBack={props.onBack} />

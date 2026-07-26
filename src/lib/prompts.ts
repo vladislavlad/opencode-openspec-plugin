@@ -29,7 +29,7 @@ export const CONFIG_PROMPT = [
   '     - "Non-goals" (single): "Yes" / "No" — always require a Non-goals section in proposals?',
   '     - "Tasks" (single): breakdown granularity — "Coarse", "Medium", "Fine".',
   '5. Turn those answers into short rules under `rules.proposal` / `rules.tasks`. Proposal detail: Brief = keep it short / Standard = default / Detailed = add rationale and alternatives. Non-goals Yes = add "Always include a Non-goals section". Tasks: Coarse = a few high-level tasks / Medium = ~half-day tasks / Fine = small ~1-2h tasks with sub-tasks. Keep any existing rules for `specs` and `design`.',
-  "6. Write `openspec/config.yaml` and confirm what you wrote. Omit the `rules:` block entirely if the user set no rules. Example:",
+  "6. Write `openspec/config.yaml` and confirm what you wrote. Omit the `rules:` block entirely if the user set no rules. Keep any existing `plugin:` block byte-for-byte — it holds plugin state. Example (the `plugin:` block is not shown but must survive):",
   "",
   "```yaml",
   "schema: spec-driven",
@@ -107,36 +107,100 @@ export const SPEC_BASELINE_PROMPT = [
 const OPENSPEC_INIT_PREFLIGHT = [
   "Set up OpenSpec in this project. First ensure the `openspec` CLI is available — the generated commands shell out to it.",
   "",
-  "1. Run `openspec --version`. If it succeeds, the CLI is installed — skip to step 5.",
-  "2. If it is missing, detect which package managers exist: run `npm -v`, `pnpm -v`, `yarn -v`, `bun --version` and keep the ones that succeed.",
-  '3. Ask with the `question` tool (single-select), header "Install": "The OpenSpec CLI is required but not installed. It will be installed globally. Choose a package manager:". Offer one option per detected manager, plus "Cancel". If the user picks "Cancel", stop immediately and do nothing else.',
-  "4. Install `@fission-ai/openspec@latest` globally using the chosen package manager (npm: `install -g`, pnpm/bun: `add -g`, yarn: `global add`).",
-  `5. Run \`${OPENSPEC_INIT_CMD}\`. If it fails, report the error and stop.`,
+  "1. Make sure `openspec/config.yaml` exists and carries the setup marker, creating the directory and file if missing and keeping any content already there:",
+  "",
+  "```yaml",
+  "schema: spec-driven",
+  "plugin:",
+  "  init:",
+  "    in-progress: true",
+  "    done: []",
+  "```",
+  "",
+  "   Write this before installing anything: `openspec init` leaves an existing config.yaml untouched, and the sidebar reads the marker to offer a resume if this turn is interrupted.",
+  "2. Run `openspec --version`. If it succeeds, the CLI is installed — skip to step 6.",
+  "3. If it is missing, detect which package managers exist: run `npm -v`, `pnpm -v`, `yarn -v`, `bun --version` and keep the ones that succeed.",
+  '4. Ask with the `question` tool (single-select), header "Install": "The OpenSpec CLI is required but not installed. It will be installed globally. Choose a package manager:". Offer one option per detected manager, plus "Cancel". If the user picks "Cancel", undo step 1 — remove the `init:` block, and delete `openspec/config.yaml` and the `openspec/` directory if you created them in this turn and they hold nothing else — then stop.',
+  "5. Install `@fission-ai/openspec@latest` globally using the chosen package manager (npm: `install -g`, pnpm/bun: `add -g`, yarn: `global add`).",
+  `6. Run \`${OPENSPEC_INIT_CMD}\`. If it fails, report the error and stop. Re-running it on an already set up project is safe — it refreshes the tooling and leaves config.yaml, specs and changes alone.`,
 ].join("\n")
 
-// Init button: ensure the CLI + init, always set up config, then optionally derive specs.
-export const OPENSPEC_INIT_PROMPT = [
+// Setup stages, in order. The agent records each one in `plugin.init.done` as it finishes, so an
+// interrupted run can be resumed from the first stage that is missing.
+export const INIT_STAGES = ["tooling", "config", "specs"] as const
+export type InitStage = (typeof INIT_STAGES)[number]
+
+// Checkpoint written after a stage completes — the list is cumulative.
+const recordStage = (upTo: InitStage) => {
+  const reached = INIT_STAGES.slice(0, INIT_STAGES.indexOf(upTo) + 1)
+  return `Then set \`plugin.init.done\` in \`openspec/config.yaml\` to \`[${reached.map((s) => `"${s}"`).join(", ")}]\`, keeping the rest of the file intact.`
+}
+
+// Removing the whole `init:` block is what marks setup as finished.
+const CLEAR_MARKER =
+  "remove the whole `init:` block under `plugin:` in `openspec/config.yaml`, keeping `schema`, `context`, `rules` and any other `plugin:` entries intact. Drop the `plugin:` block entirely if nothing is left under it"
+
+const INIT_FINALLY = [
+  "## Finally",
+  "",
+  "Always run this section, including when specs were skipped:",
+  "1. Run `openspec validate --specs` (skip when no specs exist) and fix whatever it reports.",
+  `2. Once validation passes, ${CLEAR_MARKER}. If it still fails, leave the block in place so the sidebar can offer to resume.`,
+  "3. If the project was empty and no specs were derived, tell the user exactly (two lines):",
+  "   project directory is empty, so no specs were derived. When you're ready to implement features, run:",
+  '   /opsx-propose "describe the feature to implement"',
+  "4. Otherwise, invite them to create their first change proposal with `/opsx-propose <describe the feature to implement>`.",
+].join("\n")
+
+// Which stages are already recorded as done, so a resumed run skips them.
+export type InitDone = Record<InitStage, boolean>
+
+export const NO_STAGES_DONE: InitDone = { tooling: false, config: false, specs: false }
+
+// Init button and Resume: install + init, configure, derive specs — minus the stages already done.
+export function buildInitPrompt(done: InitDone = NO_STAGES_DONE): string {
+  const parts: string[] = []
+  if (INIT_STAGES.some((s) => done[s])) {
+    parts.push("Resume the interrupted OpenSpec setup. Do not redo anything listed as already done.", "")
+  }
+
+  if (done.tooling) parts.push("Already done: the OpenSpec CLI and its `.opencode` tooling are installed — do NOT run `openspec init` again.", "")
+  else parts.push("## Install step", "", OPENSPEC_INIT_PREFLIGHT, "", recordStage("tooling"), "")
+
+  if (done.config) parts.push("Already done: `openspec/config.yaml` is configured — leave its `context` and `rules` as they are.", "")
+  else parts.push("## Config step", "", CONFIG_PROMPT, "", recordStage("config"), "")
+
+  if (done.specs) parts.push("Already done: specs were derived.", "")
+  else
+    parts.push(
+      "## Specs step",
+      "",
+      'Ask with the `question` tool: header "Specs", "Config is set. Derive specs from the existing project now?", options "Yes" / "No".',
+      'If "No", skip straight to the Finally section below — do not stop before it. If "Yes", do this:',
+      "",
+      SPEC_DERIVE_PROMPT,
+      "",
+      recordStage("specs"),
+      "",
+    )
+
+  parts.push(INIT_FINALLY)
+  return parts.join("\n")
+}
+
+// Dismiss on the interrupted-setup banner: drop the marker, touch nothing else.
+export const INIT_DISMISS_PROMPT = [
+  `Clear the interrupted OpenSpec setup marker: ${CLEAR_MARKER}.`,
+  "Change nothing else — do not run any setup step and do not touch specs or changes.",
+].join("\n")
+
+// Fallback when `/opsx-baseline` failed to register: ensure the CLI + init, then clear the marker so
+// setup doesn't stay flagged as unfinished with no way to continue.
+export const OPENSPEC_INIT_ONLY_PROMPT = [
   OPENSPEC_INIT_PREFLIGHT,
-  "6. Once init succeeds, always continue with the steps below — do not stop and do not skip Step 1.",
   "",
-  "Step 1 — Config (always, do this first). Set up openspec/config.yaml:",
-  "",
-  CONFIG_PROMPT,
-  "",
-  'Step 2 — Ask with the `question` tool: header "Specs", "Config is set. Derive specs from the existing project now?", options "Yes" / "No".',
-  'If "No", stop. If "Yes", do this:',
-  "",
-  SPEC_DERIVE_PROMPT,
-  "",
-  "Finally, once setup is done:",
-  '- If the project was empty and no specs were derived, tell the user exactly (two lines):',
-  '  project directory is empty, so no specs were derived. When you\'re ready to implement features, run:',
-  '  /opsx-propose "describe the feature to implement"',
-  "- Otherwise, invite them to create their first change proposal with `/opsx-propose <describe the feature to implement>`.",
+  `Then ${CLEAR_MARKER}. Do not configure the project and do not derive specs.`,
 ].join("\n")
-
-// Fallback when `/opsx-baseline` failed to register: just ensure the CLI + init, no follow-up.
-export const OPENSPEC_INIT_ONLY_PROMPT = OPENSPEC_INIT_PREFLIGHT
 
 // Which components an update turn should touch. Plugin carries `current` so the agent can stamp the
 // migration flag; CLI only needs the target version. Fields are independent — Update All sets both.

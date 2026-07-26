@@ -82,7 +82,7 @@ plugin shares opencode's single Solid runtime at load time.
 ```bash
 bun install
 bun run build      # regenerate dist/
-bun test           # run tests
+bun run test       # run tests (preloads @opentui/solid for the render tests)
 ```
 
 The published package ships only `dist/`; `prepublishOnly` rebuilds it before

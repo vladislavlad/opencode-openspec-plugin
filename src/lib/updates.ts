@@ -1,5 +1,6 @@
 import { parse as parseYaml } from "yaml"
 import type { FileClient } from "./openspec"
+import { INIT_STAGES, type InitStage } from "./prompts"
 import { VERSION } from "./version"
 
 // npm package names. Scoped names are URL-encoded (`/` → `%2F`) when hitting the registry.
@@ -95,20 +96,45 @@ export interface UpdateFlag {
   new: string
 }
 
-// Read `plugin.update-in-progress` from config.yaml (openspec or .openspec root). Null when there's
-// no config or no flag. Read cheaply on every poll so the banner clears once the agent removes it.
-export async function readUpdateFlag(client: FileClient): Promise<UpdateFlag | null> {
+interface PluginConfig {
+  plugin?: {
+    "update-in-progress"?: { old?: unknown; new?: unknown }
+    init?: { "in-progress"?: unknown; done?: unknown }
+  }
+}
+
+// Parsed config.yaml from the first root that has one. Null when missing or malformed.
+async function readConfig(client: FileClient): Promise<PluginConfig | null> {
   for (const root of ["openspec", ".openspec"]) {
     const content = await client.read(`${root}/config.yaml`).catch(() => "")
     if (!content) continue
     try {
-      const doc = parseYaml(content) as { plugin?: { "update-in-progress"?: { old?: unknown; new?: unknown } } }
-      const f = doc?.plugin?.["update-in-progress"]
-      if (f && (f.old != null || f.new != null)) return { old: String(f.old ?? ""), new: String(f.new ?? "") }
+      return (parseYaml(content) as PluginConfig) ?? null
     } catch {
-      /* malformed yaml — treat as no flag */
+      return null // malformed yaml — treat as no config
     }
-    return null // a config.yaml exists but carries no flag; don't check the other root
   }
   return null
+}
+
+// Read `plugin.update-in-progress` from config.yaml. Null when there's no config or no flag.
+// Read cheaply on every poll so the banner clears once the agent removes it.
+export async function readUpdateFlag(client: FileClient): Promise<UpdateFlag | null> {
+  const f = (await readConfig(client))?.plugin?.["update-in-progress"]
+  if (f && (f.old != null || f.new != null)) return { old: String(f.old ?? ""), new: String(f.new ?? "") }
+  return null
+}
+
+// The setup marker the agent maintains: `in-progress` while setup runs, `done` listing the stages it
+// has finished. Drives the status line, the interrupted-setup banner and what Resume skips.
+export interface InitState {
+  inProgress: boolean
+  done: InitStage[]
+}
+
+export async function readInitFlag(client: FileClient): Promise<InitState> {
+  const init = (await readConfig(client))?.plugin?.init
+  const flag = init?.["in-progress"]
+  const done = Array.isArray(init?.done) ? init.done.filter((s): s is InitStage => INIT_STAGES.includes(s)) : []
+  return { inProgress: flag === true || flag === "true", done }
 }

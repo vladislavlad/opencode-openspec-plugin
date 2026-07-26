@@ -2,15 +2,27 @@ import { createEffect, createMemo, createSignal, For, onCleanup, Show } from "so
 import type { TuiPluginApi } from "@opencode-ai/plugin/tui"
 import type { Theme } from "./lib/theme"
 import { hasOpenSpecTooling, isComplete, readOpenSpec, summaryEquals, type FileClient, type OpenSpecSummary } from "./lib/openspec"
-import { OPENSPEC_INIT_ONLY_PROMPT, OPENSPEC_INIT_PROMPT, buildUpdatePrompt, type UpdateTargets } from "./lib/prompts"
-import { checkVersions, readUpdateFlag, type Update, type UpdateFlag } from "./lib/updates"
+import {
+  INIT_DISMISS_PROMPT,
+  NO_STAGES_DONE,
+  OPENSPEC_INIT_ONLY_PROMPT,
+  buildInitPrompt,
+  buildUpdatePrompt,
+  type InitDone,
+  type InitStage,
+  type UpdateTargets,
+} from "./lib/prompts"
+import { INIT_STAGES } from "./lib/prompts"
+import { checkVersions, readInitFlag, readUpdateFlag, type InitState, type Update, type UpdateFlag } from "./lib/updates"
 import { buildMigrationPrompt } from "./lib/migrations"
 import { quitOpencode, runCommand, sendPrompt } from "./lib/send-prompt"
 import { registerOpsxFsCommands } from "./features/commands"
 import { BackButton, Button, CollapsibleSection, Divider, NotInitialised, ProgressBar } from "./components/primitives"
 import { ChangeDetail, ChangeRow } from "./components/changes"
 import { RequirementDetail, SpecDetail, SpecRow } from "./components/specs"
+import { SearchField } from "./components/search"
 import { SettingsView } from "./components/settings"
+import { searchSpecs } from "./lib/search"
 import { VERSION } from "./lib/version"
 
 // Banner above the action row when an update is available: a muted line + Dismiss / Settings.
@@ -40,6 +52,21 @@ function UpdateBanner(props: {
   )
 }
 
+// Shown when config.yaml still carries the init flag but no turn is running — setup was interrupted.
+function InitBanner(props: { theme: Theme; stoppedAt: () => string; onResume: () => void; onDismiss: () => void; gate: { disabled?: () => boolean; onDisabledClick?: () => void } }) {
+  const t = props.theme
+  return (
+    <box paddingBottom={1}>
+      <text fg={t().warning} wrapMode="word">{`Initialization stopped ${props.stoppedAt()}`}</text>
+      <box flexDirection="row" gap={2} paddingTop={1}>
+        <Button theme={t} label="Resume" color={t().secondary} {...props.gate} onClick={props.onResume} />
+        <Button theme={t} label="Dismiss" color={t().warning} onClick={props.onDismiss} />
+      </box>
+      <Divider theme={t} />
+    </box>
+  )
+}
+
 // The sidebar root: polls the openspec dir and renders the list or a drill-in detail view.
 export function OpenSpecSidebar(props: { api: TuiPluginApi; sessionId: string; onDelete: (name: string) => void; baselineAvailable: boolean }) {
   const theme = () => props.api.theme.current
@@ -53,6 +80,7 @@ export function OpenSpecSidebar(props: { api: TuiPluginApi; sessionId: string; o
   const [selectedSpec, setSelectedSpec] = createSignal<string | null>(null)
   const [selectedReq, setSelectedReq] = createSignal<string | null>(null)
   const [hovered, setHovered] = createSignal<string | null>(null)
+  const [specQuery, setSpecQuery] = createSignal("")
   // false once we know the init /opsx-* commands aren't loaded (written this session but pre-restart).
   const [commandsReady, setCommandsReady] = createSignal<boolean | null>(null)
   // Init pressed; hold "Initializing…" until the agent goes idle.
@@ -68,6 +96,10 @@ export function OpenSpecSidebar(props: { api: TuiPluginApi; sessionId: string; o
   const [updateFlag, setUpdateFlag] = createSignal<UpdateFlag | null>(null)
   const [bannerDismissed, setBannerDismissed] = createSignal(false)
   const [reloadPending, setReloadPending] = createSignal(false)
+  // Setup marker read from config.yaml: drives the status line, the interrupted banner and Resume.
+  const [initState, setInitState] = createSignal<InitState>({ inProgress: false, done: [] })
+  // Init turn ended without producing tooling.
+  const [setupFailed, setSetupFailed] = createSignal(false)
   let pendingEphemeral = false // register the /opsx-* files once the init turn ends
   let pendingReload = false // show the reload prompt once an update turn ends
 
@@ -79,14 +111,24 @@ export function OpenSpecSidebar(props: { api: TuiPluginApi; sessionId: string; o
     setEphemeralResult(n > 0 ? "loaded" : "failed")
   }
 
-  const initOpenSpec = () => {
+  const startInit = (done: InitDone) => {
     setSetupInProgress(true)
     setEphemeralResult("idle")
+    setSetupFailed(false)
     pendingEphemeral = true
-    void sendPrompt(props.api, props.baselineAvailable ? OPENSPEC_INIT_PROMPT : OPENSPEC_INIT_ONLY_PROMPT, {
+    void sendPrompt(props.api, props.baselineAvailable ? buildInitPrompt(done) : OPENSPEC_INIT_ONLY_PROMPT, {
       clear: true,
       submit: true,
     })
+  }
+  const stageDone = (stage: InitStage) => initState().done.includes(stage)
+  // Init always starts over, even when openspec/ and .opencode/ are already there.
+  const initOpenSpec = () => startInit(NO_STAGES_DONE)
+  const resumeInit = () => startInit({ tooling: stageDone("tooling"), config: stageDone("config"), specs: stageDone("specs") })
+  // Dismiss hands the agent a turn to drop the marker — the banner goes once it's gone from config.yaml.
+  const dismissInit = () => {
+    if (busy()) return void toastBusy()
+    void sendPrompt(props.api, INIT_DISMISS_PROMPT, { clear: true, submit: true })
   }
 
   // Clear row hover (unmounted rows never fire onMouseOut) and keep selections mutually exclusive.
@@ -163,8 +205,9 @@ export function OpenSpecSidebar(props: { api: TuiPluginApi; sessionId: string; o
       const s = await readOpenSpec(client)
       setSummary(s)
       setInitialised(s !== null && (await hasOpenSpecTooling(client)))
-      // Cheap file read every poll so the post-update banner clears once the agent removes the flag.
+      // Cheap file reads every poll so the banners clear once the agent removes their flags.
       setUpdateFlag(await readUpdateFlag(client))
+      setInitState(await readInitFlag(client))
       // Are the init commands actually loaded? Stay optimistic on a fetch error.
       const cmds = await props.api.client.command
         .list()
@@ -206,6 +249,8 @@ export function OpenSpecSidebar(props: { api: TuiPluginApi; sessionId: string; o
       if (pendingEphemeral) {
         pendingEphemeral = false
         void installEphemeral()
+        // Re-read before judging: the poll can be up to 3s stale right after the turn.
+        void load().then(() => setSetupFailed(initialised() !== true))
       }
       if (pendingReload) {
         pendingReload = false
@@ -214,13 +259,21 @@ export function OpenSpecSidebar(props: { api: TuiPluginApi; sessionId: string; o
     }
   })
 
-  // Auto-expand Active Changes / Specifications once their items first appear; then respect the user.
+  // Auto-expand each section once its items first appear; after that, respect the user's toggling.
   let autoOpenedChanges = false
   createEffect(() => {
     if (autoOpenedChanges) return
     if ((summary()?.changes.filter((c) => !isComplete(c)).length ?? 0) > 0) {
       autoOpenedChanges = true
       setChangesOpen(true)
+    }
+  })
+  let autoOpenedCompleted = false
+  createEffect(() => {
+    if (autoOpenedCompleted) return
+    if ((summary()?.changes.filter(isComplete).length ?? 0) > 0) {
+      autoOpenedCompleted = true
+      setCompletedOpen(true)
     }
   })
   let autoOpenedSpecs = false
@@ -232,6 +285,8 @@ export function OpenSpecSidebar(props: { api: TuiPluginApi; sessionId: string; o
     }
   })
 
+  // Specifications filtered by the search field; an empty query passes everything through.
+  const specMatches = createMemo(() => searchSpecs(summary()?.specs ?? [], specQuery()))
   const activeList = createMemo(() => summary()?.changes.filter((c) => !isComplete(c)) ?? [])
   const completedList = createMemo(() => summary()?.changes.filter((c) => isComplete(c)) ?? [])
   // Agent mid-turn — used to disable actions and hide the reload prompt.
@@ -242,9 +297,37 @@ export function OpenSpecSidebar(props: { api: TuiPluginApi; sessionId: string; o
   const toastBusy = () => props.api.ui.toast({ variant: "info", message: "Wait until the agent finishes working" })
   const disabledProps = { disabled: busy, onDisabledClick: toastBusy }
 
+  // The first stage the agent hasn't checkpointed; "validate" once all three are recorded.
+  const setupStage = createMemo<InitStage | "validate">(
+    () => INIT_STAGES.find((s) => !stageDone(s)) ?? "validate",
+  )
+  const setupPhase = () =>
+    ({
+      tooling: "Installing OpenSpec",
+      config: "Configuring project",
+      specs: "Deriving specs",
+      validate: "Validating specs",
+    })[setupStage()]
+  const stoppedAt = () =>
+    ({
+      tooling: "while installing OpenSpec",
+      config: "while configuring the project",
+      specs: "while deriving specs",
+      validate: "while validating specs",
+    })[setupStage()]
+  // Interrupted mid-setup. Before the tooling checkpoint we offer Init instead, so the banner waits.
+  const initIncomplete = createMemo(
+    () => initState().inProgress && stageDone("tooling") && !busy() && !setupInProgress(),
+  )
+  // Setup owns the screen until it finishes: Init starts over while tooling isn't checkpointed…
+  const needsInit = createMemo(
+    () => initialised() === false || (initialised() === true && initState().inProgress && !stageDone("tooling")),
+  )
+
   // Above the action row: none while busy/native, warn if bridged ephemerally, error if that failed.
+  // Held back until setup is finished or dismissed — Reload and Resume are mutually exclusive.
   const banner = createMemo<"none" | "warn" | "error">(() => {
-    if (busy() || commandsReady() === true) return "none"
+    if (busy() || commandsReady() === true || initState().inProgress) return "none"
     if (ephemeralResult() === "loaded") return "warn"
     if (ephemeralResult() === "failed") return "error"
     return "none"
@@ -292,14 +375,26 @@ export function OpenSpecSidebar(props: { api: TuiPluginApi; sessionId: string; o
       </box>
       <Divider theme={theme} />
 
-      {/* Hold "Initializing" (with a running dot) over everything for the whole init turn. */}
-      <Show when={setupInProgress()}>
-        <text fg={theme().textMuted}>
-          Initializing
-          <span style={{ fg: dot() === 0 ? theme().text : theme().textMuted }}>.</span>
-          <span style={{ fg: dot() === 1 ? theme().text : theme().textMuted }}>.</span>
-          <span style={{ fg: dot() === 2 ? theme().text : theme().textMuted }}>.</span>
-        </text>
+      {/* Status line over the content (not instead of it) so specs fill in live during setup. */}
+      <Show when={setupInProgress() && !showSettings()}>
+        <box paddingBottom={1}>
+          <text fg={theme().textMuted}>
+            {setupPhase()}
+            <span style={{ fg: dot() === 0 ? theme().text : theme().textMuted }}>.</span>
+            <span style={{ fg: dot() === 1 ? theme().text : theme().textMuted }}>.</span>
+            <span style={{ fg: dot() === 2 ? theme().text : theme().textMuted }}>.</span>
+          </text>
+        </box>
+      </Show>
+
+      <Show when={!showSettings() && initIncomplete()}>
+        <InitBanner
+          theme={theme}
+          stoppedAt={stoppedAt}
+          gate={disabledProps}
+          onResume={resumeInit}
+          onDismiss={dismissInit}
+        />
       </Show>
 
       <Show when={showSettings()}>
@@ -316,181 +411,203 @@ export function OpenSpecSidebar(props: { api: TuiPluginApi; sessionId: string; o
         />
       </Show>
 
-      <Show when={!setupInProgress() && !showSettings() && initialised() === false}>
+      <Show when={!setupInProgress() && !showSettings() && needsInit()}>
+        <Show when={setupFailed() || initState().inProgress}>
+          <box paddingBottom={1}>
+            <text fg={theme().warning} wrapMode="word">Setup aborted – press "Init" to continue</text>
+          </box>
+        </Show>
         <NotInitialised theme={theme} onInit={initOpenSpec} {...disabledProps} />
       </Show>
 
-      <Show when={!setupInProgress() && !showSettings() && initialised() === true && summary()}>
-        {(data) => (
-          <box>
-            <Show
-              when={selectedChange()}
-              fallback={
-                <Show
-                  when={selectedRequirement()}
-                  fallback={
-                    <Show
-                      when={selectedSpecData()}
-                      fallback={
-                        <box>
-                          {/* Update available → banner over the actions; Settings button already turns accent. */}
-                          <Show when={updateAvailable() && !bannerDismissed()}>
-                            <UpdateBanner
-                              theme={theme}
-                              pluginUpdate={pluginUpdate}
-                              cliUpdate={cliUpdate}
-                              onDismiss={() => setBannerDismissed(true)}
-                              onSettings={() => {
-                                setBannerDismissed(true)
-                                setShowSettings(true)
-                              }}
-                            />
-                          </Show>
-                          {/* Post-update: flag left by the update turn. Migrate only if the new build actually loaded. */}
-                          <Show when={updateFlag()}>
-                            {(f) => (
-                              <box paddingBottom={1}>
-                                <Show
-                                  when={f().new === VERSION}
-                                  fallback={
-                                    <text fg={theme().warning} wrapMode="word">
-                                      {`Reopen opencode to finish updating to ${f().new}`}
-                                    </text>
-                                  }
-                                >
-                                  <text fg={theme().textMuted} wrapMode="word">
-                                    Run checks after update
-                                  </text>
-                                  <box flexDirection="row" paddingTop={1}>
-                                    <Button theme={theme} label="Complete Update" color={theme().accent} {...disabledProps} onClick={completeUpdate} />
-                                  </box>
-                                </Show>
-                              </box>
-                            )}
-                          </Show>
-                          {/* banner: warn = ephemeral bridge active (reopen for full flow), error = it failed. */}
-                          <Show
-                            when={banner() === "error"}
-                            fallback={
-                              <box>
-                                <Show when={banner() === "warn"}>
-                                  <box paddingBottom={1}>
-                                    <text fg={theme().warning} wrapMode="word">
-                                      Reopen opencode for full OpenSpec support — commands are loaded temporarily
-                                    </text>
-                                  </box>
-                                </Show>
-                                <box flexDirection="row" gap={2}>
-                                  <Button theme={theme} label="Explore" color={theme().accent} {...disabledProps} onClick={() => void sendPrompt(props.api, "/opsx-explore ")} />
-                                  <Button theme={theme} label="Propose" color={theme().secondary} {...disabledProps} onClick={() => void sendPrompt(props.api, "/opsx-propose ")} />
-                                  <Show when={completedList().length > 0}>
-                                    {/* One completed change → archive it directly; several → let the command prompt. */}
-                                    <Button
-                                      theme={theme}
-                                      label="Archive"
-                                      color={theme().success}
-                                      {...disabledProps}
-                                      onClick={() =>
-                                        void runCommand(
-                                          props.api,
-                                          completedList().length === 1 ? `/opsx-archive ${completedList()[0].name}` : "/opsx-archive",
-                                        )
-                                      }
-                                    />
-                                  </Show>
-                                </box>
-                              </box>
-                            }
-                          >
+      <Show when={!showSettings() && !needsInit() && initialised() === true && summary()}>
+        <box>
+          <Show
+            when={selectedChange()}
+            fallback={
+              <Show
+                when={selectedRequirement()}
+                fallback={
+                  <Show
+                    when={selectedSpecData()}
+                    fallback={
+                      <box>
+                        {/* Update available → banner over the actions; Settings button already turns accent. */}
+                        <Show when={updateAvailable() && !bannerDismissed()}>
+                          <UpdateBanner
+                            theme={theme}
+                            pluginUpdate={pluginUpdate}
+                            cliUpdate={cliUpdate}
+                            onDismiss={() => setBannerDismissed(true)}
+                            onSettings={() => {
+                              setBannerDismissed(true)
+                              setShowSettings(true)
+                            }}
+                          />
+                        </Show>
+                        {/* Post-update: flag left by the update turn. Migrate only if the new build actually loaded. */}
+                        <Show when={updateFlag()}>
+                          {(f) => (
                             <box paddingBottom={1}>
-                              <text fg={theme().error} wrapMode="word">
-                                OpenSpec commands didn't load — reopen opencode to finish setup
-                              </text>
-                            </box>
-                            <box flexDirection="row">
-                              <Button theme={theme} label="Reload" color={theme().error} {...disabledProps} onClick={() => quitOpencode(props.api)} />
-                            </box>
-                          </Show>
-                          <CollapsibleSection
-                            theme={theme}
-                            open={changesOpen}
-                            onToggle={() => setChangesOpen((x) => !x)}
-                            label="Active Changes"
-                            labelColor={theme().warning}
-                            count={activeList().length}
-                            collapsedSummary={
-                              <Show when={activeList().length > 0}>
-                                <text fg={theme().textMuted}>{`  ${activeDone()}/${activeTotal()} tasks done`}</text>
-                                <ProgressBar theme={theme} done={activeDone()} total={activeTotal()} />
+                              <Show
+                                when={f().new === VERSION}
+                                fallback={
+                                  <text fg={theme().warning} wrapMode="word">
+                                    {`Reopen opencode to finish updating to ${f().new}`}
+                                  </text>
+                                }
+                              >
+                                <text fg={theme().textMuted} wrapMode="word">
+                                  Run checks after update
+                                </text>
+                                <box flexDirection="row" paddingTop={1}>
+                                  <Button theme={theme} label="Complete Update" color={theme().accent} {...disabledProps} onClick={completeUpdate} />
+                                </box>
                               </Show>
-                            }
-                          >
-                            <For each={activeList()}>
-                              {(change) => (
-                                <ChangeRow theme={theme} change={change} hovered={hovered} setHovered={setHovered} onSelect={openChange} />
-                              )}
-                            </For>
-                          </CollapsibleSection>
+                            </box>
+                          )}
+                        </Show>
+                        {/* Same prompt whether the ephemeral bridge took or not — only a restart loads them properly. */}
+                        <Show when={banner() !== "none"}>
+                          <box paddingBottom={1}>
+                            <text fg={theme().warning} wrapMode="word">
+                              Reload opencode to activate new commands and skills
+                            </text>
+                            <box flexDirection="row" paddingTop={1}>
+                              <Button theme={theme} label="Reload OpenCode" color={theme().error} {...disabledProps} onClick={() => quitOpencode(props.api)} />
+                            </box>
+                          </box>
+                        </Show>
+                        {/* Hidden when the bridge failed: the /opsx-* commands these fill in wouldn't resolve. */}
+                        <Show when={banner() !== "error"}>
+                          <box flexDirection="row" gap={2}>
+                            <Button theme={theme} label="Explore" color={theme().accent} {...disabledProps} onClick={() => void sendPrompt(props.api, "/opsx-explore ")} />
+                            <Button theme={theme} label="Propose" color={theme().secondary} {...disabledProps} onClick={() => void sendPrompt(props.api, "/opsx-propose ")} />
+                            <Show when={completedList().length > 0}>
+                              {/* One completed change → archive it directly; several → let the command prompt. */}
+                              <Button
+                                theme={theme}
+                                label="Archive"
+                                color={theme().success}
+                                {...disabledProps}
+                                onClick={() =>
+                                  void runCommand(
+                                    props.api,
+                                    completedList().length === 1 ? `/opsx-archive ${completedList()[0].name}` : "/opsx-archive",
+                                  )
+                                }
+                              />
+                            </Show>
+                          </box>
+                        </Show>
+                        <CollapsibleSection
+                          theme={theme}
+                          open={changesOpen}
+                          onToggle={() => setChangesOpen((x) => !x)}
+                          label="Active Changes"
+                          labelColor={theme().warning}
+                          count={activeList().length}
+                          collapsedSummary={
+                            <Show when={activeList().length > 0}>
+                              <text fg={theme().textMuted}>{`  ${activeDone()}/${activeTotal()} tasks done`}</text>
+                              <ProgressBar theme={theme} done={activeDone()} total={activeTotal()} />
+                            </Show>
+                          }
+                        >
+                          <For each={activeList()}>
+                            {(change) => (
+                              <ChangeRow theme={theme} change={change} hovered={hovered} setHovered={setHovered} onSelect={openChange} />
+                            )}
+                          </For>
+                        </CollapsibleSection>
 
-                          <CollapsibleSection
+                        <CollapsibleSection
+                          theme={theme}
+                          open={completedOpen}
+                          onToggle={() => setCompletedOpen((x) => !x)}
+                          label="Completed Changes"
+                          labelColor={theme().success}
+                          count={completedList().length}
+                        >
+                          <For each={completedList()}>
+                            {(change) => (
+                              <ChangeRow theme={theme} change={change} hovered={hovered} setHovered={setHovered} onSelect={openChange} />
+                            )}
+                          </For>
+                        </CollapsibleSection>
+
+                        <CollapsibleSection
+                          theme={theme}
+                          open={specsOpen}
+                          onToggle={() => setSpecsOpen((x) => !x)}
+                          label="Specifications"
+                          labelColor={theme().accent}
+                          count={specMatches().length}
+                        >
+                          <SearchField
                             theme={theme}
-                            open={completedOpen}
-                            onToggle={() => setCompletedOpen((x) => !x)}
-                            label="Completed Changes"
-                            labelColor={theme().success}
-                            count={completedList().length}
+                            renderer={props.api.renderer}
+                            value={specQuery}
+                            onInput={setSpecQuery}
+                            placeholder="Search specs"
+                          />
+                          <Show
+                            when={specMatches().length > 0}
+                            fallback={<text fg={theme().textMuted}>{"  No matches"}</text>}
                           >
-                            <For each={completedList()}>
-                              {(change) => (
-                                <ChangeRow theme={theme} change={change} hovered={hovered} setHovered={setHovered} onSelect={openChange} />
+                            <For each={specMatches()}>
+                              {(match) => (
+                                <SpecRow
+                                  theme={theme}
+                                  spec={match.spec}
+                                  hovered={hovered}
+                                  setHovered={setHovered}
+                                  onSelect={openSpec}
+                                  matchedRequirements={match.matchedRequirements}
+                                />
                               )}
                             </For>
-                          </CollapsibleSection>
+                          </Show>
+                        </CollapsibleSection>
 
-                          <CollapsibleSection
-                            theme={theme}
-                            open={specsOpen}
-                            onToggle={() => setSpecsOpen((x) => !x)}
-                            label="Specifications"
-                            labelColor={theme().accent}
-                            count={data().specs.length}
-                          >
-                            <For each={data().specs}>
-                              {(spec) => (
-                                <SpecRow theme={theme} spec={spec} hovered={hovered} setHovered={setHovered} onSelect={openSpec} />
-                              )}
-                            </For>
-                          </CollapsibleSection>
-
-                          <Divider theme={theme} />
-                        </box>
-                      }
-                    >
-                      {(spec) => <SpecDetail theme={theme} spec={spec()} onOpenReq={openRequirement} onBack={backFromSpec} />}
-                    </Show>
-                  }
-                >
-                  {(req) => <RequirementDetail theme={theme} req={req()} onBack={backFromRequirement} />}
-                </Show>
-              }
-            >
-              {(change) => (
-                <ChangeDetail
-                  theme={theme}
-                  change={change()}
-                  onBack={back}
-                  // Apply/Update fill the prompt; Archive (submit) runs the command.
-                  onCommand={(text, submit) => {
-                    if (submit) void runCommand(props.api, text)
-                    else void sendPrompt(props.api, text)
-                  }}
-                  onDelete={props.onDelete}
-                  gate={disabledProps}
-                />
-              )}
-            </Show>
-          </box>
-        )}
+                        <Divider theme={theme} />
+                      </box>
+                    }
+                  >
+                    {(spec) => (
+                      <SpecDetail
+                        theme={theme}
+                        spec={spec()}
+                        renderer={props.api.renderer}
+                        query={specQuery}
+                        onQuery={setSpecQuery}
+                        onOpenReq={openRequirement}
+                        onBack={backFromSpec}
+                      />
+                    )}
+                  </Show>
+                }
+              >
+                {(req) => <RequirementDetail theme={theme} req={req()} onBack={backFromRequirement} />}
+              </Show>
+            }
+          >
+            {(change) => (
+              <ChangeDetail
+                theme={theme}
+                change={change()}
+                onBack={back}
+                // Apply/Update fill the prompt; Archive (submit) runs the command.
+                onCommand={(text, submit) => {
+                  if (submit) void runCommand(props.api, text)
+                  else void sendPrompt(props.api, text)
+                }}
+                onDelete={props.onDelete}
+                gate={disabledProps}
+              />
+            )}
+          </Show>
+        </box>
       </Show>
     </box>
   )
