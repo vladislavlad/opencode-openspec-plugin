@@ -1,6 +1,5 @@
-// Reading the openspec directory: task counts, capability discovery and the summary the sidebar
-// polls. The spec.md model and its parser live in `spec-driven.ts` — they belong to that schema,
-// this file only reads files and assembles the summary.
+// Reads the openspec directory: task counts, capability discovery and the summary the sidebar polls.
+// The spec.md model and its parser live in `spec-driven.ts`.
 import { parseSpec, specEquals } from "./spec-driven"
 export { parseSpec } from "./spec-driven"
 export type { OpenSpecSpec, Requirement, Scenario } from "./spec-driven"
@@ -24,7 +23,6 @@ export interface OpenSpecChange {
 }
 
 export interface OpenSpecSummary {
-  root: string // "openspec" or ".openspec" - the directory the data was read from
   specCount: number
   requirementCount: number
   specs: OpenSpecSpec[]
@@ -75,21 +73,17 @@ async function listSubdirs(client: FileClient, path: string): Promise<string[]> 
   return (await listEntries(client, path)).filter(isSubdir).map((e) => e.name)
 }
 
-// `openspec init` writes config.yaml but no subdirs, so either one marks the root.
+// The CLI keeps everything under a single `openspec/` directory — its own path constant, no alternates.
+export const ROOT = "openspec"
+
+// `openspec init` writes config.yaml but no subdirs, so either one marks the directory as set up.
 async function isRoot(client: FileClient, path: string): Promise<boolean> {
   const entries = await listEntries(client, path)
   return entries.some((e) => isSubdir(e) || (e.type === "file" && e.name === "config.yaml"))
 }
 
-// The command/skill files `openspec init --tools opencode` writes into `.opencode`.
-const REQUIRED_COMMANDS = [
-  "opsx-apply.md",
-  "opsx-archive.md",
-  "opsx-explore.md",
-  "opsx-propose.md",
-  "opsx-sync.md",
-  "opsx-update.md",
-]
+// The commands and skills `openspec init --tools opencode` writes into `.opencode`.
+export const OPSX_COMMANDS = ["opsx-apply", "opsx-archive", "opsx-explore", "opsx-propose", "opsx-sync", "opsx-update"]
 const REQUIRED_SKILLS = [
   "openspec-apply-change",
   "openspec-archive-change",
@@ -99,7 +93,7 @@ const REQUIRED_SKILLS = [
   "openspec-update-change",
 ]
 
-// True only when every opencode command and skill from `openspec init` is present.
+// True only when every one of them is present.
 export async function hasOpenSpecTooling(client: FileClient): Promise<boolean> {
   let commands: { name: string }[]
   try {
@@ -108,7 +102,7 @@ export async function hasOpenSpecTooling(client: FileClient): Promise<boolean> {
     return false
   }
   const commandNames = new Set(commands.map((e) => e.name))
-  if (!REQUIRED_COMMANDS.every((c) => commandNames.has(c))) return false
+  if (!OPSX_COMMANDS.every((c) => commandNames.has(`${c}.md`))) return false
 
   const skillNames = new Set(await listSubdirs(client, ".opencode/skills"))
   return REQUIRED_SKILLS.every((s) => skillNames.has(s))
@@ -120,6 +114,7 @@ export const isComplete = (change: OpenSpecChange) =>
 export const isGroupComplete = (group: TaskGroup) =>
   group.tasks.length > 0 && group.tasks.every((t) => t.done)
 
+// Deep equality, so a poll that reads identical files doesn't re-render the tree.
 export function summaryEquals(a: OpenSpecSummary | null, b: OpenSpecSummary | null): boolean {
   if (a === b) return true
   if (!a || !b) return false
@@ -150,33 +145,34 @@ export function summaryEquals(a: OpenSpecSummary | null, b: OpenSpecSummary | nu
 }
 
 export async function readOpenSpec(client: FileClient): Promise<OpenSpecSummary | null> {
-  let rootName: string | null = null
-  for (const candidate of ["openspec", ".openspec"]) {
-    if (await isRoot(client, candidate)) {
-      rootName = candidate
-      break
-    }
-  }
-  if (!rootName) return null
+  if (!(await isRoot(client, ROOT))) return null
 
-  const changes: OpenSpecChange[] = []
-  for (const name of await listSubdirs(client, `${rootName}/changes`)) {
-    if (name === "archive") continue
-    const { total, completed, groups } = parseTasks(await client.read(`${rootName}/changes/${name}/tasks.md`))
-    changes.push({ name, totalTasks: total, completedTasks: completed, groups })
-  }
+  const [changeDirs, specDirs] = await Promise.all([
+    listSubdirs(client, `${ROOT}/changes`),
+    listSubdirs(client, `${ROOT}/specs`),
+  ])
+
+  // Reads run in parallel — this whole function re-runs on every poll.
+  const changes = await Promise.all(
+    changeDirs
+      .filter((name) => name !== "archive")
+      .map(async (name) => {
+        const { total, completed, groups } = parseTasks(await client.read(`${ROOT}/changes/${name}/tasks.md`))
+        return { name, totalTasks: total, completedTasks: completed, groups }
+      }),
+  )
   changes.sort((a, b) => a.name.localeCompare(b.name))
 
-  const specs: OpenSpecSpec[] = []
-  for (const name of await listSubdirs(client, `${rootName}/specs`)) {
-    const content = await client.read(`${rootName}/specs/${name}/spec.md`)
-    if (!content) continue // openspec counts a spec only when its spec.md exists
-    specs.push(parseSpec(name, content))
-  }
+  const parsed = await Promise.all(
+    specDirs.map(async (name) => {
+      const content = await client.read(`${ROOT}/specs/${name}/spec.md`)
+      return content ? parseSpec(name, content) : null // openspec counts a spec only when its spec.md exists
+    }),
+  )
+  const specs = parsed.filter((s): s is OpenSpecSpec => s !== null)
   specs.sort((a, b) => a.name.localeCompare(b.name))
 
   return {
-    root: rootName,
     specCount: specs.length,
     requirementCount: specs.reduce((sum, s) => sum + s.requirements.length, 0),
     specs,

@@ -1,5 +1,5 @@
 import { describe, expect, test } from "bun:test"
-import { readInitFlag, readUpdateFlag } from "../src/lib/updates"
+import { readPluginState } from "../src/lib/config"
 import type { FileClient } from "../src/lib/openspec"
 
 function mockClient(read: Record<string, string>): FileClient {
@@ -8,6 +8,10 @@ function mockClient(read: Record<string, string>): FileClient {
     read: async (path) => read[path] ?? "",
   }
 }
+
+// Both markers come out of one read; each describe block asserts on its own half.
+const readInitFlag = async (c: FileClient) => (await readPluginState(c)).init
+const readUpdateFlag = async (c: FileClient) => (await readPluginState(c)).update
 
 describe("readInitFlag", () => {
   test("reads the marker written before install, with no stage done yet", async () => {
@@ -29,10 +33,6 @@ describe("readInitFlag", () => {
     expect(await readInitFlag(client)).toEqual({ inProgress: false, done: [] })
   })
 
-  test("falls back to the .openspec root", async () => {
-    const client = mockClient({ ".openspec/config.yaml": 'plugin:\n  init:\n    in-progress: true\n    done: ["tooling"]\n' })
-    expect(await readInitFlag(client)).toEqual({ inProgress: true, done: ["tooling"] })
-  })
 
   test("treats a missing or malformed config as no marker", async () => {
     expect(await readInitFlag(mockClient({}))).toEqual({ inProgress: false, done: [] })

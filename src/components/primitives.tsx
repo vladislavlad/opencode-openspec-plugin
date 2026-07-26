@@ -1,6 +1,25 @@
 import { createSignal, For, Show, type JSX } from "solid-js"
 import type { Color, Theme } from "../lib/theme"
 
+// Greys a button out and diverts the click — spread onto every action that must wait for the agent.
+export type Gate = { disabled?: () => boolean; onDisabledClick?: () => void }
+
+// Hover state shared by a list and its rows, so only one row highlights at a time.
+export type HoverState = {
+  hovered: () => string | null
+  setHovered: (fn: (h: string | null) => string | null) => void
+}
+
+// Hover flag + mouse handlers for one row. Keys are namespaced (`spec:name`) so rows of different
+// kinds never share one.
+export function rowHover(state: HoverState, key: () => string) {
+  return {
+    active: () => state.hovered() === key(),
+    onMouseOver: () => state.setHovered(() => key()),
+    onMouseOut: () => state.setHovered((h) => (h === key() ? null : h)),
+  }
+}
+
 // Progress bar for `done`/`total`; nothing when there are no tasks. `muted` overrides the dim colour.
 export function ProgressBar(props: { theme: Theme; done: number; total: number; muted?: Color }) {
   const percent = () => Math.round((props.done / props.total) * 100)
@@ -18,7 +37,7 @@ export function ProgressBar(props: { theme: Theme; done: number; total: number; 
 }
 
 // Clickable button; fills its background with `color` on hover. `disabled` renders it muted and
-// routes clicks to `onDisabledClick` (used to block actions while the agent is busy).
+// routes clicks to `onDisabledClick`.
 export function Button(props: {
   theme: Theme
   label: string
@@ -46,33 +65,17 @@ export function Button(props: {
   )
 }
 
-// The thin rule between sections. A box border, not a row of "─": a fixed-length string wraps in a
-// narrow sidebar and the stray tail reads as an empty row.
+// A box border, not a row of "─": a fixed-length string wraps in a narrow sidebar and the stray tail
+// reads as an empty row.
 export function Divider(props: { theme: Theme }) {
   return <box width="100%" height={1} border={["top"]} borderColor={props.theme().borderSubtle} />
 }
 
-// Navigation "← back" button. Accent text; on hover fills accent with the text flipped to the
-// background colour, plus 1-char side padding — matching the look of Button. Reused everywhere a
-// detail or settings view offers a way back.
 export function BackButton(props: { theme: Theme; onBack: () => void }) {
-  const [hover, setHover] = createSignal(false)
-  const t = props.theme
-  return (
-    <box
-      paddingLeft={1}
-      paddingRight={1}
-      backgroundColor={hover() ? t().accent : undefined}
-      onMouseDown={props.onBack}
-      onMouseOver={() => setHover(true)}
-      onMouseOut={() => setHover(false)}
-    >
-      <text fg={hover() ? t().background : t().accent}>← back</text>
-    </box>
-  )
+  return <Button theme={props.theme} label="← back" color={props.theme().accent} onClick={props.onBack} />
 }
 
-// The "✕" that empties a search field; accent fill on hover, like BackButton.
+// The "✕" that empties a search field.
 export function ClearButton(props: { theme: Theme; onClear: () => void }) {
   const [hover, setHover] = createSignal(false)
   const t = props.theme
@@ -90,8 +93,7 @@ export function ClearButton(props: { theme: Theme; onClear: () => void }) {
   )
 }
 
-// A detail-view header: bold label left, "← back" right. Every detail screen goes through this, so
-// they all sit at the same height.
+// Every detail screen goes through this, so they all sit at the same height.
 export function DetailHeader(props: { theme: Theme; label: string; onBack: () => void; color?: Color }) {
   const theme = props.theme
   return (
@@ -122,7 +124,7 @@ function splitShall(line: string): { text: string; keyword: boolean }[] {
   return parts.length ? parts : [{ text: line || " ", keyword: false }]
 }
 
-// Renders `\n`-joined text as stacked word-wrapped rows; highlights the `SHALL` keyword in accent.
+// Renders `\n`-joined text as stacked word-wrapped rows, with `SHALL` highlighted.
 export function Paragraph(props: { theme: Theme; text: string; fg?: Color }) {
   const theme = props.theme
   const base = () => props.fg ?? theme().text
@@ -141,7 +143,7 @@ export function Paragraph(props: { theme: Theme; text: string; fg?: Color }) {
   )
 }
 
-// A collapsible sidebar section: a "▼/▶ Label: count" header that reveals its children when open.
+// A "▼/▶ Label: count" header that reveals its children when open.
 export function CollapsibleSection(props: {
   theme: Theme
   open: () => boolean
@@ -150,8 +152,7 @@ export function CollapsibleSection(props: {
   labelColor: Color
   count: number
   children: JSX.Element
-  // Optional preview rendered under the header while the section is collapsed.
-  collapsedSummary?: JSX.Element
+  collapsedSummary?: JSX.Element // preview rendered under the header while collapsed
 }) {
   const theme = props.theme
   return (
@@ -174,12 +175,7 @@ export function CollapsibleSection(props: {
 }
 
 // Shown when the project has no openspec/ dir or is missing the opencode tooling.
-export function NotInitialised(props: {
-  theme: Theme
-  onInit: () => void
-  disabled?: () => boolean
-  onDisabledClick?: () => void
-}) {
+export function NotInitialised(props: { theme: Theme; onInit: () => void; gate: Gate }) {
   const theme = props.theme
   return (
     <box>
@@ -189,14 +185,7 @@ export function NotInitialised(props: {
         </text>
       </box>
       <box flexDirection="row" paddingTop={1}>
-        <Button
-          theme={theme}
-          label="Init"
-          color={theme().secondary}
-          disabled={props.disabled}
-          onDisabledClick={props.onDisabledClick}
-          onClick={props.onInit}
-        />
+        <Button theme={theme} label="Init" color={theme().secondary} {...props.gate} onClick={props.onInit} />
       </box>
     </box>
   )

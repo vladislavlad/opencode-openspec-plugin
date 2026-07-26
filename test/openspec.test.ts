@@ -259,7 +259,7 @@ describe("hasOpenSpecTooling", () => {
 // ---- readOpenSpec ---------------------------------------------------------
 
 describe("readOpenSpec", () => {
-  test("returns null when neither openspec nor .openspec exists", async () => {
+  test("returns null when there is no openspec directory", async () => {
     expect(await readOpenSpec(mockClient({}))).toBeNull()
   })
 
@@ -276,7 +276,6 @@ describe("readOpenSpec", () => {
       },
     })
     const summary = await readOpenSpec(client)
-    expect(summary?.root).toBe("openspec")
     // "archive" is skipped, only real changes remain
     expect(summary?.changes.map((c) => c.name)).toEqual(["add-login"])
     expect(summary?.changes[0]).toMatchObject({ completedTasks: 1, totalTasks: 2 })
@@ -288,7 +287,6 @@ describe("readOpenSpec", () => {
   test("detects the root right after openspec init — config.yaml, no subdirs yet", async () => {
     const client = mockClient({ list: { openspec: files("config.yaml") } })
     const summary = await readOpenSpec(client)
-    expect(summary?.root).toBe("openspec")
     expect(summary?.specs).toEqual([])
     expect(summary?.changes).toEqual([])
   })
@@ -298,18 +296,6 @@ describe("readOpenSpec", () => {
     expect(await readOpenSpec(client)).toBeNull()
   })
 
-  test("falls back to the .openspec root when openspec is empty", async () => {
-    const client = mockClient({
-      list: {
-        ".openspec": dir("specs"),
-        ".openspec/specs": dir("core"),
-      },
-      read: { ".openspec/specs/core/spec.md": "# Core\n\n## Requirements\n\n### Requirement: R\nThe system SHALL r." },
-    })
-    const summary = await readOpenSpec(client)
-    expect(summary?.root).toBe(".openspec")
-    expect(summary?.specs.map((s) => s.name)).toEqual(["core"])
-  })
 
   test("skips a spec whose spec.md is empty", async () => {
     const client = mockClient({

@@ -14,10 +14,21 @@ export interface Requirement {
 }
 
 export interface OpenSpecSpec {
-  name: string // capability directory name - stable id and the label shown in the list
+  name: string // capability directory name — stable id and the label shown in the list
   title: string // from the `#` heading, or the dir name; searchable, not rendered
   purpose: string // text under `## Purpose`
   requirements: Requirement[]
+}
+
+// "# <Name> Specification" (what openspec writes when archiving) and "# Specification: <Name>" both
+// carry the name; fall back to the capability directory.
+function specTitle(heading: string, fallback: string): string {
+  const t = heading.trim()
+  const prefixed = /^Specification:\s*(.+)$/i.exec(t)
+  if (prefixed) return prefixed[1].trim()
+  const suffixed = /^(.+?)\s+Specification$/i.exec(t)
+  if (suffixed) return suffixed[1].trim()
+  return t || fallback
 }
 
 const SPEC_H1 = /^#\s+(.+?)\s*$/
@@ -32,17 +43,6 @@ const SYNTAX = /\b(SHALL|MUST|WHEN|THEN|GIVEN|AND|BUT)\b|[*_`]+|^[-+]\s+/gim
 // Text as prose: no schema keywords, no markdown. For matching, never for display.
 export function stripSyntax(text: string): string {
   return text.replace(SYNTAX, " ")
-}
-
-// "# <Name> Specification" (what openspec writes when archiving) and "# Specification: <Name>" both
-// carry the name; fall back to the capability directory.
-function specTitle(heading: string, fallback: string): string {
-  const t = heading.trim()
-  const prefixed = /^Specification:\s*(.+)$/i.exec(t)
-  if (prefixed) return prefixed[1].trim()
-  const suffixed = /^(.+?)\s+Specification$/i.exec(t)
-  if (suffixed) return suffixed[1].trim()
-  return t || fallback
 }
 
 function trimBlankEdges(lines: string[]): string[] {

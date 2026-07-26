@@ -12,12 +12,8 @@ export async function sendPrompt(api: TuiPluginApi, text: string, opts: { clear?
   }
 }
 
-export function quitOpencode(api: TuiPluginApi) {
-  void sendPrompt(api, "exit", { clear: true, submit: true })
-}
+// Submit text as a real agent turn. Clearing first keeps half-typed input from corrupting it.
+export const submitPrompt = (api: TuiPluginApi, text: string) => sendPrompt(api, text, { clear: true, submit: true })
 
-// Run a slash command by submitting it (real agent turn). session.command needs an explicit
-// agent/model; tui.executeCommand misses session commands. Clears so half-typed text can't corrupt it.
-export async function runCommand(api: TuiPluginApi, command: string) {
-  await sendPrompt(api, command, { clear: true, submit: true })
-}
+// opencode quits on a bare "exit" in the prompt, and rescans commands + skills on the next launch.
+export const quitOpencode = (api: TuiPluginApi) => void submitPrompt(api, "exit")

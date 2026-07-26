@@ -1,76 +1,53 @@
 import { createSignal, For, Show } from "solid-js"
 import { isComplete, isGroupComplete, type OpenSpecChange } from "../lib/openspec"
 import type { Theme } from "../lib/theme"
-import { Button, DetailHeader, ProgressBar } from "./primitives"
+import { Button, DetailHeader, ProgressBar, rowHover, type Gate, type HoverState } from "./primitives"
 
-// A single change row in the Active/Completed lists; hover highlight + click to open.
-export function ChangeRow(props: {
-  theme: Theme
-  change: OpenSpecChange
-  hovered: () => string | null
-  setHovered: (fn: (h: string | null) => string | null) => void
-  onSelect: (name: string) => void
-}) {
+// A change row in the Active/Completed lists; hover highlight + click to open.
+export function ChangeRow(props: HoverState & { theme: Theme; change: OpenSpecChange; onSelect: (name: string) => void }) {
   const theme = props.theme
   const change = () => props.change
-  const done = () => isComplete(change())
-  const hover = () => props.hovered() === change().name
+  const hover = rowHover(props, () => change().name)
   return (
-    <box>
-      <box
-        width="100%"
-        backgroundColor={hover() ? theme().textMuted : undefined}
-        onMouseDown={() => props.onSelect(change().name)}
-        onMouseOver={() => props.setHovered(() => change().name)}
-        onMouseOut={() => props.setHovered((h) => (h === change().name ? null : h))}
-      >
-        <text>
-          <span style={{ fg: done() ? theme().success : theme().warning }}>• </span>
-          <span style={{ fg: theme().text }}>{change().name}</span>
-        </text>
-        <Show when={change().groups.length > 0}>
-          <text fg={hover() ? theme().text : theme().textMuted}>{`  ${change().totalTasks} tasks`}</text>
-        </Show>
-        <ProgressBar
-          theme={theme}
-          done={change().completedTasks}
-          total={change().totalTasks}
-          muted={hover() ? theme().text : undefined}
-        />
-      </box>
+    <box
+      width="100%"
+      backgroundColor={hover.active() ? theme().textMuted : undefined}
+      onMouseDown={() => props.onSelect(change().name)}
+      onMouseOver={hover.onMouseOver}
+      onMouseOut={hover.onMouseOut}
+    >
+      <text>
+        <span style={{ fg: isComplete(change()) ? theme().success : theme().warning }}>• </span>
+        <span style={{ fg: theme().text }}>{change().name}</span>
+      </text>
+      <Show when={change().groups.length > 0}>
+        <text fg={hover.active() ? theme().text : theme().textMuted}>{`  ${change().totalTasks} tasks`}</text>
+      </Show>
+      <ProgressBar
+        theme={theme}
+        done={change().completedTasks}
+        total={change().totalTasks}
+        muted={hover.active() ? theme().text : undefined}
+      />
     </box>
   )
 }
 
-// Props that grey out prompt-submitting buttons while the agent is busy.
-type Gate = { disabled?: () => boolean; onDisabledClick?: () => void }
-
-// The Apply/Update/Delete button row for an active change. Apply/Update fill the prompt (no submit).
-function ChangeActions(props: {
-  theme: Theme
-  name: string
-  onCommand: (text: string, submit?: boolean) => void
-  onRequestDelete: () => void
-  gate: Gate
-}) {
+// Apply/Update only fill the prompt so the user can add context before sending.
+function ChangeActions(props: { theme: Theme; name: string; onCommand: (text: string, submit?: boolean) => void; onRequestDelete: () => void; gate: Gate }) {
   const theme = props.theme
   return (
     <box flexDirection="row" gap={1} paddingTop={1} paddingLeft={2}>
       <Button theme={theme} label="Apply" color={theme().success} {...props.gate} onClick={() => props.onCommand(`/opsx-apply ${props.name}`)} />
       <Button theme={theme} label="Update" color={theme().warning} {...props.gate} onClick={() => props.onCommand(`/opsx-update ${props.name}`)} />
-      {/* Delete only opens the local confirm — safe while busy, so it stays enabled. */}
+      {/* Only opens the local confirm — safe while busy, so it stays enabled. */}
       <Button theme={theme} label="Delete" color={theme().error} onClick={props.onRequestDelete} />
     </box>
   )
 }
 
-// The Archive/Update button row for a completed change. Archive runs immediately; Update only fills.
-function CompletedChangeActions(props: {
-  theme: Theme
-  name: string
-  onCommand: (text: string, submit?: boolean) => void
-  gate: Gate
-}) {
+// Archive runs immediately; Update only fills.
+function CompletedChangeActions(props: { theme: Theme; name: string; onCommand: (text: string, submit?: boolean) => void; gate: Gate }) {
   const theme = props.theme
   return (
     <box flexDirection="row" gap={1} paddingTop={1} paddingLeft={2}>
@@ -80,7 +57,7 @@ function CompletedChangeActions(props: {
   )
 }
 
-// Inline confirmation shown in place of the button row before a change is deleted.
+// Shown in place of the button row before a change is deleted.
 function ChangeDeletionConfirm(props: { theme: Theme; onConfirm: () => void; onCancel: () => void }) {
   const theme = props.theme
   return (
@@ -114,23 +91,25 @@ export function ChangeDetail(props: {
 }) {
   const theme = props.theme
   const change = () => props.change
+  const done = () => isComplete(change())
+  const accent = () => (done() ? theme().success : theme().warning)
   const [confirming, setConfirming] = createSignal(false)
   return (
     <box>
       <DetailHeader
         theme={theme}
-        label={isComplete(change()) ? "Completed Change" : "Active Change"}
-        color={isComplete(change()) ? theme().success : theme().warning}
+        label={done() ? "Completed Change" : "Active Change"}
+        color={accent()}
         onBack={props.onBack}
       />
       <text>
-        <span style={{ fg: isComplete(change()) ? theme().success : theme().warning }}>• </span>
+        <span style={{ fg: accent() }}>• </span>
         <span style={{ fg: theme().text }}>{change().name}</span>
       </text>
       <text fg={theme().textMuted}>{`  ${change().totalTasks} tasks`}</text>
       <ProgressBar theme={theme} done={change().completedTasks} total={change().totalTasks} />
       <Show
-        when={isComplete(change())}
+        when={done()}
         fallback={
           <Show
             when={confirming()}

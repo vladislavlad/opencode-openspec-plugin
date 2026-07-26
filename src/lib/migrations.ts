@@ -1,30 +1,28 @@
+import { SPEAK_THE_USER_LANGUAGE } from "./prompts"
 import { semverGt } from "./updates"
 
-// One release's post-update payload:
-// - `instructions`: steps for the AGENT to run after the update (config-schema change, moved files,
-//   …). May be empty when a release needs nothing done.
-// - `releaseNotes`: what changed in this version, for the agent to relay to the USER. May be empty.
 export interface Migration {
-  instructions: string
-  releaseNotes: string
+  instructions: string // post-update steps for the agent; empty when a release needs nothing done
+  releaseNotes: string // what changed, for the agent to relay to the user
 }
 
-// Keyed by the plugin version that introduces them. After the plugin is updated and opencode
-// restarts, Complete Update replays every entry in the crossed range as one prompt. Empty until the
-// first release that needs a migration or has notes worth surfacing.
+// Keyed by the plugin version that introduces them. After the update and a restart, Complete Update
+// replays every entry in the crossed range as one prompt.
+//
+// Writing releaseNotes: highlights only — what the user can now DO that they couldn't before, one
+// short sentence each, 3-5 per release. Name the thing and where it is ("a search field above the
+// Specifications list"), not how it was built. Leave out refactors, internal moves, cosmetic fixes
+// and anything invisible from the sidebar; if a bug fix isn't one the user hit, it isn't a highlight.
+// One entry per released version — collapse the work of several changes into it, don't list them.
 export const MIGRATIONS: Record<string, Migration> = {
-  "0.2.2": {
-    instructions: "",
-    releaseNotes:
-      "The Specifications section now has a search field above the list. Click it and type to filter specs — the query matches every artifact of a spec: its name, title, Purpose, and the names, descriptions and scenarios of its requirements. Multi-word queries match all words. The same field sits inside a spec, above its requirements: the query carries over when you open a spec, filters its requirements and scenarios, and is still there when you go back. Esc or Enter returns keyboard focus to the prompt, and ✕ clears the query. The spec detail view also drops its title line — it only repeated the capability name — and the free text above the first section, which is not part of the OpenSpec spec format. Divider lines now match the sidebar width instead of wrapping onto a second row, which removes a stray blank line under every separator in a narrow sidebar. Schema keywords and markdown are ignored while matching, so searching for \"shall\", \"when\" or \"**\" no longer returns every spec in the project.",
-  },
   "0.3.0": {
     instructions: "",
     releaseNotes: [
-      "The sidebar no longer goes blank during setup. Specs now appear in the list as they are derived, with a status line showing the current stage (installing, configuring, deriving specs, validating).",
-      "A project counts as initialised right after `openspec init`, so the Init button no longer comes back when no specs were derived (e.g. in an empty project).",
-      "Setup now records its progress in `openspec/config.yaml` under `plugin.init`, stage by stage. If it is interrupted, the sidebar says where it stopped and offers Resume — which picks up from the first unfinished stage instead of starting over — or Dismiss, which clears the marker.",
-      "The restart prompt is now one message — \"Reload opencode to activate new commands and skills\" with a Reload OpenCode button — instead of two differently worded ones, and it is held back until setup is finished or dismissed, so it no longer competes with Resume.",
+      "Release notes now reach you however you updated.",
+      "Search your specs: a field above the Specifications list filters by name, Purpose, requirements and scenarios.",
+      "Init process shows its progress — specs appear in the sidebar as they are derived.",
+      "Interrupted setup offers Resume and continues from where it stopped.",
+      "Setup asks its questions in your language, and asks up front how deeply to study the project.",
     ].join(" "),
   },
 }
@@ -37,11 +35,19 @@ export function collectMigrations(old: string, next: string): (Migration & { ver
     .map((v) => ({ version: v, ...MIGRATIONS[v] }))
 }
 
-// The prompt Complete Update sends: the agent runs any migration instructions, then tells the user
-// what's new from the release notes, then clears the update-in-progress flag.
-export function buildMigrationPrompt(range: { old: string; new: string }): string {
+// Whether a range is worth surfacing at all — a patch release with no entry has nothing to say.
+export const hasMigrations = (old: string, next: string) => collectMigrations(old, next).length > 0
+
+// Complete Update: run the migration steps, then relay the release notes. `clearFlag` adds the
+// instruction to drop `plugin.update-in-progress`; a range detected from `kv` has no flag to drop.
+export function buildMigrationPrompt(range: { old: string; new: string }, opts: { clearFlag?: boolean } = {}): string {
   const migrations = collectMigrations(range.old, range.new)
-  const lines = [`The OpenSpec plugin was updated from ${range.old} to ${range.new} and opencode has restarted.`, ""]
+  const lines = [
+    SPEAK_THE_USER_LANGUAGE,
+    "",
+    `The OpenSpec plugin was updated from ${range.old} to ${range.new} and opencode has restarted.`,
+    "",
+  ]
 
   const steps = migrations.filter((m) => m.instructions.trim())
   if (steps.length) {
@@ -57,8 +63,10 @@ export function buildMigrationPrompt(range: { old: string; new: string }): strin
     for (const m of notes) lines.push(`### ${m.version}`, m.releaseNotes, "")
   }
 
-  lines.push(
-    "When done, remove the `plugin.update-in-progress` block from `openspec/config.yaml`, keeping the rest of the file (schema, context, rules) intact.",
-  )
+  if (opts.clearFlag) {
+    lines.push(
+      "When done, remove the `plugin.update-in-progress` block from `openspec/config.yaml`, keeping the rest of the file (schema, context, rules) intact.",
+    )
+  }
   return lines.join("\n")
 }

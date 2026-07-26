@@ -1,6 +1,7 @@
 import type { TuiPluginApi } from "@opencode-ai/plugin/tui"
+import { OPSX_COMMANDS } from "../lib/openspec"
 import { CONFIG_PROMPT, SPEC_BASELINE_PROMPT } from "../lib/prompts"
-import { sendPrompt } from "../lib/send-prompt"
+import { submitPrompt } from "../lib/send-prompt"
 
 // Register one ephemeral palette command that submits `prompt`. Returns whether it registered.
 function registerPromptCommand(
@@ -17,10 +18,11 @@ function registerPromptCommand(
           desc: cmd.desc,
           category: "OpenSpec",
           slashName: cmd.slashName,
-          // Clear so palette-filter text isn't prepended; forward any text typed after the slash.
+          // Submitting clears first, so palette-filter text isn't prepended; any text typed after
+          // the slash is forwarded as arguments.
           run: (...args: unknown[]) => {
             const typed = typeof args[0] === "string" ? args[0].trim() : ""
-            void sendPrompt(api, typed ? `${cmd.prompt}\n\nArguments: ${typed}` : cmd.prompt, { clear: true, submit: true })
+            void submitPrompt(api, typed ? `${cmd.prompt}\n\nArguments: ${typed}` : cmd.prompt)
           },
         },
       ],
@@ -32,9 +34,6 @@ function registerPromptCommand(
   }
 }
 
-// /opsx-* commands `openspec init` writes; opencode only loads them at startup → need a restart.
-const FS_COMMANDS = ["opsx-apply", "opsx-archive", "opsx-explore", "opsx-propose", "opsx-sync", "opsx-update"]
-
 // Drop a leading YAML frontmatter block, leaving the prompt body.
 function stripFrontmatter(md: string): string {
   const m = md.match(/^---\n[\s\S]*?\n---\n?/)
@@ -43,11 +42,11 @@ function stripFrontmatter(md: string): string {
 
 const registeredFsCommands = new Set<string>() // registered this session; re-registering would duplicate
 
-// Bridge the restart gap: register the on-disk /opsx-* files as ephemeral commands. Idempotent.
-// Returns how many were newly registered.
+// opencode only loads the /opsx-* files `openspec init` writes at startup. Bridge the restart gap by
+// registering them as ephemeral commands. Idempotent; returns how many were newly registered.
 export async function registerOpsxFsCommands(api: TuiPluginApi, read: (path: string) => Promise<string>): Promise<number> {
   let count = 0
-  for (const name of FS_COMMANDS) {
+  for (const name of OPSX_COMMANDS) {
     if (registeredFsCommands.has(name)) continue
     const body = stripFrontmatter(await read(`.opencode/commands/${name}.md`).catch(() => ""))
     if (!body.trim()) continue
@@ -60,14 +59,13 @@ export async function registerOpsxFsCommands(api: TuiPluginApi, read: (path: str
   return count
 }
 
-// Register the plugin's own /opsx-config and /opsx-baseline. `baselineAvailable` gates the Init
-// derivation follow-up.
+// The plugin's own commands. `baselineAvailable` gates the Init spec-derivation stage.
 export function registerCommands(api: TuiPluginApi): { baselineAvailable: boolean } {
   const baselineAvailable = registerPromptCommand(api, {
     name: "openspec.baseline",
     slashName: "opsx-baseline",
     title: "OpenSpec: Baseline specs from code",
-    desc: "Configure, then derive/refresh openspec/specs from the existing implementation",
+    desc: "Derive or refresh openspec/specs from the existing implementation (needs a configured project)",
     prompt: SPEC_BASELINE_PROMPT,
   })
   registerPromptCommand(api, {

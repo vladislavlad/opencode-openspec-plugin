@@ -3,73 +3,49 @@ import type { CliRenderer } from "@opencode-ai/plugin/tui"
 import type { OpenSpecSpec, Requirement, Scenario } from "../lib/openspec"
 import { searchRequirements } from "../lib/search"
 import type { Theme } from "../lib/theme"
-import { DetailHeader, Divider, Paragraph } from "./primitives"
+import { DetailHeader, Divider, Paragraph, rowHover, type HoverState } from "./primitives"
 import { SearchField } from "./search"
 
-// A single spec row in the Specifications list; hover highlight + click to open. With
-// `matchedRequirements` the row reports how many matched instead of the plain total.
-export function SpecRow(props: {
-  theme: Theme
-  spec: OpenSpecSpec
-  hovered: () => string | null
-  setHovered: (fn: (h: string | null) => string | null) => void
-  onSelect: (name: string) => void
-  matchedRequirements?: number
-}) {
+// With `matched` a row reports how many children the search hit instead of the plain total.
+const rowMeta = (matched: number | undefined, total: number, noun: string) =>
+  matched ? `  ${matched} matching ${noun}` : `  ${total} ${noun}`
+
+// A spec row in the Specifications list; hover highlight + click to open.
+export function SpecRow(props: HoverState & { theme: Theme; spec: OpenSpecSpec; onSelect: (name: string) => void; matchedRequirements?: number }) {
   const theme = props.theme
   const spec = () => props.spec
-  // Namespaced so a spec never shares a hover key with a same-named change row.
-  const key = () => `spec:${spec().name}`
-  const hover = () => props.hovered() === key()
-  const meta = () => {
-    const matched = props.matchedRequirements ?? 0
-    return matched > 0 ? `  ${matched} matching requirements` : `  ${spec().requirements.length} requirements`
-  }
+  const hover = rowHover(props, () => `spec:${spec().name}`)
   return (
-    <box>
-      <box
-        width="100%"
-        backgroundColor={hover() ? theme().textMuted : undefined}
-        onMouseDown={() => props.onSelect(spec().name)}
-        onMouseOver={() => props.setHovered(() => key())}
-        onMouseOut={() => props.setHovered((h) => (h === key() ? null : h))}
-      >
-        <text>
-          <span style={{ fg: theme().accent }}>▪ </span>
-          <span style={{ fg: theme().text }}>{spec().name}</span>
-        </text>
-        <text fg={hover() ? theme().text : theme().textMuted}>{meta()}</text>
-      </box>
+    <box
+      width="100%"
+      backgroundColor={hover.active() ? theme().textMuted : undefined}
+      onMouseDown={() => props.onSelect(spec().name)}
+      onMouseOver={hover.onMouseOver}
+      onMouseOut={hover.onMouseOut}
+    >
+      <text>
+        <span style={{ fg: theme().accent }}>▪ </span>
+        <span style={{ fg: theme().text }}>{spec().name}</span>
+      </text>
+      <text fg={hover.active() ? theme().text : theme().textMuted}>
+        {rowMeta(props.matchedRequirements, spec().requirements.length, "requirements")}
+      </text>
     </box>
   )
 }
 
-// A clickable requirement row inside a spec's detail view; `matchedScenarios` works like
-// `matchedRequirements` above.
-function RequirementRow(props: {
-  theme: Theme
-  req: Requirement
-  hovered: () => string | null
-  setHovered: (fn: (h: string | null) => string | null) => void
-  onSelect: (name: string) => void
-  matchedScenarios?: number
-}) {
+// A requirement row inside a spec's detail view.
+function RequirementRow(props: HoverState & { theme: Theme; req: Requirement; onSelect: (name: string) => void; matchedScenarios?: number }) {
   const theme = props.theme
   const req = () => props.req
-  // Namespaced so a requirement never shares a hover key with a same-named change/spec row.
-  const key = () => `req:${req().name}`
-  const hover = () => props.hovered() === key()
-  const meta = () => {
-    const matched = props.matchedScenarios ?? 0
-    return matched > 0 ? `  ${matched} matching scenarios` : `  ${req().scenarios.length} scenarios`
-  }
+  const hover = rowHover(props, () => `req:${req().name}`)
   return (
     <box
       width="100%"
-      backgroundColor={hover() ? theme().textMuted : undefined}
+      backgroundColor={hover.active() ? theme().textMuted : undefined}
       onMouseDown={() => props.onSelect(req().name)}
-      onMouseOver={() => props.setHovered(() => key())}
-      onMouseOut={() => props.setHovered((h) => (h === key() ? null : h))}
+      onMouseOver={hover.onMouseOver}
+      onMouseOut={hover.onMouseOut}
     >
       <box flexDirection="row" gap={0}>
         <text flexShrink={0} style={{ fg: theme().accent }}>{"› "}</text>
@@ -77,7 +53,9 @@ function RequirementRow(props: {
           {req().name}
         </text>
       </box>
-      <text fg={hover() ? theme().text : theme().textMuted}>{meta()}</text>
+      <text fg={hover.active() ? theme().text : theme().textMuted}>
+        {rowMeta(props.matchedScenarios, req().scenarios.length, "scenarios")}
+      </text>
     </box>
   )
 }
@@ -151,7 +129,7 @@ export function SpecDetail(props: {
   )
 }
 
-// A `- **WHEN** …` bullet rendered with the keyword in accent; other lines pass through muted.
+// A `- **WHEN** …` bullet renders with the keyword in accent; other lines pass through muted.
 const SCENARIO_BULLET = /^[-*]\s+\*\*(.+?)\*\*\s*(.*)$/
 
 function ScenarioLine(props: { theme: Theme; raw: string }) {
@@ -210,7 +188,6 @@ function ScenarioFold(props: { theme: Theme; scenario: Scenario; defaultOpen?: b
   )
 }
 
-// Requirement detail: name + description and the list of foldable scenarios.
 export function RequirementDetail(props: { theme: Theme; req: Requirement; onBack: () => void }) {
   const theme = props.theme
   const req = () => props.req

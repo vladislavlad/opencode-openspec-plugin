@@ -3,17 +3,16 @@ import type { Theme } from "../lib/theme"
 import type { Update } from "../lib/updates"
 import type { UpdateTargets } from "../lib/prompts"
 import { VERSION } from "../lib/version"
-import { Button, Divider } from "./primitives"
+import { Button, Divider, type Gate } from "./primitives"
 
-// One version row: label on the left, current value on the right, and — when an update exists —
-// an "x.y.z version available" line plus an Update button underneath.
+// Label left, installed version right, and — when an update exists — an "available" line + button.
 function VersionRow(props: {
   theme: Theme
   label: string
   current: string
   update: () => Update | null
   onUpdate: () => void
-  gate: { disabled: () => boolean; onDisabledClick: () => void }
+  gate: Gate
 }) {
   const t = props.theme
   return (
@@ -26,7 +25,7 @@ function VersionRow(props: {
         {(u) => (
           <box flexDirection="row" justifyContent="space-between">
             <text fg={t().warning}>{`${u().next} version available`}</text>
-            <Button theme={t} label="Update" color={t().success} disabled={props.gate.disabled} onDisabledClick={props.gate.onDisabledClick} onClick={props.onUpdate} />
+            <Button theme={t} label="Update" color={t().success} {...props.gate} onClick={props.onUpdate} />
           </box>
         )}
       </Show>
@@ -43,7 +42,7 @@ export function SettingsView(props: {
   onUpdate: (t: UpdateTargets) => void
   reloadPending: () => boolean
   onReload: () => void
-  gate: { disabled: () => boolean; onDisabledClick: () => void }
+  gate: Gate
 }) {
   const t = props.theme
   const anyUpdate = () => props.pluginUpdate() != null || props.cliUpdate() != null
@@ -84,7 +83,7 @@ export function SettingsView(props: {
       <box flexDirection="row" gap={2} justifyContent="flex-end" paddingTop={1}>
         <Button theme={t} label="Check Versions" color={t().secondary} onClick={props.onCheck} />
         <Show when={anyUpdate()}>
-          <Button theme={t} label="Update All" color={t().success} disabled={props.gate.disabled} onDisabledClick={props.gate.onDisabledClick} onClick={updateAll} />
+          <Button theme={t} label="Update All" color={t().success} {...props.gate} onClick={updateAll} />
         </Show>
       </box>
       <Divider theme={t} />
