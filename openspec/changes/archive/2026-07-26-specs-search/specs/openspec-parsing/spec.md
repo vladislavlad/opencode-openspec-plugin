@@ -1,7 +1,7 @@
 ## ADDED Requirements
 
 ### Requirement: Разбор spec.md привязан к схеме spec-driven
-Разбор `spec.md` и его модель SHALL жить в отдельном модуле схемы `spec-driven` — там же, где знание
+Разбор `spec.md` и его модель SHALL жить в отдельном модуле схемы `spec-driven` – там же, где знание
 о её синтаксисе: заголовках `### Requirement:` / `#### Scenario:`, ключевых словах SHALL/MUST и
 WHEN/THEN.
 

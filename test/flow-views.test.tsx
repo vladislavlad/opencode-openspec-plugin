@@ -78,7 +78,7 @@ test("the post-update banner offers Complete Update only when a migration is pen
   const out = await frame(() => <PostUpdateBanner theme={theme} decision={() => migrate} onComplete={() => {}} gate={noGate} />)
   expect(out).toContain("Complete Update")
 
-  // The installed build isn't the loaded one yet — a hint, not a button that would migrate too early.
+  // The installed build isn't the loaded one yet – a hint, not a button that would migrate too early.
   const reopen: MigrationDecision = { show: "reopen", range: { old: "0.3.0", new: "0.4.0" } }
   const waiting = await frame(() => <PostUpdateBanner theme={theme} decision={() => reopen} onComplete={() => {}} gate={noGate} />)
   expect(waiting).toContain("Reopen opencode")

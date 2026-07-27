@@ -5,7 +5,7 @@
 
 #### Scenario: Маркер до установки
 - **WHEN** промпт инициализации начинает выполняться
-- **THEN** агент создаёт при необходимости `openspec/config.yaml` и записывает `schema` вместе с `plugin.init.in-progress: true` и пустым `done` — до проверки и установки CLI
+- **THEN** агент создаёт при необходимости `openspec/config.yaml` и записывает `schema` вместе с `plugin.init.in-progress: true` и пустым `done` – до проверки и установки CLI
 
 #### Scenario: Отмена установки CLI
 - **WHEN** пользователь выбирает «Cancel» на вопросе о пакетном менеджере

@@ -1,4 +1,4 @@
-// The plugin's own `plugin:` block inside openspec/config.yaml — the setup marker and the
+// The plugin's own `plugin:` block inside openspec/config.yaml – the setup marker and the
 // post-update flag. Stage checkpoints and the post-update flag are written by the agent; the plugin
 // only stamps `in-progress` up front (see `writeInitMarker`).
 import { isMap, parseDocument, parse as parseYaml } from "yaml"
@@ -48,7 +48,7 @@ async function readConfig(client: FileClient): Promise<RawConfig | null> {
   }
 }
 
-// Both flags from a single read — the sidebar polls this every few seconds so the banners clear as
+// Both flags from a single read – the sidebar polls this every few seconds so the banners clear as
 // soon as the agent drops their markers.
 export async function readPluginState(client: FileClient): Promise<PluginState> {
   const plugin = (await readConfig(client))?.plugin
@@ -82,7 +82,7 @@ async function editable(api: TuiPluginApi): Promise<{ dir: string; path: string;
   return { dir, path: CONFIG_PATH, content: (await readLocal(dir, CONFIG_PATH)) ?? "" }
 }
 
-// parseDocument keeps existing comments and formatting on round-trip. Null on malformed yaml —
+// parseDocument keeps existing comments and formatting on round-trip. Null on malformed yaml –
 // never rewrite what we couldn't read.
 function parseConfig(content: string) {
   const doc = parseDocument(content)
@@ -90,7 +90,7 @@ function parseConfig(content: string) {
 }
 
 // Stamp `in-progress` before the setup turn starts, so Resume works even if the agent dies on its
-// first tool call. `resetStages` clears the checkpoints — that's Init starting over, as opposed to
+// first tool call. `resetStages` clears the checkpoints – that's Init starting over, as opposed to
 // Resume, which must keep what's already done.
 export async function writeInitMarker(api: TuiPluginApi, resetStages: boolean): Promise<boolean> {
   const target = await editable(api)
@@ -113,7 +113,7 @@ export async function writeInitMarker(api: TuiPluginApi, resetStages: boolean): 
 export async function clearInitMarker(api: TuiPluginApi): Promise<boolean> {
   const target = await editable(api)
   if (!target) return false
-  if (!target.content) return true // no config at all — nothing to clear
+  if (!target.content) return true // no config at all – nothing to clear
   try {
     const doc = parseConfig(target.content)
     if (!doc) return false

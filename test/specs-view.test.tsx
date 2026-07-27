@@ -93,6 +93,7 @@ test("the change screen has one blank line above the header and none under its d
       <ChangeDetail
         theme={theme}
         change={{ name: "specs-search", completedTasks: 20, totalTasks: 24, groups: [] }}
+        docs={null}
         onBack={() => {}}
         onCommand={() => {}}
         onDelete={() => {}}

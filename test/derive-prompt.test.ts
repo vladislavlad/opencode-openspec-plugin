@@ -18,7 +18,7 @@ describe("what derivation looks for", () => {
     expect(SPEC_BASELINE_PROMPT).toContain("which of the capabilities you just listed should get specs")
   })
 
-  // Agent type names differ per host — "general-purpose" is a Claude Code name and opencode rejects
+  // Agent type names differ per host – "general-purpose" is a Claude Code name and opencode rejects
   // it. The tool lists its own valid types, so the prompt must not name one.
   test("the detail phase names no agent type of its own", () => {
     expect(SPEC_BASELINE_PROMPT).not.toContain("general-purpose")
@@ -38,7 +38,7 @@ describe("derive depth", () => {
   test("/opsx-baseline asks for it ahead of the orientation pass", () => {
     expect(SPEC_BASELINE_PROMPT).toContain('header "Depth"')
     expect(SPEC_BASELINE_PROMPT).toContain("much slower and far more tokens")
-    expect(SPEC_BASELINE_PROMPT.indexOf('header "Depth"')).toBeLessThan(SPEC_BASELINE_PROMPT.indexOf("Phase 1 — Orient"))
+    expect(SPEC_BASELINE_PROMPT.indexOf('header "Depth"')).toBeLessThan(SPEC_BASELINE_PROMPT.indexOf("Phase 1 – Orient"))
   })
 
   test("steers both the orientation pass and the subagent that details a capability", () => {

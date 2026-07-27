@@ -109,7 +109,7 @@ test("a set-up project lists its changes and specs with the action row", async (
   expect(out).not.toContain("Not initialized")
 })
 
-// The marker without the `tooling` checkpoint means setup never got off the ground — the Init screen
+// The marker without the `tooling` checkpoint means setup never got off the ground – the Init screen
 // owns the view even though the directories exist.
 test("a setup that never checkpointed tooling still shows the Init screen", async () => {
   const out = await frame({

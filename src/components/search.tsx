@@ -4,7 +4,7 @@ import type { Theme } from "../lib/theme"
 import { ClearButton } from "./primitives"
 
 // A one-line search box: click to type, Esc/Enter to leave, "✕" to clear. Focus in opentui is
-// exclusive, so focusing this input blurs opencode's prompt — we hand focus back on blur.
+// exclusive, so focusing this input blurs opencode's prompt – we hand focus back on blur.
 export function SearchField(props: {
   theme: Theme
   renderer: CliRenderer

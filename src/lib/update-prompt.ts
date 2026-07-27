@@ -3,7 +3,7 @@
 import { CLI_PKG, PLUGIN_PKG } from "./updates"
 
 // What an update turn should touch. Plugin carries `current` so the agent can stamp the migration
-// flag; CLI only needs the target. Fields are independent — Update All passes both.
+// flag; CLI only needs the target. Fields are independent – Update All passes both.
 export interface UpdateTargets {
   plugin?: { current: string; next: string }
   cli?: { next: string }
@@ -12,12 +12,12 @@ export interface UpdateTargets {
 // The plugin is bumped by editing its `tui.json` specifier (opencode reinstalls on restart), the CLI
 // by a global install + `openspec update`. Only the plugin block writes the migration flag.
 export function buildUpdatePrompt(t: UpdateTargets): string {
-  const parts = ["Update the OpenSpec tooling as described below. Do ONLY the steps listed — do not touch anything else."]
+  const parts = ["Update the OpenSpec tooling as described below. Do ONLY the steps listed – do not touch anything else."]
   if (t.plugin) {
     parts.push(
       "",
       "## Update the plugin",
-      `1. Find the \`tui.json\` that registers this plugin — check \`<project>/.opencode/tui.json\` first, then \`~/.config/opencode/tui.json\`. Its \`"plugin"\` array contains \`"${PLUGIN_PKG}"\` (optionally with a \`@version\` suffix). The entry may be a plain string or a \`["${PLUGIN_PKG}", { …options }]\` tuple — edit the string part.`,
+      `1. Find the \`tui.json\` that registers this plugin – check \`<project>/.opencode/tui.json\` first, then \`~/.config/opencode/tui.json\`. Its \`"plugin"\` array contains \`"${PLUGIN_PKG}"\` (optionally with a \`@version\` suffix). The entry may be a plain string or a \`["${PLUGIN_PKG}", { …options }]\` tuple – edit the string part.`,
       `   - If that entry is a local filesystem path (e.g. it ends in \`dist/index.js\`), this is a dev checkout: SKIP the plugin update and tell me so.`,
       `2. Set the specifier to \`"${PLUGIN_PKG}@${t.plugin.next}"\`.`,
       "3. In `openspec/config.yaml`, add this block (keep `schema`, `context`, `rules` intact; create the file with `schema: spec-driven` if it doesn't exist yet):",

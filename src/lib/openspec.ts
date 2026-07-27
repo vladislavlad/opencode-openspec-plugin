@@ -73,7 +73,7 @@ async function listSubdirs(client: FileClient, path: string): Promise<string[]> 
   return (await listEntries(client, path)).filter(isSubdir).map((e) => e.name)
 }
 
-// The CLI keeps everything under a single `openspec/` directory — its own path constant, no alternates.
+// The CLI keeps everything under a single `openspec/` directory – its own path constant, no alternates.
 export const ROOT = "openspec"
 
 // `openspec init` writes config.yaml but no subdirs, so either one marks the directory as set up.
@@ -152,7 +152,7 @@ export async function readOpenSpec(client: FileClient): Promise<OpenSpecSummary 
     listSubdirs(client, `${ROOT}/specs`),
   ])
 
-  // Reads run in parallel — this whole function re-runs on every poll.
+  // Reads run in parallel – this whole function re-runs on every poll.
   const changes = await Promise.all(
     changeDirs
       .filter((name) => name !== "archive")

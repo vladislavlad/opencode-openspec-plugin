@@ -10,7 +10,7 @@ const theme = () =>
 const WIDTH = 40 // the "✕" sits in the last column of the row
 const FIELD_X = 5 // inside the input: past the "🔍" (two cells) and the gap
 
-// The component subscribes to the renderer while it renders, before `testRender` hands one back —
+// The component subscribes to the renderer while it renders, before `testRender` hands one back –
 // so it gets a stand-in that forwards to the real renderer once it exists.
 function deferredRenderer() {
   const pending: [string, (...args: never[]) => void][] = []

@@ -1,4 +1,4 @@
-// opencode's plugin API can only READ files (`file.list` / `file.read`) — there is no write
+// opencode's plugin API can only READ files (`file.list` / `file.read`) – there is no write
 // endpoint. So writes go through `node:fs`, which works only while the TUI and the project share a
 // filesystem. That's the normal case, but not guaranteed: `state.path.directory` is just a string
 // the server reports, and against a remote server it names a path this process can't see.

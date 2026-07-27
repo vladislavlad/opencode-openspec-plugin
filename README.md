@@ -3,7 +3,7 @@
 A TUI sidebar for [opencode](https://opencode.ai) that brings the
 [OpenSpec](https://github.com/Fission-AI/OpenSpec) workflow into the terminal.
 Your specs and in-flight changes sit next to the chat, and the buttons hand the
-work to the agent — so you drive spec → change → implement → archive without
+work to the agent – so you drive spec → change → implement → archive without
 leaving opencode.
 
 ## What you get
@@ -13,7 +13,7 @@ requirement count. Open one to read its Purpose and requirements; open a
 requirement to unfold its When/Then scenarios.
 
 **Search that goes all the way down.** Type in the search box above the list and
-it filters on everything a spec contains — name, title, Purpose, and the text of
+it filters on everything a spec contains – name, title, Purpose, and the text of
 every requirement and scenario. Multi-word queries have to match all words, but
 they can match in different places. Rows report how many requirements matched, so
 you can see where the hit came from. The query follows you into a spec and
@@ -21,7 +21,7 @@ filters its requirements there too.
 
 **Changes with live progress.** Active and completed changes each get a section,
 with a task-progress bar per change and a rolled-up bar on the collapsed header.
-Open a change to see its tasks grouped and ticked off as the agent works — the
+Open a change to see its tasks grouped and ticked off as the agent works – the
 sidebar re-reads the files every few seconds, so it keeps up on its own.
 
 **Buttons that write the prompt for you.** Explore, Propose, Apply, Update,
@@ -38,7 +38,7 @@ apply the update for you.
 ## Requirements
 
 - [opencode](https://opencode.ai) `>= 1.18.0`
-- The [OpenSpec CLI](https://github.com/Fission-AI/OpenSpec), installed globally —
+- The [OpenSpec CLI](https://github.com/Fission-AI/OpenSpec), installed globally –
   the `/opsx-*` commands shell out to the `openspec` binary. Either install it
   yourself (`npm install -g @fission-ai/openspec`) or let the **Init** button do it.
 
@@ -54,7 +54,7 @@ Add the plugin to `~/.config/opencode/tui.json`:
 ```
 
 opencode resolves the package from npm on the next launch. The sidebar appears in
-the session panel — open it in a project that has, or is about to have, an
+the session panel – open it in a project that has, or is about to have, an
 `openspec/` directory.
 
 ## First run
@@ -67,15 +67,15 @@ hands the agent one turn that:
    skills into `.opencode/`;
 3. asks about your stack, spec language and project context, and writes them to
    `openspec/config.yaml`;
-4. offers to reverse-engineer baseline specs from your existing code — and asks how
+4. offers to reverse-engineer baseline specs from your existing code – and asks how
    deeply to study it first, since **Deep** costs noticeably more time and tokens
    than **Overview**;
 5. validates the result and points you at **Explore** and **Propose** for your first
    change proposal.
 
 Progress is checkpointed stage by stage. If the turn is interrupted, the sidebar
-says where it stopped and offers **Resume** — which picks up from the first
-unfinished stage — or **Dismiss**.
+says where it stopped and offers **Resume** – which picks up from the first
+unfinished stage – or **Dismiss**.
 
 The commands from step 2 only load properly when opencode restarts, so you'll see
 a **Reload OpenCode** prompt once setup finishes.
@@ -86,8 +86,8 @@ The plugin registers two of its own (type `/` in opencode):
 
 | Command | What it does |
 | --- | --- |
-| `/opsx-config` | Configure project context — stack, spec language, rules — in `openspec/config.yaml`. |
-| `/opsx-baseline` | Derive or refresh `openspec/specs` from the existing implementation. Needs a configured project — run `/opsx-config` first. |
+| `/opsx-config` | Configure project context – stack, spec language, rules – in `openspec/config.yaml`. |
+| `/opsx-baseline` | Derive or refresh `openspec/specs` from the existing implementation. Needs a configured project – run `/opsx-config` first. |
 
 The rest come from the OpenSpec CLI after `openspec init`:
 
@@ -109,8 +109,8 @@ edits your `tui.json`, installs the new CLI, and tells you to reload. After the
 restart, **Complete Update** runs any migration steps and summarises what changed.
 
 You get that summary however you updated. The sidebar also remembers which plugin
-version last ran, so an update that bypassed the button entirely — `npm i -g`, a
-hand-edited `tui.json`, or an unpinned specifier that opencode refreshed on its own —
+version last ran, so an update that bypassed the button entirely – `npm i -g`, a
+hand-edited `tui.json`, or an unpinned specifier that opencode refreshed on its own –
 still offers **Complete Update** on the next launch.
 
 ## Development
@@ -138,7 +138,7 @@ for the code layout and conventions.
 
 ## Release
 
-Pushing a `v*` tag builds and publishes to npm — see
+Pushing a `v*` tag builds and publishes to npm – see
 [`.github/workflows/release.yml`](.github/workflows/release.yml).
 
 ```bash

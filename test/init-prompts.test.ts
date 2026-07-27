@@ -114,7 +114,7 @@ describe("a cancelled CLI install", () => {
     }
   })
 
-  // The marker instruction sits on the failing step itself — a small model won't connect a stop at
+  // The marker instruction sits on the failing step itself – a small model won't connect a stop at
   // step 6 with an explanation a hundred lines later in Finally.
   test("a failed init says on the spot that the marker stays for Resume", () => {
     const p = buildInitPrompt()
@@ -125,7 +125,7 @@ describe("a cancelled CLI install", () => {
     expect(buildInitPrompt()).toContain("leave the `init:` block in place (the sidebar will offer Resume), report what is broken, and end the turn")
   })
 
-  // Finally is tailored to the steps this build actually contains — no references to absent steps.
+  // Finally is tailored to the steps this build actually contains – no references to absent steps.
   test("Finally drops mentions of steps a resume left out", () => {
     const afterTooling = buildInitPrompt({ tooling: true, config: false, specs: false })
     expect(afterTooling).not.toContain("a cancelled install")
@@ -140,7 +140,7 @@ describe("a cancelled CLI install", () => {
     expect(p).toContain("**Propose**")
   })
 
-  // Derivation is a judgement call over a codebase, so a first pass can miss things — and re-running
+  // Derivation is a judgement call over a codebase, so a first pass can miss things – and re-running
   // it is safe by the derive guardrails ("Idempotent: re-running refines, never duplicates").
   test("the greeting says a partial derivation can be topped up", () => {
     expect(buildInitPrompt()).toContain("if the specs don't cover the whole project yet, running it again refines and extends")
@@ -148,19 +148,19 @@ describe("a cancelled CLI install", () => {
 })
 
 describe("the derive gate inside init", () => {
-  // Init folds the depth into the gate question, so the user answers once instead of twice — and the
+  // Init folds the depth into the gate question, so the user answers once instead of twice – and the
   // derive body itself carries no question either way.
   test("carries the depth in the gate instead of a question of its own", () => {
     const p = buildInitPrompt()
-    expect(p).toContain('"Yes — Overview", "Yes — Deep" and "No"')
+    expect(p).toContain('"Yes – Overview", "Yes – Deep" and "No"')
     expect(p).toContain("much slower and far more tokens")
     expect(p).not.toContain('header "Depth"')
-    expect(p.indexOf('"Yes — Deep"')).toBeLessThan(p.indexOf("Phase 1 — Orient"))
+    expect(p.indexOf('"Yes – Deep"')).toBeLessThan(p.indexOf("Phase 1 – Orient"))
   })
 
   test("a resume that skips the specs stage asks nothing about depth", () => {
     const p = buildInitPrompt({ tooling: true, config: true, specs: true })
     expect(p).not.toContain('header "Depth"')
-    expect(p).not.toContain('"Yes — Deep"')
+    expect(p).not.toContain('"Yes – Deep"')
   })
 })

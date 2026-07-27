@@ -44,7 +44,7 @@ describe("needsInit", () => {
     expect(needsInit({ initialised: false, init: idle })).toBe(true)
   })
 
-  // Directories can exist from an aborted run — the checkpoint, not the files, says setup got there.
+  // Directories can exist from an aborted run – the checkpoint, not the files, says setup got there.
   test("takes the screen when setup never reached the tooling checkpoint", () => {
     expect(needsInit({ initialised: true, init: state(true) })).toBe(true)
   })

@@ -14,7 +14,7 @@ afterEach(async () => {
   await rm(dir, { recursive: true, force: true })
 })
 
-// Writing only needs the project directory — the file itself is read and written through node:fs.
+// Writing only needs the project directory – the file itself is read and written through node:fs.
 const api = (directory = dir) => ({ state: { path: { directory } } }) as unknown as TuiPluginApi
 
 const config = () => readFile(join(dir, "openspec/config.yaml"), "utf8")

@@ -34,7 +34,7 @@ describe("multiple selection", () => {
     expect(CONFIG_PROMPT).toContain('"Stack" and "Context" must have multiple selection turned ON')
   })
 
-  // Both call sites render the same shared clause — that's the point of hoisting it.
+  // Both call sites render the same shared clause – that's the point of hoisting it.
   test("both call sites word the rule identically", () => {
     const RULE = "the user has to be able to pick several options at once, not one"
     expect(SPEC_BASELINE_PROMPT).toContain(RULE)

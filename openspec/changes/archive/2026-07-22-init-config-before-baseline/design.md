@@ -10,7 +10,7 @@
 
 **Goals:**
 - Config выполняется всегда сразу после успешного init
-- Baseline (derivation specs) — отдельный опциональный шаг после config
+- Baseline (derivation specs) – отдельный опциональный шаг после config
 
 **Non-Goals:**
 - Не меняем логику config и baseline внутри промптов
@@ -20,7 +20,7 @@
 
 1. **Разделить `SPEC_BASELINE_PROMPT` на два этапа**: config выносится в отдельный блок, который вызывается сразу после init; baseline содержит только derivation specs.
 2. **Обновить `OPENSPEC_INIT_PROMPT`**: последовательность → init command → config (always) → ask about deriving specs (optional).
-3. **Создать константу `CONFIG_SETUP_PROMPT`** — обёртка вокруг `CONFIG_PROMPT`, которая не проверяет наличие context, а всегда запускает настройку.
+3. **Создать константу `CONFIG_SETUP_PROMPT`** – обёртка вокруг `CONFIG_PROMPT`, которая не проверяет наличие context, а всегда запускает настройку.
 
 ## Risks / Trade-offs
 

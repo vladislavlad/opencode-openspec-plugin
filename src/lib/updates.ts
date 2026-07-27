@@ -15,12 +15,12 @@ export interface Update {
 export interface VersionState {
   pluginCurrent: string
   cliCurrent: string | null // null when the `generatedBy` stamp can't be found
-  reachable: boolean // at least one registry call returned — tells "up to date" from "couldn't check"
+  reachable: boolean // at least one registry call returned – tells "up to date" from "couldn't check"
   plugin: Update | null
   cli: Update | null
 }
 
-// Strictly higher semver, comparing major.minor.patch only — enough to decide "an update exists".
+// Strictly higher semver, comparing major.minor.patch only – enough to decide "an update exists".
 export function semverGt(a: string, b: string): boolean {
   const pa = a.split(".").map((n) => parseInt(n, 10) || 0)
   const pb = b.split(".").map((n) => parseInt(n, 10) || 0)

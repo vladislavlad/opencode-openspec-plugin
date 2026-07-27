@@ -1,7 +1,7 @@
 import type { OpenSpecSpec, Requirement, Scenario } from "./openspec"
 import { stripSyntax } from "./spec-driven"
 
-// A match, plus how many of its children matched on their own text — the row shows that count
+// A match, plus how many of its children matched on their own text – the row shows that count
 // instead of the plain total.
 export interface SpecMatch {
   spec: OpenSpecSpec
@@ -17,7 +17,7 @@ function tokenize(query: string): string[] {
   return stripSyntax(query.toLowerCase()).split(/\s+/).filter(Boolean)
 }
 
-// Every token has to match (AND), each one anywhere in the item — so "archive tasks" finds a spec
+// Every token has to match (AND), each one anywhere in the item – so "archive tasks" finds a spec
 // with one word in Purpose and the other in a scenario.
 const matchesAll = (text: string, tokens: string[]) => tokens.every((t) => text.includes(t))
 

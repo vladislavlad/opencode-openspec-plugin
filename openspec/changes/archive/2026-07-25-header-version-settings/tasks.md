@@ -11,7 +11,7 @@
 ## 3. Кнопка Settings с привязкой цвета к hover строки
 
 - [x] 3.1 Добавить signal `showSettings` в sidebar.tsx
-- [x] 3.2 Цвет кнопки: по умолчанию `textMuted`, при hover строки заголовка — `warning`
+- [x] 3.2 Цвет кнопки: по умолчанию `textMuted`, при hover строки заголовка – `warning`
 - [x] 3.3 По клику на Settings устанавливать `showSettings(true)`
 
 ## 4. Экран Settings

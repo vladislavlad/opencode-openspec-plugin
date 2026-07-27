@@ -5,7 +5,7 @@ import type { UpdateTargets } from "../lib/update-prompt"
 import { VERSION } from "../lib/version"
 import { Button, Divider, type Gate } from "./primitives"
 
-// Label left, installed version right, and — when an update exists — an "available" line + button.
+// Label left, installed version right, and – when an update exists – an "available" line + button.
 function VersionRow(props: {
   theme: Theme
   label: string

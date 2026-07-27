@@ -1,6 +1,6 @@
 // The setup flow's own views and decisions. The sidebar root owns the polling and the signals; this
-// module only turns their values into what's on screen. The decision helpers are plain functions —
-// no Solid — so they're testable without a live TUI.
+// module only turns their values into what's on screen. The decision helpers are plain functions –
+// no Solid – so they're testable without a live TUI.
 import { Show } from "solid-js"
 import type { Theme } from "../lib/theme"
 import { INIT_STAGES, type InitStage, type InitState } from "../lib/config"
@@ -63,7 +63,7 @@ export function InitStatus(props: { theme: Theme; stage: () => InitStage | "vali
   )
 }
 
-// Shown when config.yaml still carries the init marker but no turn is running — setup was interrupted.
+// Shown when config.yaml still carries the init marker but no turn is running – setup was interrupted.
 export function InitBanner(props: {
   theme: Theme
   stage: () => InitStage | "validate"
@@ -99,7 +99,7 @@ export function InitScreen(props: { theme: Theme; aborted: () => boolean; onInit
   )
 }
 
-// Same prompt whether the ephemeral bridge took or not — only a restart loads the commands properly.
+// Same prompt whether the ephemeral bridge took or not – only a restart loads the commands properly.
 export function EphemeralReloadBanner(props: { theme: Theme; onReload: () => void; gate: Gate }) {
   const t = props.theme
   return (

@@ -39,7 +39,7 @@ test("nothing to migrate on a first run, an unchanged version, or a downgrade", 
   expect(pendingVersionRange("0.5.0", "0.4.0")).toBeNull()
 })
 
-test("a dev checkout never announces anything — VERSION isn't a release number there", () => {
+test("a dev checkout never announces anything – VERSION isn't a release number there", () => {
   expect(VERSION).toBe("dev")
   expect(pendingVersionRange("0.3.0")).toBeNull()
 })
@@ -72,7 +72,7 @@ describe("decideMigration", () => {
       })
     })
 
-    test("it beats a kv drift pointing elsewhere — one banner, and `old` comes from the flag", () => {
+    test("it beats a kv drift pointing elsewhere – one banner, and `old` comes from the flag", () => {
       expect(decide({ old: "0.1.0", new: "0.4.0" }, "0.3.0")).toEqual({
         show: "migrate",
         range: { old: "0.1.0", new: "0.4.0" },
@@ -81,7 +81,7 @@ describe("decideMigration", () => {
     })
 
     test("nothing is recorded while an update is in flight", () => {
-      // Both flag branches return a banner, never `{ show: "none" }` — so the caller never stamps kv
+      // Both flag branches return a banner, never `{ show: "none" }` – so the caller never stamps kv
       // mid-update and can't lose the range.
       for (const flag of [{ old: "0.3.0", new: "0.4.0" }, { old: "0.3.0", new: "0.9.0" }]) {
         expect(decide(flag, "0.1.0").show).not.toBe("none")

@@ -284,7 +284,7 @@ describe("readOpenSpec", () => {
     expect(summary?.specs[0].name).toBe("auth")
   })
 
-  test("detects the root right after openspec init — config.yaml, no subdirs yet", async () => {
+  test("detects the root right after openspec init – config.yaml, no subdirs yet", async () => {
     const client = mockClient({ list: { openspec: files("config.yaml") } })
     const summary = await readOpenSpec(client)
     expect(summary?.specs).toEqual([])

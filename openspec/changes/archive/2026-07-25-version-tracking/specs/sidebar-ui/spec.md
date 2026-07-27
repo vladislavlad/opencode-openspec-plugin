@@ -30,7 +30,7 @@
 - **WHEN** курсор уходит со строки заголовка и обновления недоступны
 - **THEN** кнопка Settings возвращается к цвету `textMuted`
 
-#### Scenario: Обновление доступно — постоянный accent
+#### Scenario: Обновление доступно – постоянный accent
 - **WHEN** `pluginUpdate` или `cliUpdate` не равны `null`
 - **THEN** кнопка Settings отображается цветом `accent` независимо от hover
 

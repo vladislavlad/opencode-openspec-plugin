@@ -9,7 +9,7 @@ rmSync(outDir, { recursive: true, force: true })
 // transform → universal codegen that imports the renderer from "@opentui/solid" (its main
 // entry). opencode rewrites the bare "@opentui/solid" and "solid-js" specifiers to its own
 // running instances at plugin load, so the plugin shares the host's single Solid runtime.
-// (The "@opentui/solid/jsx-runtime" subpath is NOT rewritten — going through it gives the
+// (The "@opentui/solid/jsx-runtime" subpath is NOT rewritten – going through it gives the
 // plugin a second Solid instance whose effects never flush, so we must avoid it.)
 const result = await Bun.build({
   entrypoints: ["src/index.tsx"],

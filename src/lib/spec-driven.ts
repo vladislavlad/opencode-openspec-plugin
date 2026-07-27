@@ -1,6 +1,6 @@
 // The `spec-driven` schema (openspec/config.yaml → `schema:`): `## Purpose` / `## Requirements`,
 // `### Requirement:` headers with a SHALL clause, `#### Scenario:` bodies of `- **WHEN** …` bullets.
-// Another schema gets its own module — keep the syntax knowledge here.
+// Another schema gets its own module – keep the syntax knowledge here.
 
 export interface Scenario {
   name: string
@@ -14,7 +14,7 @@ export interface Requirement {
 }
 
 export interface OpenSpecSpec {
-  name: string // capability directory name — stable id and the label shown in the list
+  name: string // capability directory name – stable id and the label shown in the list
   title: string // from the `#` heading, or the dir name; searchable, not rendered
   purpose: string // text under `## Purpose`
   requirements: Requirement[]
@@ -37,7 +37,7 @@ const SPEC_REQUIREMENT = /^###\s+Requirement:\s*(.+?)\s*$/i // mirrors openspec'
 const SPEC_SCENARIO = /^####\s+(.+?)\s*$/
 const SPEC_FENCE = /^\s*(`{3,}|~{3,})/
 // The schema's own vocabulary. Normative keywords per the openspec validator (SHALL or MUST), plus
-// the scenario step keywords — every spec has them, so they carry no meaning as a search term.
+// the scenario step keywords – every spec has them, so they carry no meaning as a search term.
 const SYNTAX = /\b(SHALL|MUST|WHEN|THEN|GIVEN|AND|BUT)\b|[*_`]+|^[-+]\s+/gim
 
 // Text as prose: no schema keywords, no markdown. For matching, never for display.
