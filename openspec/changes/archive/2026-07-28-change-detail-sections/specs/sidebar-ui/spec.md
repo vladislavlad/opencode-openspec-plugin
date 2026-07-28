@@ -1,20 +1,20 @@
 ## ADDED Requirements
 
-### Requirement: Чтение артефактов открытого изменения
-Панель SHALL читать `proposal.md` и `design.md` изменения один раз – при его открытии – и SHALL не включать это чтение в периодический опрос. Панель SHALL сначала получать список файлов директории изменения и читать только существующие. Ошибка чтения SHALL трактоваться как отсутствие артефакта и SHALL не сбрасывать summary. Прочитанное SHALL передаваться в `ChangeDetail` пропсом.
+### Requirement: Reading artifacts of open change
+The sidebar SHALL read `proposal.md` and `design.md` of a change once – on opening it – and SHALL not include this reading in the periodic poll. The sidebar SHALL first obtain a list of files in the change directory and read only existing ones. A read error SHALL be treated as artifact absence and SHALL not reset summary. Read content SHALL be passed to `ChangeDetail` via props.
 
-#### Scenario: Открытие изменения
-- **WHEN** пользователь выбирает изменение из списка
-- **THEN** директория изменения читается один раз, и её артефакты передаются в `ChangeDetail`
+#### Scenario: Opening a change
+- **WHEN** user selects a change from the list
+- **THEN** the change directory is read once, and its artifacts are passed to `ChangeDetail`
 
-#### Scenario: Опрос не дорожает
-- **WHEN** проходит очередной трёхсекундный тик опроса
-- **THEN** `proposal.md` и `design.md` не читаются – опрос по-прежнему читает только `tasks.md`, спецификации, `config.yaml` и список команд
+#### Scenario: Poll does not grow more expensive
+- **WHEN** another three-second poll tick occurs
+- **THEN** `proposal.md` and `design.md` are not read – the poll still only reads `tasks.md`, specifications, `config.yaml`, and command list
 
-#### Scenario: Смена выбранного изменения
-- **WHEN** пользователь возвращается к списку и открывает другое изменение
-- **THEN** прочитанные артефакты предыдущего изменения сбрасываются, а новые читаются заново
+#### Scenario: Changing selected change
+- **WHEN** user returns to the list and opens a different change
+- **THEN** previously read artifacts of the prior change are reset, and new ones are read again
 
-#### Scenario: Артефакт недоступен
-- **WHEN** чтение файла артефакта завершается ошибкой
-- **THEN** артефакт считается отсутствующим, summary сохраняется, а состояние инициализации не меняется
+#### Scenario: Artifact unavailable
+- **WHEN** reading an artifact file ends with an error
+- **THEN** the artifact is considered missing, summary is preserved, and initialization state does not change

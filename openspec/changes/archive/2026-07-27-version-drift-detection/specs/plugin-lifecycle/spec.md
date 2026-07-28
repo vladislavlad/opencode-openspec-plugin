@@ -1,62 +1,62 @@
 ## ADDED Requirements
 
-### Requirement: Запоминание последней запущенной версии плагина
-Система SHALL хранить версию плагина, запущенную в прошлый раз, в `kv` под ключом `openspec.lastVersion` и предоставлять чтение и запись этого значения.
+### Requirement: Remembering last launched plugin version
+The system SHALL store the previously launched plugin version in `kv` under key `openspec.lastVersion` and provide reading and writing of this value.
 
-#### Scenario: Чтение сохранённой версии
-- **WHEN** вызывается `readLastVersion(api)` и в `kv` под ключом `openspec.lastVersion` лежит строка
-- **THEN** возвращается эта строка
+#### Scenario: Reading saved version
+- **WHEN** `readLastVersion(api)` is called and a string exists in `kv` under key `openspec.lastVersion`
+- **THEN** that string is returned
 
-#### Scenario: Записи ещё нет
-- **WHEN** вызывается `readLastVersion(api)` и значения под ключом нет
-- **THEN** возвращается `null`
+#### Scenario: No entry yet
+- **WHEN** `readLastVersion(api)` is called and no value exists under the key
+- **THEN** `null` is returned
 
-#### Scenario: Значение испорчено
-- **WHEN** под ключом лежит значение, не являющееся строкой
-- **THEN** `readLastVersion` возвращает `null` – испорченная запись равносильна её отсутствию
+#### Scenario: Corrupted value
+- **WHEN** a non-string value exists under the key
+- **THEN** `readLastVersion` returns `null` – a corrupted entry is equivalent to its absence
 
-#### Scenario: Фиксация текущей версии
-- **WHEN** вызывается `recordVersion(api)`
-- **THEN** в `kv` под ключом `openspec.lastVersion` записывается константа `VERSION` из сборки
+#### Scenario: Recording current version
+- **WHEN** `recordVersion(api)` is called
+- **THEN** the build constant `VERSION` is written in `kv` under key `openspec.lastVersion`
 
-### Requirement: Обнаружение смены версии между запусками
-Система SHALL вычислять ожидающий диапазон миграции по сохранённой версии: диапазон возвращается только тогда, когда сохранённая версия строго ниже загруженной.
+### Requirement: Detecting version change between launches
+The system SHALL compute a pending migration range from the saved version: a range is returned only when the saved version is strictly lower than the loaded one.
 
-#### Scenario: Плагин обновился мимо кнопки
-- **WHEN** сохранённая версия `0.3.0`, а загруженная `0.4.0`
-- **THEN** возвращается диапазон `{ old: "0.3.0", new: "0.4.0" }`
+#### Scenario: Plugin updated past the button
+- **WHEN** saved version is `0.3.0` and loaded version is `0.4.0`
+- **THEN** range `{ old: "0.3.0", new: "0.4.0" }` is returned
 
-#### Scenario: Первый запуск сборки с этим механизмом
-- **WHEN** сохранённой версии нет
-- **THEN** возвращается `null` – откуда пользователь пришёл, неизвестно, и показывать release notes задним числом нельзя
+#### Scenario: First launch of a build with this mechanism
+- **WHEN** no saved version exists
+- **THEN** `null` is returned – where the user came from is unknown, and showing release notes retroactively isn't allowed
 
-#### Scenario: Версия не менялась
-- **WHEN** сохранённая версия совпадает с загруженной
-- **THEN** возвращается `null`
+#### Scenario: Version didn't change
+- **WHEN** saved version matches loaded version
+- **THEN** `null` is returned
 
-#### Scenario: Откат на более раннюю версию
-- **WHEN** сохранённая версия выше загруженной
-- **THEN** возвращается `null` – миграции применяются только вперёд
+#### Scenario: Rollback to an earlier version
+- **WHEN** saved version is higher than loaded version
+- **THEN** `null` is returned – migrations apply forward only
 
-### Requirement: Решение о показе миграции сводит оба источника в одном месте
-Система SHALL вычислять решение о post-update баннере одной функцией, не зависящей от реактивного слоя, и SHALL получать проверку «есть ли записи миграций в диапазоне» параметром, а не импортом. Решение принимает флаг из config.yaml, сохранённую версию и загруженную версию, а возвращает одно из трёх: показать миграцию (с признаком, снимать ли флаг), попросить перезапуск, либо не показывать ничего (с признаком, надо ли зафиксировать версию).
+### Requirement: Migration display decision folds both sources in one place
+The system SHALL compute the post-update banner decision with a single function independent of the reactive layer, and SHALL receive the "are there migration entries in range" check as a parameter rather than an import. The decision takes the flag from config.yaml, the saved version, and the loaded version, and returns one of three: show migration (with a flag indicating whether to remove the flag), ask for restart, or show nothing (with a flag indicating whether to record the version).
 
-#### Scenario: Решение проверяемо без интерфейса
-- **WHEN** нужно проверить поведение при любой комбинации источников
-- **THEN** функция вызывается напрямую с этими значениями – живой TUI и запись в `kv` не требуются
+#### Scenario: Decision is testable without UI
+- **WHEN** behavior needs to be verified for any combination of sources
+- **THEN** the function is called directly with those values – no live TUI or `kv` write required
 
-#### Scenario: Проверка записей миграций передаётся параметром
-- **WHEN** решение вычисляется в тесте
-- **THEN** проверка наличия записей подставляется вызывающим, поэтому тест не зависит от содержимого таблицы миграций, меняющегося каждый релиз
+#### Scenario: Migration entry check is passed as parameter
+- **WHEN** decision is computed in a test
+- **THEN** the presence-of-entries check is supplied by the caller, so the test doesn't depend on migration table content that changes every release
 
-#### Scenario: Флаг приоритетнее сохранённой версии
-- **WHEN** есть и флаг, и дрейф сохранённой версии
-- **THEN** используется диапазон из флага – он единственный знает точную версию, с которой уходили
+#### Scenario: Flag takes priority over saved version
+- **WHEN** both flag and saved version drift exist
+- **THEN** range from the flag is used – it alone knows the exact version you left from
 
-#### Scenario: Во время незавершённого обновления версия не фиксируется
-- **WHEN** флаг присутствует, независимо от того, совпадает ли его новая версия с загруженной
-- **THEN** решение не просит зафиксировать версию – иначе диапазон был бы потерян до завершения миграции
+#### Scenario: Version isn't recorded during unfinished update
+- **WHEN** flag is present, regardless of whether its new version matches loaded
+- **THEN** decision doesn't ask to record version – otherwise the range would be lost before migration completion
 
-#### Scenario: Фиксация версии, когда показывать нечего
-- **WHEN** флага нет и баннер показывать не за что, а сохранённая версия отличается от загруженной
-- **THEN** решение просит зафиксировать загруженную версию, чтобы проверка молчала до следующей смены
+#### Scenario: Recording version when there's nothing to show
+- **WHEN** no flag and no banner to show, but saved version differs from loaded
+- **THEN** decision asks to record the loaded version so the check stays silent until next change

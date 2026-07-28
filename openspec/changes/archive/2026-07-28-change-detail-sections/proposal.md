@@ -1,25 +1,25 @@
 ## Why
 
-Карточка изменения показывает только `tasks.md`; `proposal.md` и `design.md` не видны.
+The change card only shows `tasks.md`; `proposal.md` and `design.md` are not visible.
 
 ## What Changes
 
-- Тело карточки изменения разбивается на три сворачиваемые секции: **Proposal**, **Design**, **Tasks** – в порядке чтения change'а
-- `Tasks` открыта по умолчанию; `Proposal` и `Design` свёрнуты
-- `Proposal` показывает тизер – начало `## Why`, обрезанное до двух строк, приглушённым цветом
-- Клик по тизеру Proposal также разворачивает секцию
-- `Design` не рендерится, если `design.md` отсутствует; `proposal.md` нет – секция остаётся с сообщением об отсутствии файла
-- Все разделы `proposal.md` рендерятся в порядке файла под своими заголовками; набор разделов не зашит в код
-- Символы `**` убираются из отображаемого текста
-- Число задач переезжает в заголовок секции (`Tasks: done/total`); отдельная строка с числом убирается, прогресс-бар остаётся
-- Заголовок группы задач – на нулевую колонку, задачи остаются в колонке маркера `✓`
-- Артефакты читаются один раз при открытии change'а, а не в трёхсекундном опросе
+- The body of the change card is split into three collapsible sections: **Proposal**, **Design**, **Tasks** – in the order a change is read
+- `Tasks` is open by default; `Proposal` and `Design` are collapsed
+- `Proposal` shows a teaser – the beginning of `## Why`, truncated to two lines, in muted color
+- Clicking the Proposal teaser also expands the section
+- `Design` does not render if `design.md` is missing; when `proposal.md` is absent, the section remains with a file-missing message
+- All sections of `proposal.md` are rendered in file order under their own headings; the set of sections is not hardcoded
+- `**` characters are stripped from displayed text
+- The task count moves to the section header (`Tasks: done/total`); the separate count line is removed, the progress bar remains
+- Task group heading – on column zero, tasks remain in the `✓` marker column
+- Artifacts are read once when opening a change, not in the three-second poll
 
 ## Non-goals
 
-- **Дельты спеков** – станут четвёртой секцией `Spec changes` в отдельном change'е
-- Секция `## Capabilities` из `proposal.md` не рендерится: это список дельт, ему место в будущей секции дельт
-- Валидация артефактов и суждения об их полноте – требует хода агента
-- Редактирование артефактов из панели: секции только читают
-- Запоминание раскрытости секций между сессиями через `kv`
-- Полноценный markdown: таблицы, ссылки, вложенные списки не поддерживаются
+- **Spec deltas** – will become a fourth section `Spec changes` in a separate change
+- The `## Capabilities` section from `proposal.md` is not rendered: it is a list of deltas, which belongs in the future delta section
+- Artifact validation and judgments about their completeness – requires an agent turn
+- Editing artifacts from the panel: sections are read-only
+- Remembering section expanded state between sessions via `kv`
+- Full markdown: tables, links, nested lists are not supported

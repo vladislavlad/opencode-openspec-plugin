@@ -1,222 +1,222 @@
 ## ADDED Requirements
 
-### Requirement: CONFIG_PROMPT – гранулярность задач двумя вариантами
-`CONFIG_PROMPT` SHALL предлагать ровно два уровня разбиения задач – «High-level» и «Detailed» – и описывать их через объём работы, а не через время выполнения.
+### Requirement: CONFIG_PROMPT – task granularity with two options
+`CONFIG_PROMPT` SHALL offer exactly two levels of task breakdown – "High-level" and "Detailed" – and describe them by scope of work rather than execution time.
 
-#### Scenario: Состав вопроса о задачах
-- **WHEN** пользователь ответил «Yes» на вопрос «Configure detailed rules?»
-- **THEN** вопрос «Tasks» предлагает ровно два варианта: «High-level» с описанием «a few high-level tasks» и «Detailed» с описанием «sub-tasks grouped under high-level sections»
+#### Scenario: Task question composition
+- **WHEN** the user answered "Yes" to the "Configure detailed rules?" question
+- **THEN** the "Tasks" question offers exactly two options: "High-level" with description "a few high-level tasks" and "Detailed" with description "sub-tasks grouped under high-level sections"
 
-#### Scenario: Подсказки не меряют время
-- **WHEN** промпт настройки собран
-- **THEN** он не содержит вариантов «Coarse», «Medium», «Fine» и не описывает задачи через длительность («~half-day», «~1-2h»)
+#### Scenario: Hints don't measure time
+- **WHEN** the setup prompt is assembled
+- **THEN** it doesn't contain "Coarse", "Medium", "Fine" options and doesn't describe tasks by duration ("~half-day", "~1-2h")
 
-#### Scenario: Правило в конфиге
-- **WHEN** пользователь выбрал «High-level»
-- **THEN** в `rules.tasks` записывается правило «несколько крупных задач верхнего уровня»
+#### Scenario: Rule in config
+- **WHEN** the user selected "High-level"
+- **THEN** the rule "several large top-level tasks" is written to `rules.tasks`
 
-#### Scenario: Правило в конфиге для подробного разбиения
-- **WHEN** пользователь выбрал «Detailed»
-- **THEN** в `rules.tasks` записывается правило «подзадачи, сгруппированные по крупным секциям»
+#### Scenario: Rule in config for detailed breakdown
+- **WHEN** the user selected "Detailed"
+- **THEN** the rule "sub-tasks grouped by major sections" is written to `rules.tasks`
 
-### Requirement: Промпт деривации спрашивает глубину изучения проекта
-Промпт деривации SHALL спрашивать у пользователя глубину изучения кода – «Overview» или «Deep» – до того, как приступит к чтению проекта, предупреждая о цене глубокого режима. Вопрос SHALL задаваться вызывающей стороной, а тело деривации – лишь следовать выбранной глубине, без собственных ветвлений. Выбранная глубина SHALL определять и обзорный проход, на котором собирается список способностей, и работу подагента на этапе детализации.
+### Requirement: Derivation prompt asks about project exploration depth
+The derivation prompt SHALL ask the user about code exploration depth – "Overview" or "Deep" – before it begins reading the project, warning about the cost of deep mode. The question SHALL be asked by the calling side, and the derivation body shall only follow the chosen depth without its own branching. The chosen depth SHALL determine both the overview pass that assembles the capability list and the sub-agent's work at the detail stage.
 
-#### Scenario: Вопрос задаётся до чтения кода
-- **WHEN** деривация запускается командой `/opsx-baseline`
-- **THEN** первым делом задаётся отдельный вопрос о глубине с вариантами «Overview» и «Deep», и только после ответа начинается обзор проекта
+#### Scenario: Question is asked before reading code
+- **WHEN** derivation is launched by `/opsx-baseline`
+- **THEN** first a separate question about depth with "Overview" and "Deep" options is asked, and only after the answer does project overview begin
 
-#### Scenario: В init глубина спрашивается вместе с согласием на деривацию
-- **WHEN** промпт инициализации доходит до шага деривации
-- **THEN** один вызов `question` предлагает «Yes – Overview», «Yes – Deep» и «No», и отдельного вопроса о глубине в промпте нет
+#### Scenario: In init, depth is asked together with consent to derive
+- **WHEN** the initialization prompt reaches the derivation step
+- **THEN** one `question` call offers "Yes – Overview", "Yes – Deep", and "No", and there's no separate depth question in the prompt
 
-#### Scenario: Тело деривации не ветвится
-- **WHEN** собран любой из промптов, включающих деривацию
-- **THEN** общая часть деривации одна и та же и не содержит условных формулировок вида «уже отвечено выше» – различается только вопрос, который задаёт вызывающая сторона
+#### Scenario: Derivation body doesn't branch
+- **WHEN** any of the prompts including derivation is assembled
+- **THEN** the common part of derivation is one and the same and contains no conditional phrasings like "already answered above" – only the question asked by the calling side differs
 
-#### Scenario: «Deep» не означает «открыть каждый файл»
-- **WHEN** пользователь выбрал «Deep»
-- **THEN** промпт оговаривает, что читаются реальные пути исполнения, а тесты, фикстуры, сгенерированный и вендорный код пропускаются при любой глубине
+#### Scenario: "Deep" doesn't mean "open every file"
+- **WHEN** the user selected "Deep"
+- **THEN** the prompt states that actual execution paths are read, and tests, fixtures, generated and vendored code are skipped at any depth
 
-#### Scenario: Предупреждение о цене
-- **WHEN** пользователю показан вариант «Deep»
-- **THEN** его описание сообщает, что такой разбор может занять много времени и токенов
+#### Scenario: Cost warning
+- **WHEN** the "Deep" option is shown to the user
+- **THEN** its description states that such analysis may take a lot of time and tokens
 
-#### Scenario: Верхнеуровневый разбор
-- **WHEN** выбрано «Overview»
-- **THEN** список способностей собирается по README, структуре папок, манифестам и точкам входа, а подагент читает точки входа и основные модули способности, не вычитывая все её файлы
+#### Scenario: Top-level breakdown
+- **WHEN** "Overview" is selected
+- **THEN** the capability list is assembled from README, folder structure, manifests, and entry points, and the sub-agent reads entry points and main modules of the capability without reading through all its files
 
-#### Scenario: Глубокий разбор
-- **WHEN** выбрано «Deep»
-- **THEN** список способностей собирается после чтения кода каждой области, а не по раскладке папок, и подагент проходит по путям исполнения способности от начала до конца, включая обработку ошибок и краевые случаи, фиксируя их как отдельные сценарии
+#### Scenario: Deep breakdown
+- **WHEN** "Deep" is selected
+- **THEN** the capability list is assembled after reading code for each area rather than from folder layout, and the sub-agent walks execution paths of the capability from start to finish, including error handling and edge cases, recording them as separate scenarios
 
-### Requirement: Деривация ищет способности в проекте любого рода
-Промпт деривации SHALL называть, что именно считается способностью: то, что проект даёт своему пользователю, интеграции и внешние системы, от которых он зависит, и поведение, которое он реализует сам, а не берёт из библиотеки. Промпт SHALL прямо оговаривать, что проект не обязан быть приложением: в инфраструктурном, конфигурационном или инструментальном репозитории описываемым поведением является сама объявленная конфигурация.
+### Requirement: Derivation looks for capabilities in any kind of project
+The derivation prompt SHALL name what exactly counts as a capability: what the project provides its user, integrations and external systems it depends on, and behavior it implements itself rather than taking from a library. The prompt SHALL explicitly state that a project doesn't have to be an application: in an infrastructure, configuration, or tooling repository, the described behavior is the declared configuration itself.
 
-#### Scenario: Что искать названо явно
-- **WHEN** промпт деривации собран
-- **THEN** он перечисляет все три вида способностей без иллюстрирующих примеров и не пересказывает стек и архитектуру – они уже описаны в `openspec/config.yaml` и AGENTS.md
+#### Scenario: What to look for is named explicitly
+- **WHEN** the derivation prompt is assembled
+- **THEN** it lists all three types of capabilities without illustrative examples and doesn't restate stack and architecture – they're already described in `openspec/config.yaml` and AGENTS.md
 
-#### Scenario: Репозиторий без кода приложения
-- **WHEN** проект состоит из конфигураций, манифестов или скриптов и не содержит кода приложения
-- **THEN** промпт предписывает описать объявленную конфигурацию как поведение: что она разворачивает, как связаны части, что получает запускающий
+#### Scenario: Repository without application code
+- **WHEN** the project consists of configurations, manifests, or scripts and contains no application code
+- **THEN** the prompt instructs to describe declared configuration as behavior: what it deploys, how parts are connected, what the launcher gets
 
-### Requirement: Финальная секция init снимает маркер без лишней валидации
-Финальная секция промпта инициализации SHALL снимать маркер настройки во всех случаях, кроме одного – валидация спецификаций всё ещё падает после исправлений. Повторная валидация SHALL пропускаться, когда её уже выполнил шаг деривации или когда спецификаций в проекте нет. Инструкция о судьбе маркера SHALL стоять на самом стопе: шаг установки при падении `openspec init` прямо велит оставить config.yaml с маркером ради Resume. Приглашение к работе SHALL звучать только когда маркер снят, и SHALL начинаться с сообщения, что OpenSpec настроен.
+### Requirement: Final init section removes marker without extra validation
+The final section of the initialization prompt SHALL remove the setup marker in all cases except one – spec validation is still failing after fixes. Re-validation SHALL be skipped when it was already performed by a derivation step or when there are no specs in the project. The instruction about the marker's fate SHALL sit at the stop itself: the installation step when `openspec init` fails directly tells you to leave config.yaml with the marker for Resume. The invitation to work SHALL sound only after the marker is removed, and SHALL begin with a message that OpenSpec is configured.
 
-#### Scenario: Пустой проект
-- **WHEN** деривация не запускалась или не дала спецификаций
-- **THEN** валидация пропускается, а маркер всё равно снимается – панель не остаётся в состоянии незавершённой настройки
+#### Scenario: Empty project
+- **WHEN** derivation wasn't run or didn't produce specs
+- **THEN** validation is skipped and the marker is still removed – the sidebar doesn't remain in an unfinished setup state
 
-#### Scenario: Один и тот же финал для любого успешного исхода
-- **WHEN** маркер снят – спеки выведены, деривация отклонена или выводить было нечего
-- **THEN** финал один и тот же: сообщение, что OpenSpec настроен и готов, затем две кнопки панели – **Explore** и **Propose** – и близкие им по действию команды `/opsx-explore` и `/opsx-propose`
+#### Scenario: Same finale for any successful outcome
+- **WHEN** the marker is removed – specs derived, derivation declined, or there was nothing to derive
+- **THEN** the finale is one and the same: a message that OpenSpec is configured and ready, then two sidebar buttons – **Explore** and **Propose** – and their equivalent commands `/opsx-explore` and `/opsx-propose`
 
-#### Scenario: Деривация покрыла проект не полностью
-- **WHEN** финальная секция дошла до приветствия
-- **THEN** она упоминает `/opsx-baseline` как способ дополнить спецификации: повторный запуск уточняет и расширяет существующие, а не дублирует их
+#### Scenario: Derivation didn't fully cover the project
+- **WHEN** the final section reaches the greeting
+- **THEN** it mentions `/opsx-baseline` as a way to supplement specs: a re-run refines and expands existing ones rather than duplicating them
 
-#### Scenario: Деривация уже валидировала
-- **WHEN** шаг деривации завершился прогоном `openspec validate --specs` в этом же ходе
-- **THEN** финальная секция не запускает валидацию повторно
+#### Scenario: Derivation already validated
+- **WHEN** the derivation step completed with an `openspec validate --specs` run in this same turn
+- **THEN** the final section doesn't launch validation again
 
-#### Scenario: Валидация падает
-- **WHEN** после исправлений `openspec validate --specs` всё ещё сообщает об ошибках
-- **THEN** блок `init:` остаётся в config.yaml, агент сообщает, что именно сломано, и не приглашает к Explore/Propose
+#### Scenario: Validation fails
+- **WHEN** after fixes, `openspec validate --specs` still reports errors
+- **THEN** the `init:` block remains in config.yaml, the agent reports what exactly is broken, and doesn't invite to Explore/Propose
 
-#### Scenario: После отмены установки CLI финальная секция не выполняется
-- **WHEN** пользователь выбрал «Cancel» на вопросе о пакетном менеджере
-- **THEN** ход заканчивается на шаге установки – маркер к этому моменту уже снят уборкой самого шага
+#### Scenario: After CLI installation cancellation, final section isn't executed
+- **WHEN** the user selected "Cancel" on the package manager question
+- **THEN** the turn ends at the installation step – the marker is already removed by cleanup of that step itself
 
-#### Scenario: Финал собирается под включённые этапы
-- **WHEN** промпт собирается без шага установки или без шага деривации
-- **THEN** финальная секция не упоминает отсутствующие шаги: ни стопы установки, ни ответ «No» на деривацию, ни уже выполненную валидацию
+#### Scenario: Finale assembles for enabled stages
+- **WHEN** the prompt is assembled without an installation step or without a derivation step
+- **THEN** the final section doesn't mention absent steps: neither installation stops, nor "No" answer to derivation, nor already performed validation
 
-#### Scenario: Упавший openspec init оставляет маркер
-- **WHEN** `openspec init` завершился ошибкой
-- **THEN** ход останавливается с сообщением об ошибке, а сам шаг установки велит оставить config.yaml с маркером – панель предложит Resume
+#### Scenario: Failed openspec init leaves marker
+- **WHEN** `openspec init` ended with an error
+- **THEN** the turn stops with an error message, and the installation step itself tells you to leave config.yaml with the marker – the sidebar will offer Resume
 
-### Requirement: Отмена установки CLI убирает за собой по проверяемому правилу
-Промпт инициализации SHALL описывать уборку после отмены установки CLI механически проверяемыми шагами, не требуя от агента знания о том, что существовало до начала хода.
+### Requirement: CLI installation cancellation cleans up by a checkable rule
+The initialization prompt SHALL describe cleanup after CLI installation cancellation in mechanically checkable steps without requiring the agent to know what existed before the turn began.
 
-#### Scenario: Уборка после отмены
-- **WHEN** пользователь выбрал «Cancel» на вопросе о пакетном менеджере
-- **THEN** агент снимает блок `init:`; удаляет `openspec/config.yaml`, только если в нём не осталось ничего, кроме `schema`; удаляет директорию `openspec/`, только если она оказалась пустой
+#### Scenario: Cleanup after cancellation
+- **WHEN** the user selected "Cancel" on the package manager question
+- **THEN** the agent removes the `init:` block; deletes `openspec/config.yaml` only if nothing remains in it besides `schema`; deletes the `openspec/` directory only if it turned out empty
 
-#### Scenario: Чужой конфиг остаётся на месте
-- **WHEN** в `openspec/config.yaml` до начала хода уже были `context` или `rules`
-- **THEN** после отмены файл остаётся с этим содержимым, лишившись только блока `init:`
+#### Scenario: Someone else's config stays in place
+- **WHEN** `openspec/config.yaml` already had `context` or `rules` before the turn began
+- **THEN** after cancellation, the file remains with that content, minus only the `init:` block
 
-### Requirement: Шаг настройки внутри init не проверяет наличие openspec
-Промпт настройки SHALL собираться в двух видах: отдельная команда `/opsx-config` проверяет наличие директории `openspec/` и останавливается, если её нет, а шаг настройки внутри промпта инициализации эту проверку не содержит.
+### Requirement: Setup step inside init doesn't check for openspec presence
+The setup prompt SHALL be assembled in two forms: the separate `/opsx-config` command checks for the `openspec/` directory and stops if it's absent, while the setup step inside the initialization prompt contains no such check.
 
-#### Scenario: Отдельная команда
-- **WHEN** собирается промпт для `/opsx-config`
-- **THEN** он содержит указание сообщить о необходимости инициализации и остановиться, если директории `openspec/` нет
+#### Scenario: Separate command
+- **WHEN** a prompt is assembled for `/opsx-config`
+- **THEN** it contains an instruction to report the need for initialization and stop if the `openspec/` directory doesn't exist
 
-#### Scenario: Шаг внутри init
-- **WHEN** шаг настройки собирается как часть промпта инициализации
-- **THEN** этой проверки в нём нет – установка выше в том же промпте только что создала `openspec/`
+#### Scenario: Step inside init
+- **WHEN** the setup step is assembled as part of the initialization prompt
+- **THEN** this check isn't in it – installation higher up in the same prompt just created `openspec/`
 
-### Requirement: Промпты говорят с пользователем на его языке, сохраняя термины
-Каждый промпт, который обращается к пользователю – задаёт вопросы или пересказывает ему что-то, – SHALL предписывать вести диалог на том языке, на котором пишет пользователь, и SHALL запрещать транслитерацию терминов OpenSpec (proposal, change, spec, requirement, scenario, task), оставляя их по-английски. Указание SHALL встречаться в промпте один раз, а не повторяться с каждым вложенным этапом.
+### Requirement: Prompts speak to the user in their language, preserving terms
+Each prompt that addresses the user – asks questions or relays something to them – SHALL instruct dialogue in the language the user writes in, and SHALL forbid transliteration of OpenSpec terms (proposal, change, spec, requirement, scenario, task), keeping them in English. The instruction SHALL appear once in the prompt rather than repeating with each nested stage.
 
-#### Scenario: Диалог на языке пользователя
-- **WHEN** собран любой из промптов, задающих вопросы: `/opsx-config`, `/opsx-baseline`, инициализация или её резервный вариант
-- **THEN** он содержит указание писать вопросы, варианты и итоги на языке пользователя и не транслитерировать термины OpenSpec
+#### Scenario: Dialogue in user's language
+- **WHEN** any of the prompts that ask questions is assembled: `/opsx-config`, `/opsx-baseline`, initialization or its fallback variant
+- **THEN** it contains an instruction to write questions, options, and summaries in the user's language and not transliterate OpenSpec terms
 
-#### Scenario: Пересказ release notes
-- **WHEN** собран промпт завершения обновления, который велит пересказать пользователю release notes
-- **THEN** он содержит то же указание – пересказ на языке пользователя, термины OpenSpec без транслитерации
+#### Scenario: Release notes relay
+- **WHEN** the update completion prompt is assembled, instructing to relay release notes to the user
+- **THEN** it contains the same instruction – relay in user's language, OpenSpec terms without transliteration
 
-#### Scenario: Указание не дублируется
-- **WHEN** промпт инициализации встраивает в себя шаги настройки и деривации
-- **THEN** указание о языке диалога встречается в нём ровно один раз
+#### Scenario: Instruction isn't duplicated
+- **WHEN** the initialization prompt embeds setup and derivation steps within itself
+- **THEN** the dialogue language instruction appears exactly once
 
-### Requirement: Множественный выбор задаётся указанием, а не ремаркой
-Промпты SHALL требовать включённый множественный выбор отдельным указанием для каждого вопроса, где он нужен: подтверждение списка способностей, «Stack» и «Context». Формулировка SHALL прямо говорить, что пользователь должен иметь возможность выбрать несколько вариантов сразу.
+### Requirement: Multi-select is set by instruction, not a remark
+Prompts SHALL require enabled multi-select as a separate instruction for each question where it's needed: capability list confirmation, "Stack", and "Context". The phrasing SHALL directly state that the user must be able to select multiple options at once.
 
-#### Scenario: Подтверждение списка способностей
-- **WHEN** собран промпт деривации
-- **THEN** фаза подтверждения содержит указание включить множественный выбор, а не упоминание «multi-select» в скобках
+#### Scenario: Capability list confirmation
+- **WHEN** the derivation prompt is assembled
+- **THEN** the confirmation phase contains an instruction to enable multi-select rather than a mention of "multi-select" in parentheses
 
-#### Scenario: Вопросы настройки
-- **WHEN** собран промпт настройки
-- **THEN** он отдельной строкой требует включённого множественного выбора для «Stack» и «Context»
+#### Scenario: Setup questions
+- **WHEN** the setup prompt is assembled
+- **THEN** it on a separate line requires enabled multi-select for "Stack" and "Context"
 
-#### Scenario: Вопрос о найденных способностях
-- **WHEN** фаза подтверждения задаёт вопрос
-- **THEN** он спрашивает, для каких из перечисленных способностей писать спецификации, а не какие способности добавить дополнительно
+#### Scenario: Question about found capabilities
+- **WHEN** the confirmation phase asks its question
+- **THEN** it asks which of the listed capabilities to write specs for, rather than what additional capabilities to add
 
-### Requirement: Деривация не задаёт тип подагента сама
-Промпт деривации SHALL требовать брать тип подагента из списка, который предлагает сам инструмент Task, и SHALL запрещать придумывать имя типа. Если подходящего агента нет или инструмент недоступен, промпт SHALL предписывать разобрать способности последовательно самому, без повторных попыток с угаданным типом.
+### Requirement: Derivation doesn't set sub-agent type itself
+The derivation prompt SHALL require taking the sub-agent type from the list offered by the Task tool itself, and SHALL forbid making up a type name. If no suitable agent exists or the tool is unavailable, the prompt SHALL instruct to break down capabilities sequentially on your own without retry attempts with a guessed type.
 
-#### Scenario: Тип агента берётся у инструмента
-- **WHEN** промпт деривации собран
-- **THEN** он не содержит конкретного имени типа агента и велит выбрать общий тип из списка самого инструмента
+#### Scenario: Agent type comes from the tool
+- **WHEN** the derivation prompt is assembled
+- **THEN** it doesn't contain a specific agent type name and tells you to choose a general type from the tool's own list
 
-#### Scenario: Подходящего агента нет
-- **WHEN** инструмент Task недоступен или не предлагает общего агента
-- **THEN** агент разбирает способности по одной сам и не пытается вызвать Task с угаданным типом
+#### Scenario: No suitable agent
+- **WHEN** the Task tool is unavailable or doesn't offer a general agent
+- **THEN** the agent breaks down capabilities one by one itself and doesn't attempt to call Task with a guessed type
 
-### Requirement: Деривация выходит без вопросов только на действительно пустом проекте
-Промпт деривации SHALL предписывать на обзорном проходе выход из оставшихся фаз, только когда директория пуста или не содержит ничего, кроме README: подтверждать пустой список способностей незачем. Условие выхода SHALL быть сформулировано так, чтобы репозиторий из конфигураций, манифестов или скриптов под него не подпадал.
+### Requirement: Derivation exits without questions only on truly empty projects
+The derivation prompt SHALL instruct an exit from remaining phases during the overview pass only when the directory is empty or contains nothing besides README: there's no point confirming an empty capability list. The exit condition SHALL be formulated so that a repository of configurations, manifests, or scripts doesn't fall under it.
 
-#### Scenario: Директория пуста
-- **WHEN** в проекте нет ничего, кроме README, или он пуст
-- **THEN** агент сообщает об этом и пропускает фазы подтверждения, детализации и валидации, не задавая вопросов по пустому списку
+#### Scenario: Directory is empty
+- **WHEN** the project has nothing but README, or is empty
+- **THEN** the agent reports this and skips confirmation, detail, and validation phases without asking questions on an empty list
 
-#### Scenario: Проект без кода приложения не считается пустым
-- **WHEN** проект состоит из конфигураций, манифестов или скриптов
-- **THEN** выход не срабатывает: агент собирает по ним список способностей и проходит все фазы
+#### Scenario: Project without application code isn't considered empty
+- **WHEN** the project consists of configurations, manifests, or scripts
+- **THEN** exit doesn't trigger: the agent assembles a capability list from them and goes through all phases
 
-### Requirement: Промпт деривации ограничивает правку config.yaml
-Ограничения промпта деривации SHALL разрешать правку `openspec/config.yaml` там, где об этом прямо просит сам промпт, – иначе чекпоинт `plugin.init.done` противоречит запрету на запись за пределы `openspec/specs/`.
+### Requirement: Derivation prompt limits config.yaml editing
+Derivation prompt constraints SHALL allow editing `openspec/config.yaml` where the prompt itself directly asks for it – otherwise the `plugin.init.done` checkpoint contradicts the write prohibition beyond `openspec/specs/`.
 
-#### Scenario: Чекпоинт этапа не нарушает ограничения
-- **WHEN** промпт инициализации просит записать `plugin.init.done` сразу после блока деривации
-- **THEN** ограничения деривации явно допускают такую правку, оставляя запрет на `openspec/changes/` и код
+#### Scenario: Stage checkpoint doesn't violate constraints
+- **WHEN** the initialization prompt asks to write `plugin.init.done` right after the derivation block
+- **THEN** derivation constraints explicitly allow such editing, keeping the prohibition on `openspec/changes/` and code
 
 ## MODIFIED Requirements
 
-### Requirement: Промпт инициализации ведёт маркер настройки
-Промпт инициализации SHALL обеспечивать наличие маркера `plugin.init.in-progress: true` в `openspec/config.yaml` до установки CLI и предписывать агенту удалить весь блок `init:` только после успешной валидации. Шаг записи маркера SHALL собираться по признаку того, записала ли маркер сама панель, и SHALL разделять два случая – файл уже есть и файла нет.
+### Requirement: Initialization prompt manages setup marker
+The initialization prompt SHALL ensure the presence of marker `plugin.init.in-progress: true` in `openspec/config.yaml` before CLI installation and instruct the agent to remove the entire `init:` block only after successful validation. The marker write step SHALL be assembled based on whether the sidebar itself wrote the marker, and SHALL separate two cases – file already exists and file doesn't exist.
 
-#### Scenario: Маркер уже записан панелью
-- **WHEN** промпт собирается с признаком того, что панель выставила маркер
-- **THEN** первый шаг лишь сообщает, что блок `plugin.init` уже есть и его надо оставить как есть, а инструкция по записи YAML в промпт не попадает
+#### Scenario: Marker already written by sidebar
+- **WHEN** the prompt is assembled with a flag that the sidebar set the marker
+- **THEN** the first step only states that the `plugin.init` block already exists and should be left as is, and the YAML write instruction doesn't enter the prompt
 
-#### Scenario: Файл конфигурации уже существует
-- **WHEN** промпт собирается без этого признака, а `openspec/config.yaml` в проекте есть
-- **THEN** агенту сказано добавить блок `plugin.init` и не менять в файле больше ничего – в том числе не переписывать `schema`
+#### Scenario: Configuration file already exists
+- **WHEN** the prompt is assembled without this flag, but `openspec/config.yaml` exists in the project
+- **THEN** the agent is told to add the `plugin.init` block and not change anything else in the file – including not overwriting `schema`
 
-#### Scenario: Файла конфигурации нет
-- **WHEN** промпт собирается без этого признака и `openspec/config.yaml` отсутствует
-- **THEN** агенту сказано создать файл вместе с директорией `openspec/`, записав в него `schema: spec-driven` и блок `plugin.init`
+#### Scenario: Configuration file doesn't exist
+- **WHEN** the prompt is assembled without this flag and `openspec/config.yaml` is absent
+- **THEN** the agent is told to create the file along with the `openspec/` directory, writing `schema: spec-driven` and the `plugin.init` block
 
-#### Scenario: Порядок шагов не меняется
-- **WHEN** промпт собран любым из двух способов
-- **THEN** остальные шаги preflight и их нумерация одинаковы, а маркер в обоих случаях оказывается на месте раньше установки CLI
+#### Scenario: Step order doesn't change
+- **WHEN** the prompt is assembled either way
+- **THEN** the remaining preflight steps and their numbering are identical, and the marker ends up in place before CLI installation in both cases
 
-#### Scenario: Снятие маркера после валидации
-- **WHEN** настройка завершена и `openspec validate --specs` проходит
-- **THEN** агент удаляет весь блок `init:` под `plugin:`, сохраняя `schema`, `context`, `rules` и прочие записи `plugin:`
+#### Scenario: Marker removal after validation
+- **WHEN** setup is complete and `openspec validate --specs` passes
+- **THEN** the agent removes the entire `init:` block under `plugin:`, preserving `schema`, `context`, `rules`, and other `plugin:` entries
 
-#### Scenario: Валидация не проходит
-- **WHEN** после исправлений валидация всё ещё не проходит
-- **THEN** блок `init:` остаётся в config.yaml, чтобы панель предложила продолжить
+#### Scenario: Validation doesn't pass
+- **WHEN** after fixes, validation still doesn't pass
+- **THEN** the `init:` block remains in config.yaml so the sidebar can offer to continue
 
-#### Scenario: Снятие маркера при отказе от деривации
-- **WHEN** пользователь отказался выводить спецификации или проект оказался пустым
-- **THEN** агент всё равно доходит до финальной секции и снимает маркер
+#### Scenario: Marker removal on derivation decline
+- **WHEN** the user declined to derive specs or the project turned out empty
+- **THEN** the agent still reaches the final section and removes the marker
 
-#### Scenario: Прерывание настройки
-- **WHEN** ход агента прерван до завершения настройки
-- **THEN** маркер остаётся в config.yaml и служит признаком незавершённой настройки
+#### Scenario: Setup interruption
+- **WHEN** the agent's turn is interrupted before setup completion
+- **THEN** the marker remains in config.yaml and serves as a sign of unfinished setup
 
-### Requirement: Регистрация команды /opsx-baseline
-Система SHALL зарегистрировать слэш-команду `/opsx-baseline` в пространстве имён `palette` с именем `openspec.baseline`, категорией `OpenSpec` и промптом `SPEC_BASELINE_PROMPT`. Описание команды SHALL соответствовать тому, что промпт действительно делает: настройку он не выполняет, а требует её заранее.
+### Requirement: /opsx-baseline command registration
+The system SHALL register the slash command `/opsx-baseline` in the `palette` namespace with name `openspec.baseline`, category `OpenSpec`, and prompt `SPEC_BASELINE_PROMPT`. The command description SHALL match what the prompt actually does: it doesn't perform setup but requires it beforehand.
 
-#### Scenario: Успешная регистрация baseline
-- **WHEN** функция `registerCommands` вызывается с валидным API
-- **THEN** команда `/opsx-baseline` доступна в палитре с заголовком «OpenSpec: Baseline specs from code» и описанием «Derive or refresh openspec/specs from the existing implementation (needs a configured project)»
+#### Scenario: Successful baseline registration
+- **WHEN** the function `registerCommands` is called with a valid API
+- **THEN** the `/opsx-baseline` command is available in the palette with title "OpenSpec: Baseline specs from code" and description "Derive or refresh openspec/specs from the existing implementation (needs a configured project)"

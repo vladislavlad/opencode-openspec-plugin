@@ -1,61 +1,61 @@
 ## Purpose
-Утилита для очистки, добавления текста и отправки промптов в поле ввода TUI через API плагина.
+Utility for clearing, appending text to, and submitting prompts in the TUI input field via plugin API.
 
 ## Requirements
 
-### Requirement: Добавление текста в промпт
-Система SHALL добавлять указанный текст в поле ввода промпта TUI с помощью `appendPrompt`.
+### Requirement: Appending Text To Prompt
+The system SHALL append specified text to the TUI prompt input field using `appendPrompt`.
 
-#### Scenario: Базовое добавление текста
-- **WHEN** вызывается `sendPrompt` с текстом и без опций
-- **THEN** текст добавляется в текущий промпт через `api.client.tui.appendPrompt`
+#### Scenario: Basic Text Append
+- **WHEN** `sendPrompt` is called with text and no options
+- **THEN** text is appended to current prompt via `api.client.tui.appendPrompt`
 
-### Requirement: Очистка промпта перед добавлением
-Система SHALL очищать поле ввода промпта, если указан флаг `clear`.
+### Requirement: Clearing Prompt Before Appending
+The system SHALL clear the prompt input field if `clear` flag is specified.
 
-#### Scenario: Очистка включена
-- **WHEN** вызывается `sendPrompt` с опцией `{ clear: true }`
-- **THEN** система вызывает `api.client.tui.clearPrompt` перед добавлением текста
+#### Scenario: Clear Enabled
+- **WHEN** `sendPrompt` is called with option `{ clear: true }`
+- **THEN** system calls `api.client.tui.clearPrompt` before appending text
 
-### Requirement: Отправка промпта после добавления
-Система SHALL отправлять промпт, если указан флаг `submit`.
+### Requirement: Submitting Prompt After Appending
+The system SHALL submit the prompt if `submit` flag is specified.
 
-#### Scenario: Отправка включена
-- **WHEN** вызывается `sendPrompt` с опцией `{ submit: true }`
-- **THEN** система вызывает `api.client.tui.submitPrompt` после добавления текста
+#### Scenario: Submit Enabled
+- **WHEN** `sendPrompt` is called with option `{ submit: true }`
+- **THEN** system calls `api.client.tui.submitPrompt` after appending text
 
-### Requirement: Использование директории из состояния API
-Система SHALL использовать директорию из `api.state.path.directory` для всех вызовов TUI.
+### Requirement: Using Directory From API State
+The system SHALL use directory from `api.state.path.directory` for all TUI calls.
 
-#### Scenario: Директория передаётся в каждый вызов
-- **WHEN** вызывается `sendPrompt` с любым набором опций
-- **THEN** параметр `directory` берётся из `api.state.path.directory` и передаётся в каждый вызов TUI API
+#### Scenario: Directory Passed To Every Call
+- **WHEN** `sendPrompt` is called with any set of options
+- **THEN** `directory` parameter is taken from `api.state.path.directory` and passed to every TUI API call
 
-### Requirement: Безошибочное выполнение при отказе TUI
-Система SHALL молча игнорировать ошибки, возникающие при отправке промпта.
+### Requirement: Silent Execution On TUI Rejection
+The system SHALL silently ignore errors that occur during prompt submission.
 
-#### Scenario: TUI отклоняет запрос
-- **WHEN** любой из вызовов `clearPrompt`, `appendPrompt` или `submitPrompt` выбрасывает ошибку
-- **THEN** ошибка перехватывается и функция завершается без повторного выброса исключения
+#### Scenario: TUI Rejects Request
+- **WHEN** any of `clearPrompt`, `appendPrompt` or `submitPrompt` throws an error
+- **THEN** error is caught and function completes without re-throwing exception
 
-### Requirement: Отправка текста как хода агента
-Система SHALL предоставлять `submitPrompt`, отправляющую текст как ход агента с предварительной очисткой поля ввода.
+### Requirement: Sending Text As Agent Turn
+The system SHALL provide `submitPrompt`, which sends text as an agent turn with prior input field clearing.
 
-#### Scenario: Запуск слэш-команды
-- **WHEN** вызывается `submitPrompt` с текстом команды (например, `/opsx-archive <имя>`)
-- **THEN** вызывается `sendPrompt` с опциями `{ clear: true, submit: true }` – команда выполняется как обычный ход агента с текущими agent/model сессии
+#### Scenario: Launching Slash Command
+- **WHEN** `submitPrompt` is called with command text (e.g., `/opsx-archive <name>`)
+- **THEN** `sendPrompt` is called with options `{ clear: true, submit: true }` — the command executes as a regular agent turn with current session's agent/model
 
-#### Scenario: Очистка перед отправкой обязательна
-- **WHEN** в поле ввода остался недописанный пользователем текст
-- **THEN** он стирается до добавления отправляемого текста, а не склеивается с ним
+#### Scenario: Clearing Before Submit Is Mandatory
+- **WHEN** user's unfinished text remains in input field
+- **THEN** it is erased before appending submitted text, not concatenated with it
 
-### Requirement: Закрытие opencode
-Система SHALL предоставлять `quitOpencode`, закрывающую opencode отправкой команды `exit` в промпт, чтобы при следующем запуске команды и скиллы были перечитаны.
+### Requirement: Closing Opencode
+The system SHALL provide `quitOpencode`, which closes opencode by sending `exit` command to prompt, so that commands and skills are re-read on next launch.
 
-#### Scenario: Закрытие через отправку exit
-- **WHEN** вызывается `quitOpencode`
-- **THEN** промпт очищается, в него добавляется `exit` и выполняется отправка
+#### Scenario: Close By Sending Exit
+- **WHEN** `quitOpencode` is called
+- **THEN** prompt is cleared, `exit` is appended, and submission is executed
 
-#### Scenario: Нативная диспетчеризация не используется
-- **WHEN** вызывается `quitOpencode`
-- **THEN** `api.keymap.dispatchCommand("app.exit")` не выполняется – синхронный выход прерывал отрисовку и оставлял в терминале обрывок escape-последовательности
+#### Scenario: Native Dispatch Not Used
+- **WHEN** `quitOpencode` is called
+- **THEN** `api.keymap.dispatchCommand("app.exit")` is not executed — synchronous exit interrupted rendering and left an escape sequence fragment in terminal

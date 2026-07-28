@@ -1,29 +1,29 @@
 ## Why
 
-Пользователь не видит версию плагина OpenSpec и не имеет доступа к настройкам из интерфейса. Необходимо отобразить версию при наведении на заголовок и добавить кнопку Settings для открытия экрана настроек.
+The user cannot see the OpenSpec plugin version and has no access to settings from the interface. We need to display the version on hover over the header and add a Settings button to open the settings screen.
 
 ## What Changes
 
-- При наведении курсора на строку заголовка показывать версию плагина (например `0.2.0`, цвет `textMuted`)
-- Добавить кнопку Settings справа в заголовке рядом с «OpenSpec», цвет `warn`
-- По нажатию Settings открывается view Settings с отображением версии плагина и кнопкой «← back»
+- On hover over the header row, show the plugin version (e.g., `0.2.0`, color `textMuted`)
+- Add a Settings button on the right in the header next to "OpenSpec", color `warn`
+- Clicking Settings opens the Settings view displaying the plugin version and a "← back" button
 
 ## Capabilities
 
 ### New Capabilities
-- `settings-view`: Экран настроек плагина с навигацией назад, отображающий версию и зарезервированный для будущих настроек.
+- `settings-view`: Plugin settings screen with back navigation, displaying the version and reserved for future settings.
 
 ### Modified Capabilities
-- `sidebar-ui`: Заголовок sidebar получает hover-подсказку версии и кнопку Settings справа.
+- `sidebar-ui`: The sidebar header gains a hover version hint and a Settings button on the right.
 
 ## Non-goals
 
-- Не добавляем другие настройки в первый проход – только версия как заглушка.
-- Не меняем структуру навигации для существующих views (changes, specs).
+- We don't add other settings in the first pass – only the version as a placeholder.
+- We don't change navigation structure for existing views (changes, specs).
 
 ## Impact
 
-- `src/sidebar.tsx`: Модификация заголовка и добавление signal/routing для Settings view.
-- `src/components/settings.tsx`: Новый компонент SettingsView.
-- `build.ts`: Добавить `define` для вшивки версии при сборке.
-- `src/lib/version.ts`: Константа версии с fallback на `"dev"`.
+- `src/sidebar.tsx`: Modify header and add signal/routing for Settings view.
+- `src/components/settings.tsx`: New SettingsView component.
+- `build.ts`: Add `define` to bake version at build time.
+- `src/lib/version.ts`: Version constant with fallback to `"dev"`.

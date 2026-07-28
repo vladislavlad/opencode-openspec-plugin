@@ -1,20 +1,20 @@
 ## Context
 
-В `ChangeActions` кнопки Apply и Update спредят `{...props.gate}` для блокировки при busy, а Delete — нет. Комментарий на строке 57 обосновывал это тем, что "only opens the local confirm", но финальное удаление через `deleteChange` может вызвать `sendPrompt`, если локальный FS недоступен.
+In `ChangeActions`, the Apply and Update buttons spread `{...props.gate}` for blocking when busy, but Delete does not. A comment on line 57 justified this by saying "only opens the local confirm", but the final deletion through `deleteChange` can trigger `sendPrompt` if the local FS is unavailable.
 
 ## Goals / Non-Goals
 
 **Goals:**
-- Сделать Delete консистентным с остальными кнопками: блокируется когда агент busy
+- Make Delete consistent with other buttons: blocked when the agent is busy
 
 **Non-Goals:**
-- Не меняем confirm dialog или логику удаления
-- Не добавляем новый компонент — используем существующий `gate` prop
+- Not changing the confirm dialog or deletion logic
+- Not adding a new component — using the existing `gate` prop
 
 ## Decisions
 
-- Просто добавить `{...props.gate}` на Delete button — тот же механизм, что для Apply/Update. Альтернатива (блокировать только confirm) избыточна: пользователь не должен даже инициировать действие во время busy.
+- Simply add `{...props.gate}` to the Delete button — the same mechanism as for Apply/Update. The alternative (blocking only the confirm) is excessive: the user should not even initiate an action during busy.
 
 ## Risks / Trade-offs
 
-- Нет рисков — изменение однострочное, использует существующий `Gate` pattern
+- No risks — a one-line change using the existing `Gate` pattern

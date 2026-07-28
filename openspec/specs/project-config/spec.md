@@ -1,56 +1,56 @@
 ## Purpose
-Промпт настройки проекта: определение стека, языка спецификаций, контекста и правил с записью их в `openspec/config.yaml`. Собирается в двух видах – отдельной командой `/opsx-config` и шагом внутри промпта инициализации.
+Project configuration prompt: defining stack, specification language, context and rules with writing them to `openspec/config.yaml`. Assembled in two forms — as separate command `/opsx-config` and as step within initialization prompt.
 
 ## Requirements
 
-### Requirement: CONFIG_PROMPT – проверка наличия инициализации
-Система SHALL проверять наличие директории `openspec/` перед выполнением конфигурации и требовать запуска инициализации при её отсутствии. Отдельная команда `/opsx-config` проверяет наличие директории, а шаг настройки внутри промпта инициализации – нет: установка выше в том же промпте только что создала `openspec/`.
+### Requirement: CONFIG_PROMPT — Initialization Presence Check
+The system SHALL check for directory `openspec/` before executing configuration and require running initialization when it's absent. Separate command `/opsx-config` checks for directory presence, while configuration step inside init prompt doesn't: installation earlier in that same prompt just created `openspec/`.
 
-#### Scenario: OpenSpec не инициализирован
-- **WHEN** промпт `/opsx-config` выполняется в проекте без директории `openspec/`
-- **THEN** модель сообщает пользователю о необходимости запустить инициализацию OpenSpec и останавливается
+#### Scenario: OpenSpec Not Initialized
+- **WHEN** prompt `/opsx-config` runs in project without directory `openspec/`
+- **THEN** model informs user about need to run OpenSpec initialization and stops
 
-#### Scenario: Шаг внутри init
-- **WHEN** шаг настройки собирается как часть промпта инициализации
-- **THEN** проверки наличия `openspec/` в нём нет – директория создана на шаге установки выше в том же промпте
+#### Scenario: Step Inside Init
+- **WHEN** configuration step is assembled as part of init prompt
+- **THEN** it doesn't contain check for `openspec/` — directory was created at installation step earlier in same prompt
 
-### Requirement: CONFIG_PROMPT – обработка пустого проекта и языка
-Система SHALL в `CONFIG_PROMPT` не пытаться выводить контекст из пустого проекта и предлагать в качестве языка только человеческий язык.
+### Requirement: CONFIG_PROMPT — Empty Project And Language Handling
+The system SHALL NOT attempt to derive context from empty project and offer only human languages.
 
-#### Scenario: Пустой проект
-- **WHEN** в проекте нет кода, README и манифестов
-- **THEN** промпт пропускает вывод контекста и сразу спрашивает у пользователя стек, язык, контекст и стиль, не предлагая создать или выбрать другой проект
+#### Scenario: Empty Project
+- **WHEN** project has no code, README or manifests
+- **THEN** prompt skips context derivation and immediately asks user for stack, language, context and style without offering to create or select another project
 
-#### Scenario: Язык спеков
-- **WHEN** промпт спрашивает язык спецификаций
-- **THEN** предлагаются только естественные (человеческие) языки, а не языки программирования
+#### Scenario: Spec Language
+- **WHEN** prompt asks specification language
+- **THEN** only natural (human) languages are offered, not programming languages
 
-### Requirement: CONFIG_PROMPT сохраняет служебный блок plugin
-Промпт `CONFIG_PROMPT` SHALL предписывать агенту сохранять существующий блок `plugin:` в `openspec/config.yaml` без изменений при перезаписи файла.
+### Requirement: CONFIG_PROMPT Preserves Plugin Block
+Prompt `CONFIG_PROMPT` SHALL instruct agent to preserve existing block `plugin:` in `openspec/config.yaml` unchanged when overwriting file.
 
-#### Scenario: Перезапись конфигурации с маркером настройки
-- **WHEN** агент перезаписывает config.yaml на шаге настройки, а в файле присутствует `plugin.init`
-- **THEN** блок `plugin:` сохраняется в файле без изменений
+#### Scenario: Configuration Overwrite With Setup Marker
+- **WHEN** agent overwrites config.yaml at configuration step and `plugin.init` is present in file
+- **THEN** block `plugin:` is preserved in file unchanged
 
-#### Scenario: Перезапись конфигурации с флагом обновления
-- **WHEN** агент перезаписывает config.yaml, а в файле присутствует `plugin.update-in-progress`
-- **THEN** блок `plugin:` сохраняется в файле без изменений
+#### Scenario: Configuration Overwrite With Update Flag
+- **WHEN** agent overwrites config.yaml and `plugin.update-in-progress` is present in file
+- **THEN** block `plugin:` is preserved in file unchanged
 
-### Requirement: CONFIG_PROMPT – гранулярность Tasks двумя вариантами
-`CONFIG_PROMPT` SHALL предлагать ровно два уровня разбиения Tasks – «High-level» и «Detailed» – и описывать их через объём работы, а не через время выполнения.
+### Requirement: CONFIG_PROMPT — Task Granularity Two Options
+`CONFIG_PROMPT` SHALL offer exactly two levels of Task granularity — "High-level" and "Detailed" — and describe them by work volume, not execution time.
 
-#### Scenario: Состав вопроса о Tasks
-- **WHEN** пользователь ответил «Yes» на вопрос «Configure detailed rules?»
-- **THEN** вопрос «Tasks» предлагает ровно два варианта: «High-level» с описанием «a few high-level tasks» и «Detailed» с описанием «sub-tasks grouped under high-level sections»
+#### Scenario: Tasks Question Composition
+- **WHEN** user answered "Yes" to question "Configure detailed rules?"
+- **THEN** "Tasks" question offers exactly two options: "High-level" with description "a few high-level tasks" and "Detailed" with description "sub-tasks grouped under high-level sections"
 
-#### Scenario: Подсказки не меряют время
-- **WHEN** промпт настройки собран
-- **THEN** он не содержит вариантов «Coarse», «Medium», «Fine» и не описывает Tasks через длительность («~half-day», «~1-2h»)
+#### Scenario: Hints Don't Measure Time
+- **WHEN** configuration prompt is assembled
+- **THEN** it doesn't contain options "Coarse", "Medium", "Fine" and doesn't describe Tasks by duration ("~half-day", "~1-2h")
 
-#### Scenario: Правило в конфиге
-- **WHEN** пользователь выбрал «High-level»
-- **THEN** в `rules.tasks` записывается правило «несколько крупных задач верхнего уровня»
+#### Scenario: Rule In Config
+- **WHEN** user selected "High-level"
+- **THEN** `rules.tasks` receives rule "a few high-level tasks"
 
-#### Scenario: Правило в конфиге для подробного разбиения
-- **WHEN** пользователь выбрал «Detailed»
-- **THEN** в `rules.tasks` записывается правило «подзадачи, сгруппированные по крупным секциям»
+#### Scenario: Rule In Config For Detailed Granularity
+- **WHEN** user selected "Detailed"
+- **THEN** `rules.tasks` receives rule "sub-tasks grouped under high-level sections"

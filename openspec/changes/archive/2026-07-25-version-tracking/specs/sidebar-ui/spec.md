@@ -1,58 +1,58 @@
 ## ADDED Requirements
 
-### Requirement: Баннер предупреждения о доступных обновлениях в sidebar
-Панель SHALL показывать баннер над рядом действий (Explore/Propose), если доступно обновление плагина или CLI.
+### Requirement: Update warning banner in sidebar
+The panel SHALL display a banner above the action row (Explore/Propose) if a plugin or CLI update is available.
 
-#### Scenario: Показ banner при наличии обновлений
-- **WHEN** `pluginUpdate` или `cliUpdate` не равны `null` и banner не dismissed
-- **THEN** отображается строка с текстом `textMuted` о доступных обновлениях, кнопкой Dismiss (`warn`) и кнопкой Settings (`accent`)
+#### Scenario: Show banner when updates are available
+- **WHEN** `pluginUpdate` or `cliUpdate` are not `null` and banner is not dismissed
+- **THEN** a line with text in `textMuted` about available updates, Dismiss button (`warn`) and Settings button (`accent`) is displayed
 
-#### Scenario: Скрытие banner по Dismiss
-- **WHEN** пользователь нажимает Dismiss
-- **THEN** banner скрывается до следующей перезагрузки данных или нажатия Check Versions в Settings
+#### Scenario: Hide banner on Dismiss
+- **WHEN** the user clicks Dismiss
+- **THEN** banner is hidden until next data reload or Check Versions click in Settings
 
-#### Scenario: Нажатие Settings в banner
-- **WHEN** пользователь нажимает Settings в banner
-- **THEN** открывается экран Settings, banner остаётся скрытым
+#### Scenario: Click Settings in banner
+- **WHEN** the user clicks Settings in the banner
+- **THEN** Settings screen opens, banner remains hidden
 
-#### Scenario: Banner не показывается при отсутствии обновлений
-- **WHEN** обновления недоступны или проверка завершилась ошибкой
-- **THEN** banner не отображается, ряд действий виден сразу
+#### Scenario: Banner not shown when no updates
+- **WHEN** no updates available or check failed
+- **THEN** banner is not displayed, action row is visible immediately
 
-### Requirement: Кнопка Settings в заголовке меняет цвет на `accent` при hover
-Кнопка Settings в строке заголовка SHALL менять цвет с `textMuted` на `accent` при наведении курсора. Если доступно обновление, кнопка отображается цветом `accent` постоянно.
+### Requirement: Settings button in header changes to `accent` on hover
+The Settings button in the header row SHALL change color from `textMuted` to `accent` on cursor hover. If an update is available, the button displays in `accent` color permanently.
 
-#### Scenario: Hover строки заголовка
-- **WHEN** курсор находится над строкой заголовка sidebar
-- **THEN** кнопка Settings меняет цвет на `accent`
+#### Scenario: Hover over header row
+- **WHEN** cursor is over the sidebar header row
+- **THEN** Settings button changes to `accent` color
 
-#### Scenario: Уход курсора без обновлений
-- **WHEN** курсор уходит со строки заголовка и обновления недоступны
-- **THEN** кнопка Settings возвращается к цвету `textMuted`
+#### Scenario: Cursor leaves without updates
+- **WHEN** cursor moves away from header row and no updates are available
+- **THEN** Settings button returns to `textMuted` color
 
-#### Scenario: Обновление доступно – постоянный accent
-- **WHEN** `pluginUpdate` или `cliUpdate` не равны `null`
-- **THEN** кнопка Settings отображается цветом `accent` независимо от hover
+#### Scenario: Update available – permanent accent
+- **WHEN** `pluginUpdate` or `cliUpdate` are not `null`
+- **THEN** Settings button displays in `accent` color regardless of hover
 
-### Requirement: Баннер post-update в sidebar
-Панель SHALL показывать баннер "Run checks after update" над рядом действий, если в config.yaml обнаружен флаг `plugin.update-in-progress` и новая версия совпадает с загруженной.
+### Requirement: Post-update banner in sidebar
+The panel SHALL display a "Run checks after update" banner above the action row if the `plugin.update-in-progress` flag is found in config.yaml and the new version matches the loaded one.
 
-#### Scenario: Показ banner после перезагрузки
-- **WHEN** плагин загружается, `updateFlag` содержит `{ old, new }` и `flag.new === VERSION`
-- **THEN** отображается баннер с текстом о необходимости завершения обновления и кнопкой Complete Update (`accent`)
+#### Scenario: Show banner after reload
+- **WHEN** plugin loads, `updateFlag` contains `{ old, new }` and `flag.new === VERSION`
+- **THEN** a banner with text about needing to complete the update and Complete Update button (`accent`) is displayed
 
-#### Scenario: Новая версия не подхватилась
-- **WHEN** `updateFlag` содержит `{ old, new }`, но `flag.new !== VERSION`
-- **THEN** вместо кнопки Complete Update показывается мягкий хинт «reopen opencode to finish update», миграции не запускаются
+#### Scenario: New version not picked up
+- **WHEN** `updateFlag` contains `{ old, new }`, but `flag.new !== VERSION`
+- **THEN** instead of Complete Update button, a soft hint "reopen opencode to finish update" is shown; migrations are not triggered
 
-#### Scenario: Нажатие Complete Update
-- **WHEN** пользователь нажимает Complete Update при простое агента
-- **THEN** плагин формирует промпт из миграционных инструкций для диапазона `(old, new]` и отправляет агенту напрямую; кнопки блокируются до завершения хода агента
+#### Scenario: Click Complete Update
+- **WHEN** the user clicks Complete Update while agent is idle
+- **THEN** plugin forms a prompt from migration instructions for range `(old, new]` and sends it directly to agent; buttons remain locked until agent turn completes
 
-#### Scenario: Complete Update заблокирован во время работы агента
-- **WHEN** агент занят и пользователь нажимает Complete Update
-- **THEN** промпт не отправляется, показывается тост «Wait until the agent finishes working»
+#### Scenario: Complete Update blocked while agent is working
+- **WHEN** agent is busy and user clicks Complete Update
+- **THEN** prompt is not sent, toast "Wait until the agent finishes working" is shown
 
-#### Scenario: Успешное завершение миграции
-- **WHEN** агент завершил ход после Complete Update и снял `plugin.update-in-progress` из config.yaml
-- **THEN** `updateFlag` становится `null`, banner скрывается
+#### Scenario: Migration completed successfully
+- **WHEN** agent completes turn after Complete Update and clears `plugin.update-in-progress` from config.yaml
+- **THEN** `updateFlag` becomes `null`, banner hidden

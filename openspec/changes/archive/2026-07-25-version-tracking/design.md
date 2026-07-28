@@ -1,112 +1,112 @@
 ## Context
 
-Плагин интегрируется с openspec CLI через instruction files в `.opencode/`. При обновлении CLI или самого плагина пользователь не знает, что доступна новая версия. Текущий подход – ручной запуск.
+The plugin integrates with openspec CLI through instruction files in `.opencode/`. When the CLI or the plugin itself is updated, the user doesn't know that a new version is available. The current approach is manual execution.
 
-Плагин работает в Bun-хосте с доступом к Node (`node:fs` уже используется для удаления change-директорий), поэтому при загрузке sidebar может сделать HTTP-запрос к npm registry. Плагин – **read-only**: он читает версии, дёргает registry и отправляет промпты; все записи (npm install, правка `tui.json`, флаг в config.yaml, миграции) выполняет агент, у которого есть shell.
+The plugin runs in a Bun host with access to Node (`node:fs` is already used for deleting change directories), so on sidebar load it can make an HTTP request to npm registry. The plugin is **read-only**: it reads versions, queries the registry, and sends prompts; all writes (npm install, editing `tui.json`, flag in config.yaml, migrations) are performed by the agent, which has shell access.
 
-Обе current-версии определяются без shell и без парсинга lock-файлов:
-- **Плагин** – билд-константа `__PLUGIN_VERSION__` (вшивается в `build.ts` через `define`, экспортируется как `VERSION`).
-- **CLI** – поле `metadata.generatedBy` в любом `.opencode/skills/*/SKILL.md`. Это версия CLI, сгенерировавшая on-disk инструкции; именно её осмысленно сравнивать с npm latest, чтобы понять «файлы устарели».
+Both current versions are determined without shell and without parsing lock files:
+- **Plugin** – build constant `__PLUGIN_VERSION__` (baked into `build.ts` via `define`, exported as `VERSION`).
+- **CLI** – the `metadata.generatedBy` field in any `.opencode/skills/*/SKILL.md`. This is the CLI version that generated on-disk instructions; it's meaningful to compare with npm latest to determine "files are outdated".
 
-Latest-версии обоих пакетов берутся одинаково – GET к `registry.npmjs.org`. Экран Settings уже существует (архивированный change `header-version-settings`) и отображает версию плагина – его нужно расширить секцией обновлений.
+Latest versions for both packages are fetched the same way – GET to `registry.npmjs.org`. The Settings screen already exists (archived change `header-version-settings`) and displays the plugin version – it needs to be extended with an updates section.
 
-После обновления плагина агент пишет `plugin.update-in-progress: { old, new }` в config.yaml, чтобы плагин при перезагрузке знал, что нужно выполнить миграции. Миграции хранятся как инструкции для агента в `migrations.ts`.
+After a plugin update, the agent writes `plugin.update-in-progress: { old, new }` to config.yaml so that on reload the plugin knows migrations need to run. Migrations are stored as instructions for the agent in `migrations.ts`.
 
 ## Goals / Non-Goals
 
 **Goals:**
-- Асинхронно, не блокируя рендер, проверить наличие обновлений плагина и CLI через npm registry при загрузке sidebar
-- Показать баннер предупреждения над кнопками действий, если доступно обновление
-- Расширить экран Settings секцией версий с раздельными кнопками Update, Check Versions, Update All
-- Обновлять плагин через правку `tui.json`, CLI – через npm + `openspec update --force`
-- После перезагрузки обнаружить `plugin.update-in-progress` в config.yaml и предложить выполнить миграции
+- Asynchronously, without blocking render, check for plugin and CLI updates via npm registry on sidebar load
+- Display a warning banner above action buttons if an update is available
+- Extend Settings screen with a versions section featuring separate Update, Check Versions, Update All buttons
+- Update plugin by editing `tui.json`, CLI – via npm + `openspec update --force`
+- After reload, detect `plugin.update-in-progress` in config.yaml and offer to run migrations
 
 **Non-Goals:**
-- Автоматическая установка обновлений – только предложение пользователю
-- Периодический фоновый опрос – проверка при загрузке и по кнопке Check Versions
-- Блокировка работы плагина при недоступности сети
-- Определение пакетного менеджера и парсинг lock-файлов в плагине – установку делает агент
-- Регистрация palette-команд для обновления/проверки – всё вызывается из панели
+- Automatic installation of updates – only offering to the user
+- Periodic background polling – check on load and via Check Versions button
+- Blocking plugin operation when network is unavailable
+- Determining package manager and parsing lock files in the plugin – agent handles installation
+- Registering palette commands for update/check – everything is called from the panel
 
 ## Decisions
 
-### D1: Проверка версий через npm registry
-**Решение:** Одна функция `fetchLatest(pkg)` – HTTP GET к `registry.npmjs.org/<pkg>/latest`, возвращает `.version`. Вызывается дважды: `@vladislavlad%2Fopencode-openspec-plugin` и `@fission-ai%2Fopenspec` (scoped-имена URL-кодируются, `/` → `%2F`). Сравнивается с current: плагин – `__PLUGIN_VERSION__`, CLI – `generatedBy`.
+### D1: Version check via npm registry
+**Decision:** A single function `fetchLatest(pkg)` – HTTP GET to `registry.npmjs.org/<pkg>/latest`, returns `.version`. Called twice: `@vladislavlad%2Fopencode-openspec-plugin` and `@fission-ai%2Fopenspec` (scoped names are URL-encoded, `/` → `%2F`). Compared with current: plugin – `__PLUGIN_VERSION__`, CLI – `generatedBy`.
 
-**Альтернативы рассмотрены:**
-- Полный документ пакета (все теги) – избыточно, нужен только `latest`
-- Проверка через GitHub releases – зависит от того, где публикуется пакет
+**Alternatives considered:**
+- Full package document (all tags) – excessive, only need `latest`
+- Check via GitHub releases – depends on where the package is published
 
-### D2: current-версия CLI из `generatedBy`, не из lock-файлов
-**Решение:** CLI устанавливается глобально (бинарь на PATH), в lock-файле проекта его нет, а shell из плагина не используется. Поэтому current-версию CLI читаем из `metadata.generatedBy` в `.opencode/skills/*/SKILL.md` (regex `/generatedBy:\s*"([^"]+)"/`). Если ни один SKILL.md не найден – CLI показывается как «unknown», проверка обновления CLI пропускается.
+### D2: Current CLI version from `generatedBy`, not from lock files
+**Decision:** CLI is installed globally (binary on PATH), it's not in the project lock file, and shell isn't used from the plugin. So we read the current CLI version from `metadata.generatedBy` in `.opencode/skills/*/SKILL.md` (regex `/generatedBy:\s*"([^"]+)"/`). If no SKILL.md is found – CLI shows as "unknown", CLI update check is skipped.
 
-**Альтернативы рассмотрены:**
-- Определение пакетного менеджера + парсинг lock-файлов – три разных формата, хрупко, и для глобального CLI записи в lock нет
-- `openspec --version` через shell – плагин намеренно без shell; установку/CLI-команды делает агент
+**Alternatives considered:**
+- Determine package manager + parse lock files – three different formats, fragile, and for global CLI there's no lock entry
+- `openspec --version` via shell – plugin intentionally has no shell; agent handles installation/CLI commands
 
-### D3: Баннер над action buttons, не под ними
-**Решение:** Banner размещён между строкой заголовка (OpenSpec + версия + Settings) и рядом действий (Explore/Propose). Текст `textMuted`, кнопки Dismiss (`warn`) и Settings (`accent`).
+### D3: Banner above action buttons, not below
+**Decision:** Banner is placed between the header row (OpenSpec + version + Settings) and the action row (Explore/Propose). Text in `textMuted`, Dismiss (`warn`) and Settings (`accent`) buttons.
 
-**Альтернативы рассмотрены:**
-- Под action buttons – менее заметно, легко пропустить
-- Toast notification – нет действия, легко пропустить
+**Alternatives considered:**
+- Below action buttons – less visible, easy to miss
+- Toast notification – no action, easy to miss
 
-### D4: Обновление – прямые промпты через `sendPrompt`, не palette-команды
-**Решение:** Update, Update All и Complete Update строят промпт-строку в коде и отправляют агенту через `sendPrompt(api, prompt, { clear: true, submit: true })` – тот же паттерн, что кнопка Init (`initOpenSpec` + `OPENSPEC_INIT_PROMPT`). Check Versions – плагинная функция `checkVersions()` (fetch), без хода агента. Ни одной новой команды в палитре не регистрируется.
+### D4: Updates via direct prompts through `sendPrompt`, not palette commands
+**Decision:** Update, Update All, and Complete Update build a prompt string in code and send it to the agent via `sendPrompt(api, prompt, { clear: true, submit: true })` – same pattern as Init button (`initOpenSpec` + `OPENSPEC_INIT_PROMPT`). Check Versions is a plugin function `checkVersions()` (fetch), no agent turn. No new commands registered in the palette.
 
-**Альтернативы рассмотрены:**
-- Эфемерные `/opsx-*` команды – засоряют список команд, а отдельно из палитры их звать смысла нет (проверка и обновление осмысленны только из панели с уже показанными версиями)
-- Прямой shell из плагина – плагин без shell, всё делает агент
+**Alternatives considered:**
+- Ephemeral `/opsx-*` commands – clutter the command list, and calling them separately from the palette makes no sense (checking and updating only make sense from the panel with versions already displayed)
+- Direct shell from plugin – plugin has no shell, agent does everything
 
-### D5: Флаг update-in-progress в config.yaml
-**Решение:** При обновлении плагина агент записывает `plugin.update-in-progress` с полями `old`/`new`. При перезагрузке плагин читает флаг (dep `yaml`) и показывает баннер "Run checks after update" + Complete Update. Флаг пишется **только при смене версии плагина**; CLI-only апдейт обходится без него. Снимает флаг агент – последним шагом промпта Complete Update.
+### D5: update-in-progress flag in config.yaml
+**Decision:** On plugin update, the agent writes `plugin.update-in-progress` with `old`/`new` fields. On reload, the plugin reads the flag (dep `yaml`) and shows a "Run checks after update" banner + Complete Update. The flag is written **only on plugin version change**; CLI-only updates don't use it. The agent clears the flag – as the last step of the Complete Update prompt.
 
-**Альтернативы рассмотрены:**
-- Отдельный файл `.opencode/.update-status` – лишний файл, сложнее поддерживать
-- Память браузера – теряется при перезапуске opencode
+**Alternatives considered:**
+- Separate file `.opencode/.update-status` – extra file, harder to maintain
+- Browser memory – lost on opencode restart
 
-### D6: Миграции как инструкции для агента
-**Решение:** `migrations.ts` содержит мапу версия → строка с инструкциями. `collectMigrations(old, new)` склеивает инструкции для диапазона `(old, new]`; `buildMigrationPrompt` формирует итоговый промпт. Complete Update отправляет его агенту напрямую (`sendPrompt`). Нет инструкций для диапазона → минимальный промпт «проверь версии и сними флаг».
+### D6: Migrations as instructions for the agent
+**Decision:** `migrations.ts` contains a map of version → instruction string. `collectMigrations(old, new)` concatenates instructions for range `(old, new]`; `buildMigrationPrompt` forms the final prompt. Complete Update sends it directly to the agent (`sendPrompt`). No instructions for the range → minimal prompt "check versions and clear flag".
 
-**Альтернативы рассмотрены:**
-- Отдельный skill для каждой миграции – избыточно, сложно поддерживать
-- Кодовые миграции в плагине – ограничены возможностями плагина (нет shell)
+**Alternatives considered:**
+- Separate skill for each migration – excessive, hard to maintain
+- Code migrations in plugin – limited by plugin capabilities (no shell)
 
-### D7: Кнопка Settings при hover – цвет `accent`
-**Решение:** При наведении на строку заголовка кнопка Settings меняет цвет с `textMuted` на `accent`. Если доступно обновление, кнопка остаётся `accent` постоянно.
+### D7: Settings button on hover – `accent` color
+**Decision:** On hover over the header row, the Settings button changes from `textMuted` to `accent`. If an update is available, the button stays `accent` permanently.
 
-**Альтернативы рассмотрены:**
-- Цвет `warn` (как сейчас) – ассоциируется с ошибкой, а не с действием
-- Постоянный `accent` без hover – привлекает лишнее внимание
+**Alternatives considered:**
+- Color `warn` (as before) – associated with error, not action
+- Permanent `accent` without hover – draws unnecessary attention
 
-### D8: Разные механизмы обновления плагина и CLI
-**Решение:** Плагин подключён через `tui.json` (`"plugin": [...]`), поэтому обновление = правка спецификатора на `@vladislavlad/opencode-openspec-plugin@<new>` (opencode подтянет версию на рестарте), **без npm**. CLI – глобальный npm-бинарь, поэтому `npm i -g @fission-ai/openspec@<new>` (агент определяет реальный PM) + `openspec update --force` (регенерит `.opencode/commands` и `.opencode/skills`, поднимает `generatedBy`). Если в `tui.json` запись – локальный путь (dev-режим), плагин-блок пропускается.
+### D8: Different update mechanisms for plugin and CLI
+**Decision:** Plugin is connected via `tui.json` (`"plugin": [...]`), so update = editing the specifier to `@vladislavlad/opencode-openspec-plugin@<new>` (opencode will pull the version on restart), **without npm**. CLI – global npm binary, so `npm i -g @fission-ai/openspec@<new>` (agent determines actual PM) + `openspec update --force` (regenerates `.opencode/commands` and `.opencode/skills`, bumps `generatedBy`). If the `tui.json` entry is a local path (dev mode), the plugin block is skipped.
 
-**Альтернативы рассмотрены:**
-- `npm i -g` для плагина – плагин не глобальный пакет, подключается через `tui.json`
-- Ручная перегенерация файлов CLI – есть штатная команда `openspec update`
+**Alternatives considered:**
+- `npm i -g` for plugin – plugin is not a global package, connected via `tui.json`
+- Manual CLI file regeneration – there's a standard `openspec update` command
 
-### D9: `buildUpdatePrompt` композирует независимые блоки
-**Решение:** Промпт = INTRO + [PLUGIN-блок?] + [CLI-блок?] + FOOTER (reload, один раз). Блоки самодостаточны и не пересекаются (плагин трогает `tui.json`, CLI – npm + `.opencode`), поэтому Update All – это просто условное включение обоих блоков, без спец-логики склейки. Флаг `update-in-progress` живёт только в PLUGIN-блоке.
+### D9: `buildUpdatePrompt` composes independent blocks
+**Decision:** Prompt = INTRO + [PLUGIN block?] + [CLI block?] + FOOTER (reload, once). Blocks are self-contained and don't overlap (plugin touches `tui.json`, CLI – npm + `.opencode`), so Update All is simply conditional inclusion of both blocks, without special stitching logic. The `update-in-progress` flag lives only in the PLUGIN block.
 
-**Альтернативы рассмотрены:**
-- Отдельные промпты + ручная конкатенация для «оба сразу» – дублирование текста и риск рассинхрона футера/флага
+**Alternatives considered:**
+- Separate prompts + manual concatenation for "both at once" – text duplication and risk of footer/flag desync
 
 ## Risks / Trade-offs
 
-| Риск | Митигация |
+| Risk | Mitigation |
 |------|-----------|
-| npm registry недоступен или медленный | Timeout 3с (`AbortController`); при ошибке – молча игнорировать, banner не показывать |
-| `fetch` недоступен в рантайме хоста плагина | Проверить первым делом; fallback – проверку версий выполняет агент через bash (`npm view <pkg> version`) |
-| SKILL.md не найден / нет `generatedBy` | CLI показывается как «unknown», проверка обновления CLI пропускается |
-| Пользователь нажал Dismiss и хочет снова увидеть | Кнопка Check Versions в Settings перезапускает проверку |
-| Network-запрос увеличивает время загрузки sidebar | Асинхронная fire-and-forget проверка, UI рендерится без ожидания |
-| opencode не подхватил новую версию плагина из `tui.json` | При рестарте `flag.new !== VERSION` → мягкий хинт вместо миграций |
-| Агент не выполнил миграции корректно | Флаг остаётся до успешного снятия; Complete Update можно вызвать повторно |
+| npm registry unavailable or slow | 3s timeout (`AbortController`); on error – silently ignore, don't show banner |
+| `fetch` unavailable in plugin host runtime | Check first; fallback – agent checks versions via bash (`npm view <pkg> version`) |
+| SKILL.md not found / no `generatedBy` | CLI shows as "unknown", CLI update check is skipped |
+| User clicked Dismiss and wants to see again | Check Versions button in Settings restarts the check |
+| Network request increases sidebar load time | Async fire-and-forget check, UI renders without waiting |
+| opencode didn't pick up new plugin version from `tui.json` | On restart `flag.new !== VERSION` → soft hint instead of migrations |
+| Agent didn't run migrations correctly | Flag remains until successfully cleared; Complete Update can be invoked again |
 
 ## Migration Plan
 
-Не требуется – фича additive. При первом запуске после обновления:
-1. Если network недоступен – banner не показывается, всё работает как раньше
-2. После успешной проверки – пользователь видит предупреждение и может обновиться через Settings
-3. После перезагрузки opencode – при флаге `plugin.update-in-progress` баннер "Run checks after update" предлагает завершить обновление
+Not required – feature is additive. On first run after update:
+1. If network unavailable – banner not shown, everything works as before
+2. After successful check – user sees warning and can update via Settings
+3. After opencode reload – with `plugin.update-in-progress` flag, "Run checks after update" banner offers to complete the update

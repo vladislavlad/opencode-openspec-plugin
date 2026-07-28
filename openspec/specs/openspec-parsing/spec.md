@@ -1,152 +1,152 @@
 ## Purpose
-Модуль парсит файлы `spec.md` и `tasks.md` из директории openspec, преобразуя Markdown-разметку в структурированные данные: спецификации, требования, сценарии, Changes и Tasks. Служебное состояние самого плагина в `config.yaml` сюда не относится – им владеет `plugin-lifecycle`.
+Module parses `spec.md` and `tasks.md` files from openspec directory, transforming Markdown markup into structured data: specifications, requirements, scenarios, Changes and Tasks. The plugin's own state in `config.yaml` is not part of this — it belongs to `plugin-lifecycle`.
 
 ## Requirements
 
-### Requirement: Обнаружение корневой директории
-Система SHALL работать с единственной корневой директорией `openspec` – той же, что жёстко задана в CLI, – считая её готовой, если она содержит поддиректории **или** файл `config.yaml`.
+### Requirement: Root Directory Detection
+The system SHALL work with a single root directory `openspec` — the same one hardcoded in CLI — considering it ready if it contains subdirectories **or** file `config.yaml`.
 
-#### Scenario: Директория openspec содержит поддиректории
-- **WHEN** директория `openspec` содержит хотя бы одну поддиректорию
-- **THEN** система использует `openspec` как корневую директорию
+#### Scenario: openspec Directory Contains Subdirectories
+- **WHEN** directory `openspec` contains at least one subdirectory
+- **THEN** system uses `openspec` as root directory
 
-#### Scenario: Сразу после openspec init
-- **WHEN** директория `openspec` не содержит поддиректорий, но содержит файл `config.yaml`
-- **THEN** система использует `openspec` как корневую директорию и возвращает summary с пустыми списками спецификаций и изменений
+#### Scenario: Immediately After openspec init
+- **WHEN** directory `openspec` has no subdirectories but contains file `config.yaml`
+- **THEN** system uses `openspec` as root directory and returns summary with empty specification and change lists
 
-#### Scenario: Директория не найдена
-- **WHEN** `openspec` отсутствует или не содержит ни поддиректорий, ни `config.yaml`
-- **THEN** функция возвращает null
+#### Scenario: Directory Not Found
+- **WHEN** `openspec` is absent or contains neither subdirectories nor `config.yaml`
+- **THEN** function returns null
 
-### Requirement: Парсинг заголовка спецификации
-Система SHALL извлекать заголовок из первого H1-заголовка (`#`) файла spec.md, удаляя префикс «Specification:» или суффикс «Specification».
+### Requirement: Specification Title Parsing
+The system SHALL extract title from the first H1 heading (`#`) of spec.md, removing "Specification:" prefix or "Specification" suffix.
 
-#### Scenario: Заголовок с суффиксом Specification
-- **WHEN** H1 содержит строку вида `My Feature Specification`
-- **THEN** заголовок равен `My Feature`
+#### Scenario: Title With Specification Suffix
+- **WHEN** H1 contains string like `My Feature Specification`
+- **THEN** title equals `My Feature`
 
-#### Scenario: Заголовок с префиксом Specification:
-- **WHEN** H1 содержит строку вида `Specification: My Feature`
-- **THEN** заголовок равен `My Feature`
+#### Scenario: Title With Specification: Prefix
+- **WHEN** H1 contains string like `Specification: My Feature`
+- **THEN** title equals `My Feature`
 
-#### Scenario: Отсутствует H1-заголовок
-- **WHEN** файл spec.md не содержит H1-заголовка
-- **THEN** заголовок берётся из имени директории capability
+#### Scenario: No H1 Heading
+- **WHEN** spec.md has no H1 heading
+- **THEN** title is taken from capability directory name
 
-### Requirement: Парсинг назначения
-Система SHALL извлекать назначение спецификации из текста под `## Purpose`. Текста между H1 и первым H2 в схеме OpenSpec нет, поэтому он не парсится и не хранится.
+### Requirement: Purpose Parsing
+The system SHALL extract specification purpose from text under `## Purpose`. There's no text between H1 and first H2 in OpenSpec schema, so it's not parsed or stored.
 
-#### Scenario: Секция Purpose присутствует
-- **WHEN** файл содержит `## Purpose` с текстом под ней
-- **THEN** поле purpose содержит этот текст без ведущих и завершающих пустых строк
+#### Scenario: Purpose Section Present
+- **WHEN** file contains `## Purpose` with text below it
+- **THEN** purpose field contains this text without leading and trailing empty lines
 
-#### Scenario: Текст между заголовком и первым разделом игнорируется
-- **WHEN** между H1 и первым H2 находится абзац текста
-- **THEN** он нигде не сохраняется, а результат парсинга содержит только name, title, purpose и требования
+#### Scenario: Text Between Heading And First Section Ignored
+- **WHEN** a paragraph of text sits between H1 and first H2
+- **THEN** it's stored nowhere, parse result contains only name, title, purpose and requirements
 
-### Requirement: Разбор spec.md привязан к схеме spec-driven
-Разбор `spec.md` и его модель SHALL жить в отдельном модуле схемы `spec-driven` – там же, где знание о её синтаксисе: заголовках `### Requirement:` / `#### Scenario:`, ключевых словах SHALL/MUST и WHEN/THEN.
+### Requirement: spec.md Parsing Bound to spec-driven Schema
+Parsing of `spec.md` and its model SHALL live in a separate schema module `spec-driven` — alongside knowledge of its syntax: `### Requirement:` / `#### Scenario:` headings, SHALL/MUST keywords and WHEN/THEN.
 
-#### Scenario: Появление другой схемы
-- **WHEN** потребуется поддержать схему, отличную от `spec-driven`
-- **THEN** для неё добавляется отдельный модуль со своим парсером и моделью, а чтение директории и сборка summary не меняются
+#### Scenario: Another Schema Appears
+- **WHEN** support for a schema other than `spec-driven` is needed
+- **THEN** a separate module with its own parser and model is added, while directory reading and summary assembly remain unchanged
 
-### Requirement: Отделение синтаксиса схемы от текста
-Модуль схемы SHALL предоставлять функцию, убирающую из текста ключевые слова схемы и Markdown-разметку, чтобы потребители (поиск) работали с прозой, не зная синтаксиса.
+### Requirement: Separating Schema Syntax From Text
+The schema module SHALL provide a function that removes schema keywords and Markdown markup from text so consumers (search) work with prose without knowing syntax.
 
-#### Scenario: Ключевые слова убираются
-- **WHEN** в текст попадают слова SHALL, MUST, WHEN, THEN, GIVEN, AND, BUT как отдельные слова
-- **THEN** функция возвращает текст без них
+#### Scenario: Keywords Removed
+- **WHEN** words SHALL, MUST, WHEN, THEN, GIVEN, AND, BUT appear as standalone words in text
+- **THEN** function returns text without them
 
-#### Scenario: Разметка убирается
-- **WHEN** в тексте встречаются `*`, `_`, `` ` `` или ведущий маркер списка
-- **THEN** функция возвращает текст без этих символов
+#### Scenario: Markup Removed
+- **WHEN** `*`, `_`, `` ` `` or leading list marker appear in text
+- **THEN** function returns text without these characters
 
-### Requirement: Парсинг требований и сценариев
-Система SHALL извлекать требования из `### Requirement:` внутри секции `## Requirements`, а сценарии – из `#### Scenario:` внутри каждого требования.
+### Requirement: Requirements and Scenarios Parsing
+The system SHALL extract requirements from `### Requirement:` within `## Requirements` section, and scenarios from `#### Scenario:` within each requirement.
 
-#### Scenario: Требование с описанием и сценариями
-- **WHEN** в секции `## Requirements` есть `### Requirement: Auth` с текстом описания и `#### Scenario: Login`
-- **THEN** результат содержит требование с именем `Auth`, его описанием и сценарий с именем `Login`
+#### Scenario: Requirement With Description and Scenarios
+- **WHEN** in `## Requirements` there's `### Requirement: Auth` with description text and `#### Scenario: Login`
+- **THEN** result contains requirement named `Auth`, its description, and scenario named `Login`
 
-#### Scenario: Имя сценария без префикса
-- **WHEN** H4 заголовок имеет вид `Scenario: Happy Path`
-- **THEN** имя сценария равно `Happy Path` (префикс «Scenario:» удалён)
+#### Scenario: Scenario Name Without Prefix
+- **WHEN** H4 heading is `Scenario: Happy Path`
+- **THEN** scenario name equals `Happy Path` ("Scenario:" prefix removed)
 
-#### Scenario: Сценарий без явного имени
-- **WHEN** H4 заголовок не содержит префикса `Scenario:`
-- **THEN** имя сценария равно полному тексту заголовка
+#### Scenario: Scenario Without Explicit Name
+- **WHEN** H4 heading doesn't contain `Scenario:` prefix
+- **THEN** scenario name equals full heading text
 
-### Requirement: Игнорирование заголовков внутри блоков кода
-Система SHALL пропускать строки с `#`, `##`, `###` внутри fenced code blocks (``` или ~~~), не интерпретируя их как структуру.
+### Requirement: Ignoring Headings Inside Code Blocks
+The system SHALL skip lines with `#`, `##`, `###` inside fenced code blocks (``` or ~~~), not interpreting them as structure.
 
-#### Scenario: H3 внутри блока кода
-- **WHEN** строка `### Requirement: Fake` находится между ``` и ```
-- **THEN** это требование не добавляется в результат парсинга
+#### Scenario: H3 Inside Code Block
+- **WHEN** line `### Requirement: Fake` is between ``` and ```
+- **THEN** this requirement is not added to parse result
 
-### Requirement: Парсинг Tasks из tasks.md
-Система SHALL распознавать чекбоксы Markdown (`- [ ]`, `- [x]`) как Task с флагом выполнения, а заголовки Markdown – как группы Tasks.
+### Requirement: Tasks Parsing From tasks.md
+The system SHALL recognize Markdown checkboxes (`- [ ]`, `- [x]`) as Tasks with completion flag, and Markdown headings — as Task groups.
 
-#### Scenario: Выполненный и невыполненный Task
-- **WHEN** файл содержит `- [x] Done task` и `- [ ] Pending task`
-- **THEN** первый Task имеет `done: true`, второй – `done: false`; total равен 2, completed равен 1
+#### Scenario: Completed And Uncompleted Task
+- **WHEN** file contains `- [x] Done task` and `- [ ] Pending task`
+- **THEN** first Task has `done: true`, second — `done: false`; total equals 2, completed equals 1
 
-#### Scenario: Tasks сгруппированы по заголовкам
-- **WHEN** Tasks разделены строкой `## Backend`
-- **THEN** Tasks до заголовка попадают в группу с пустым title, Tasks после – в группу с title `Backend`
+#### Scenario: Tasks Grouped By Headings
+- **WHEN** Tasks are separated by line `## Backend`
+- **THEN** Tasks before heading fall into group with empty title, Tasks after — into group with title `Backend`
 
-### Requirement: Агрегация Changes и спецификаций
-Система SHALL читать все поддиректории из `specs/` и `changes/`, парсить их файлы, пропускать `changes/archive` и сортировать результаты по имени.
+### Requirement: Changes and Specifications Aggregation
+The system SHALL read all subdirectories from `specs/` and `changes/`, parse their files, skip `changes/archive`, and sort results by name.
 
-#### Scenario: Архив пропускается
-- **WHEN** в `changes/` существуют директории `feature-a` и `archive`
-- **THEN** результат содержит только Change `feature-a`
+#### Scenario: Archive Skipped
+- **WHEN** directories `feature-a` and `archive` exist in `changes/`
+- **THEN** result contains only Change `feature-a`
 
-#### Scenario: Результаты отсортированы
-- **WHEN** найдены спецификации с именами `zeta` и `alpha`
-- **THEN** массив specs упорядочен как `[alpha, zeta]`
+#### Scenario: Results Sorted
+- **WHEN** specifications with names `zeta` and `alpha` are found
+- **THEN** specs array is ordered as `[alpha, zeta]`
 
-### Requirement: Разбор markdown-артефактов Change на секции
-Система SHALL разбирать артефакты Change (`proposal.md`, `design.md`) по заголовкам `##` и пропускать заголовки внутри блоков кода. Разбор – в отдельном модуле, не связанном со схемой `spec-driven`.
+### Requirement: Parsing Change Markdown Artifacts Into Sections
+The system SHALL parse Change artifacts (`proposal.md`, `design.md`) by `##` headings and skip headings inside code blocks. Parsing — in a separate module, not tied to `spec-driven` schema.
 
-#### Scenario: Файл нарезается по заголовкам
-- **WHEN** `proposal.md` содержит `## Why` и `## What Changes` с текстом под каждым
-- **THEN** результат содержит две секции с этими именами и текстом каждой без ведущих и завершающих пустых строк
+#### Scenario: File Sliced By Headings
+- **WHEN** `proposal.md` contains `## Why` and `## What Changes` with text under each
+- **THEN** result contains two sections with these names and text of each without leading and trailing empty lines
 
-#### Scenario: Заголовок внутри блока кода
-- **WHEN** строка `## Why` находится между строками ограждения (``` или ~~~)
-- **THEN** новая секция не создаётся, строка остаётся частью тела текущей секции
+#### Scenario: Heading Inside Code Block
+- **WHEN** line `## Why` is between fence lines (``` or ~~~)
+- **THEN** new section is not created, line remains part of current section body
 
-#### Scenario: Выбор секции по имени
-- **WHEN** вызывающая сторона запрашивает секцию по имени без учёта регистра
-- **THEN** возвращается её тело, а при отсутствии секции – пустой результат
+#### Scenario: Section Selection By Name
+- **WHEN** caller requests a section by name case-insensitively
+- **THEN** its body is returned, and empty result when section doesn't exist
 
-#### Scenario: Текст до первого заголовка
-- **WHEN** файл начинается с текста, перед которым нет ни одного `##`
-- **THEN** этот текст не попадает ни в одну именованную секцию
+#### Scenario: Text Before First Heading
+- **WHEN** file starts with text before any `##`
+- **THEN** this text falls into no named section
 
-### Requirement: Стрип инлайн-разметки из текста
-Система SHALL удалять символы `**` из отображаемого текста. Стрип – на уровне рендера.
+### Requirement: Stripping Inline Markup From Text
+The system SHALL remove `**` characters from displayed text. Strip — at render level.
 
-### Requirement: Тизер текста артефакта
-Система SHALL собирать тизер из начала первого непустого абзаца, обрезанного по бюджету символов. Бюджет – в символах, а не строках. Обрезка – по границе слова с многоточием. Тизер пуст, когда текста нет.
+### Requirement: Artifact Text Teaser
+The system SHALL assemble a teaser from the beginning of first non-empty paragraph, truncated by character budget. Budget — in characters, not lines. Truncation — at word boundary with ellipsis. Teaser is empty when there's no text.
 
-#### Scenario: Тизер из начала текста
-- **WHEN** запрошен тизер для текста из нескольких абзацев
-- **THEN** возвращается только первый непустой абзац
+#### Scenario: Teaser From Beginning Of Text
+- **WHEN** teaser is requested for multi-paragraph text
+- **THEN** only first non-empty paragraph is returned
 
-#### Scenario: Источник тизера в Proposal
-- **WHEN** тизер собирается по разобранному Proposal
-- **THEN** берётся блок с именем «Why», а при его отсутствии – первый блок
+#### Scenario: Teaser Source In Proposal
+- **WHEN** teaser is assembled from parsed Proposal
+- **THEN** block named "Why" is taken, or if absent — first block
 
-#### Scenario: Абзац длиннее бюджета
-- **WHEN** первый абзац длиннее заданного числа символов
-- **THEN** он обрезается по последней границе слова, помещающейся в бюджет, и заканчивается многоточием без оборванного слова и висящего знака препинания
+#### Scenario: Paragraph Longer Than Budget
+- **WHEN** first paragraph exceeds given character count
+- **THEN** it's truncated at last word boundary fitting budget, ending with ellipsis without broken word or dangling punctuation
 
-#### Scenario: Текст короче бюджета
-- **WHEN** первый абзац помещается в бюджет
-- **THEN** возвращается он целиком, без многоточия
+#### Scenario: Text Shorter Than Budget
+- **WHEN** first paragraph fits within budget
+- **THEN** it's returned in full, without ellipsis
 
-#### Scenario: Пустой текст
-- **WHEN** текста нет или он состоит из пробельных символов
-- **THEN** тизер пуст
+#### Scenario: Empty Text
+- **WHEN** there's no text or it consists of whitespace
+- **THEN** teaser is empty

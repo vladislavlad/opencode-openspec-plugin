@@ -1,49 +1,44 @@
 ## MODIFIED Requirements
 
-### Requirement: Divider рисует горизонтальную линию
-Компонент SHALL рендерить горизонтальную линию цветом borderSubtle текущей темы ровно по ширине
-контейнера, занимая одну строку при любой ширине sidebar.
+### Requirement: Divider draws horizontal line
+The component SHALL render a horizontal line in `borderSubtle` color of the current theme, exactly to container width, occupying one line at any sidebar width.
 
-#### Scenario: Разделитель отображается с правильным цветом
-- **WHEN** компонент рендерится с валидной темой
-- **THEN** на экране видна горизонтальная линия цвета theme.borderSubtle
+#### Scenario: Divider displays with correct color
+- **WHEN** the component renders with a valid theme
+- **THEN** a horizontal line in theme.borderSubtle color is visible on screen
 
-#### Scenario: Узкий sidebar
-- **WHEN** ширина sidebar меньше длины линии по умолчанию
-- **THEN** линия занимает ровно одну строку по всей ширине, без переноса остатка на следующую строку
+#### Scenario: Narrow sidebar
+- **WHEN** sidebar width is less than default line length
+- **THEN** the line occupies exactly one line across full width, without wrapping remainder to next line
 
-### Requirement: DetailHeader показывает заголовок и кнопку возврата
-Компонент SHALL отображать жирный label слева – акцентным цветом или заданным через `color`, –
-кликабельную надпись «← back» справа с подсветкой фона при наведении, Divider под строкой заголовка и
-пустую строку над ней.
+### Requirement: DetailHeader shows heading and back button
+The component SHALL display a bold label on the left – in accent color or via `color` prop –, a clickable "← back" on the right with background highlight on hover, a Divider below the heading line, and a blank line above it.
 
-#### Scenario: Заголовок и кнопка back видны
-- **WHEN** компонент рендерится с label «Tasks»
-- **THEN** слева отображён жирный текст «Tasks» цветом accent, справа – «← back», ниже – разделитель
-  Divider
+#### Scenario: Heading and back button visible
+- **WHEN** the component renders with label "Tasks"
+- **THEN** bold text "Tasks" in accent color appears on left, "← back" on right, divider below
 
-#### Scenario: Кнопка back реагирует на наведение
-- **WHEN** курсор находится над областью «← back»
-- **THEN** фон заливается цветом `accent`, а текст перекрашивается в `background`
+#### Scenario: Back button responds to hover
+- **WHEN** cursor is over the "← back" area
+- **THEN** background fills with `accent` color, and text changes to `background`
 
-#### Scenario: Свой цвет заголовка
-- **WHEN** компонент получает `color`
-- **THEN** label отображается этим цветом вместо accent
+#### Scenario: Custom heading color
+- **WHEN** component receives `color` prop
+- **THEN** label displays in that color instead of accent
 
 ## ADDED Requirements
 
-### Requirement: ClearButton очищает поле ввода
-Система SHALL предоставлять примитив ClearButton – кликабельный «✕» с отступом в один символ справа,
-приглушённый в покое и с акцентной заливкой при наведении, как у кнопки «← back».
+### Requirement: ClearButton clears input field
+The system SHALL provide a ClearButton primitive – clickable "✕" with one-character right padding, muted at rest and with accent fill on hover, like the "← back" button.
 
-#### Scenario: Кнопка в покое
-- **WHEN** ClearButton отрисован и курсор не над ним
-- **THEN** «✕» отображается цветом `textMuted` без фона, с отступом в один символ справа
+#### Scenario: Button at rest
+- **WHEN** ClearButton is rendered and cursor is not over it
+- **THEN** "✕" displays in `textMuted` color without background, with one-character right padding
 
-#### Scenario: Подсветка при наведении
-- **WHEN** курсор находится над ClearButton
-- **THEN** фон заливается цветом `accent`, а глиф перекрашивается в `background`
+#### Scenario: Highlight on hover
+- **WHEN** cursor is over ClearButton
+- **THEN** background fills with `accent` color, and glyph changes to `background`
 
-#### Scenario: Очистка по клику
-- **WHEN** пользователь нажимает кнопку мыши на ClearButton
-- **THEN** вызывается обработчик onClear
+#### Scenario: Clear on click
+- **WHEN** the user clicks mouse on ClearButton
+- **THEN** onClear handler is called

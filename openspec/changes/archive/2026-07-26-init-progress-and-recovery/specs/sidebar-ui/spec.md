@@ -1,134 +1,134 @@
 ## MODIFIED Requirements
 
-### Requirement: Индикатор инициализации
-Панель SHALL показывать компактную строку статуса с названием текущей фазы и анимированной бегущей точкой на всё время настройки, не перекрывая браузер.
+### Requirement: Initialization indicator
+The sidebar SHALL display a compact status line with the current phase name and an animated running dot for the entire duration of setup, without covering the browser.
 
-#### Scenario: Отображение во время настройки
-- **WHEN** `setupInProgress` равен `true`
-- **THEN** над содержимым панели показывается строка статуса с текстом фазы и тремя точками; браузер остаётся видимым, если проект уже определён как инициализированный
+#### Scenario: Display during setup
+- **WHEN** `setupInProgress` is `true`
+- **THEN** above the sidebar content a status line appears with phase text and three dots; the browser remains visible if the project is already determined as initialized
 
-#### Scenario: Этап установки тулинга
-- **WHEN** идёт настройка и этап `tooling` не отмечен в `plugin.init.done`
-- **THEN** строка статуса сообщает об установке OpenSpec
+#### Scenario: Tooling installation stage
+- **WHEN** setup is in progress and the `tooling` stage is not marked in `plugin.init.done`
+- **THEN** the status line reports OpenSpec installation
 
-#### Scenario: Этап настройки конфигурации
-- **WHEN** идёт настройка, `done` содержит `tooling`, но не содержит `config`
-- **THEN** строка статуса сообщает о настройке проекта
+#### Scenario: Configuration setup stage
+- **WHEN** setup is in progress, `done` contains `tooling`, but does not contain `config`
+- **THEN** the status line reports project configuration
 
-#### Scenario: Этап деривации спецификаций
-- **WHEN** идёт настройка, `done` содержит `config`, но не содержит `specs`
-- **THEN** строка статуса сообщает о деривации спецификаций
+#### Scenario: Specification derivation stage
+- **WHEN** setup is in progress, `done` contains `config`, but does not contain `specs`
+- **THEN** the status line reports specification derivation
 
-#### Scenario: Этап валидации
-- **WHEN** идёт настройка и `done` содержит все три этапа
-- **THEN** строка статуса сообщает о валидации спецификаций
+#### Scenario: Validation stage
+- **WHEN** setup is in progress and `done` contains all three stages
+- **THEN** the status line reports specification validation
 
-#### Scenario: Анимация точки
-- **WHEN** идёт настройка
-- **THEN** одна из трёх точек подсвечена цветом `text`, остальные – `textMuted`, и подсвеченная точка перемещается по кругу каждые 500 мс
+#### Scenario: Dot animation
+- **WHEN** setup is in progress
+- **THEN** one of three dots is highlighted in `text` color, the others in `textMuted`, and the highlighted dot cycles every 500 ms
 
-#### Scenario: Завершение настройки
-- **WHEN** сессия переходит из занятости в простой после запуска init
-- **THEN** `setupInProgress` снимается, строка статуса скрывается
+#### Scenario: Setup completion
+- **WHEN** the session transitions from busy to idle after launching init
+- **THEN** `setupInProgress` is cleared, the status line is hidden
 
-### Requirement: Временная загрузка команд после инициализации
-Панель SHALL после инициализации регистрировать записанные командой init файлы `/opsx-*` эфемерно, чтобы они работали до перезапуска, и одинаково приглашать к перезапуску независимо от того, удалась ли эфемерная регистрация – но только когда настройка завершена или снята.
+### Requirement: Temporary command loading after initialization
+The sidebar SHALL after initialization register the files written by the init command `/opsx-*` ephemerally so they work until restart, and uniformly prompt for a restart regardless of whether ephemeral registration succeeded – but only when setup is complete or dismissed.
 
-#### Scenario: Приглашение к перезапуску
-- **WHEN** ход init завершился (переход занятости в простой), маркер настройки снят, а команды не загружены нативно
-- **THEN** над рядом действий показывается текст «Reload opencode to activate new commands and skills» цветом `warning` и кнопка «Reload OpenCode» цветом `error`, закрывающая opencode – одинаково при успешной и при неудачной эфемерной регистрации
+#### Scenario: Restart prompt
+- **WHEN** the init turn completed (busy to idle transition), the setup marker is removed, and commands are not loaded natively
+- **THEN** above the action row appears text "Reload opencode to activate new commands and skills" in `warning` color with a "Reload OpenCode" button in `error` color that closes opencode – identical for both successful and failed ephemeral registration
 
-#### Scenario: Ряд действий при работающем мосте
-- **WHEN** эфемерная регистрация удалась
-- **THEN** под приглашением остаётся обычный ряд действий
+#### Scenario: Action row when bridge works
+- **WHEN** ephemeral registration succeeded
+- **THEN** below the prompt the usual action row remains
 
-#### Scenario: Ряд действий при неудачной регистрации
-- **WHEN** эфемерную регистрацию выполнить не удалось
-- **THEN** ряд действий не показывается – подставляемые им команды `/opsx-*` всё равно не разрешатся
+#### Scenario: Action row on failed registration
+- **WHEN** ephemeral registration could not be performed
+- **THEN** the action row is not shown – its `/opsx-*` commands won't resolve anyway
 
-#### Scenario: Скрытие во время работы агента
-- **WHEN** агент занят или команды уже загружены нативно
-- **THEN** приглашение к перезапуску не показывается
+#### Scenario: Hidden during agent work
+- **WHEN** the agent is busy or commands are already loaded natively
+- **THEN** the restart prompt is not shown
 
-#### Scenario: Скрытие до завершения настройки
-- **WHEN** в config.yaml выставлен маркер `plugin.init.in-progress`
-- **THEN** приглашение к перезапуску не показывается, даже если команды были зарегистрированы эфемерно
+#### Scenario: Hidden before setup completion
+- **WHEN** the marker `plugin.init.in-progress` is set in config.yaml
+- **THEN** the restart prompt is not shown, even if commands were registered ephemerally
 
-#### Scenario: Показ после снятия маркера
-- **WHEN** маркер снят агентом после успешного завершения или по Dismiss
-- **THEN** приглашение к перезапуску показывается по обычным правилам
+#### Scenario: Shown after marker removal
+- **WHEN** the agent removed the marker after successful completion or via Dismiss
+- **THEN** the restart prompt appears per normal rules
 
-### Requirement: Экран инициализации
-Панель SHALL показывать экран инициализации, когда openspec-тулинг не обнаружен либо настройка не дошла до чекпоинта `tooling`, и настройка не выполняется.
+### Requirement: Initialization screen
+The sidebar SHALL display the initialization screen when openspec tooling is not detected or setup did not reach the `tooling` checkpoint, and setup is not in progress.
 
-#### Scenario: Показ экрана инициализации
-- **WHEN** флаг `initialised` равен `false` и настройка не идёт (`setupInProgress` равен `false`)
-- **THEN** отображается компонент `NotInitialised` с кнопкой Init
+#### Scenario: Show initialization screen
+- **WHEN** the flag `initialised` is `false` and setup is not running (`setupInProgress` is `false`)
+- **THEN** the `NotInitialised` component with an Init button is displayed
 
-#### Scenario: Тулинг не зачекпоинчен при существующих директориях
-- **WHEN** маркер настройки выставлен, этап `tooling` не отмечен в `done`, а `.opencode` и `openspec` уже существуют
-- **THEN** всё равно отображается экран инициализации с предупреждением «Setup aborted – press "Init" to continue» цветом `warning`, а браузер не показывается
+#### Scenario: Tooling not checkpointed despite existing directories
+- **WHEN** the setup marker is set, the `tooling` stage is not marked in `done`, and `.opencode` and `openspec` already exist
+- **THEN** the initialization screen still appears with a warning "Setup aborted – press "Init" to continue" in `warning` color, and the browser is not shown
 
-#### Scenario: Кнопка Init заблокирована во время работы агента
-- **WHEN** пользователь нажимает Init, пока агент занят
-- **THEN** промпт не отправляется, показывается тост «Wait until the agent finishes working»
+#### Scenario: Init button disabled during agent work
+- **WHEN** the user presses Init while the agent is busy
+- **THEN** no prompt is sent, toast "Wait until the agent finishes working" appears
 
-#### Scenario: Нажатие кнопки Init
-- **WHEN** пользователь нажимает Init при простое агента
-- **THEN** устанавливается `setupInProgress`, помечается ожидание эфемерной установки и отправляется промпт инициализации без пройденных этапов – настройка начинается с начала независимо от содержимого `done`
+#### Scenario: Pressing Init
+- **WHEN** the user presses Init while the agent is idle
+- **THEN** `setupInProgress` is set, ephemeral installation pending is marked, and an init prompt without completed stages is sent – setup starts from scratch regardless of `done` contents
 
-#### Scenario: Инициализация завершилась без тулинга
-- **WHEN** ход инициализации завершился, а флаг `initialised` остался `false`
-- **THEN** над кнопкой Init показывается предупреждение «Setup aborted – press "Init" to continue», а кнопка Init выполняет повтор с начала
+#### Scenario: Initialization completed without tooling
+- **WHEN** the initialization turn completed but the flag `initialised` remained `false`
+- **THEN** above Init a warning "Setup aborted – press "Init" to continue" appears, and Init repeats from scratch
 
 ## ADDED Requirements
 
-### Requirement: Живое наполнение панели во время настройки
-Панель SHALL показывать браузер изменений и спецификаций во время хода настройки, как только проект определён как инициализированный.
+### Requirement: Live sidebar population during setup
+The sidebar SHALL display the changes and specifications browser during the setup turn as soon as the project is determined as initialized.
 
-#### Scenario: Браузер во время деривации
-- **WHEN** идёт настройка и `initialised` равен `true`
-- **THEN** секции изменений и спецификаций отображаются и пополняются по обычному опросу, а строка статуса остаётся над ними
+#### Scenario: Browser during derivation
+- **WHEN** setup is in progress and `initialised` is `true`
+- **THEN** the changes and specifications sections are displayed and populate via regular polling, with the status line remaining above them
 
-#### Scenario: Автораскрытие спецификаций
-- **WHEN** во время деривации в панели впервые появляется спецификация
-- **THEN** секция Specifications раскрывается автоматически
+#### Scenario: Auto-expand specifications
+- **WHEN** a specification appears for the first time during derivation
+- **THEN** the Specifications section expands automatically
 
-#### Scenario: Действия недоступны во время хода
-- **WHEN** идёт настройка и пользователь нажимает действие в браузере
-- **THEN** промпт не отправляется, показывается тост «Wait until the agent finishes working»
+#### Scenario: Actions unavailable during turn
+- **WHEN** setup is in progress and the user presses an action in the browser
+- **THEN** no prompt is sent, toast "Wait until the agent finishes working" appears
 
-### Requirement: Баннер незавершённой настройки
-Панель SHALL показывать баннер незавершённой настройки, если в config.yaml остался маркер `plugin.init.in-progress`, этап `tooling` зачекпоинчен, а агент простаивает.
+### Requirement: Unfinished setup banner
+The sidebar SHALL display an unfinished-setup banner if config.yaml contains the marker `plugin.init.in-progress`, the `tooling` stage is checkpointed, and the agent is idle.
 
-#### Scenario: Показ баннера
-- **WHEN** маркер выставлен, `done` содержит `tooling`, агент не занят и настройка не идёт
-- **THEN** отображается баннер с указанием этапа, на котором настройка остановилась, кнопкой Resume (`secondary`) и кнопкой Dismiss (`warning`)
+#### Scenario: Show banner
+- **WHEN** the marker is set, `done` contains `tooling`, the agent is not busy, and setup is not running
+- **THEN** a banner appears indicating the stage at which setup stopped, with Resume (`secondary`) and Dismiss (`warning`) buttons
 
-#### Scenario: Этап остановки из чекпоинтов
-- **WHEN** настройка остановилась
-- **THEN** баннер называет первый незачекпоинченный этап: настройка проекта, деривация спецификаций или валидация
+#### Scenario: Stopped stage from checkpoints
+- **WHEN** setup has stopped
+- **THEN** the banner names the first uncheckedpointed stage: configuring project, deriving specifications, or validation
 
-#### Scenario: Баннер не показывается до чекпоинта тулинга
-- **WHEN** маркер выставлен, но `done` не содержит `tooling`
-- **THEN** баннер не отображается, вместо него показывается экран инициализации
+#### Scenario: Banner not shown before tooling checkpoint
+- **WHEN** the marker is set but `done` does not contain `tooling`
+- **THEN** the banner is not displayed; instead the initialization screen appears
 
-#### Scenario: Нажатие Resume
-- **WHEN** пользователь нажимает Resume при простое агента
-- **THEN** отправляется промпт инициализации, собранный без этапов из `plugin.init.done`, и устанавливается `setupInProgress`
+#### Scenario: Press Resume
+- **WHEN** the user presses Resume while the agent is idle
+- **THEN** an init prompt assembled without stages from `plugin.init.done` is sent, and `setupInProgress` is set
 
-#### Scenario: Resume заблокирован во время работы агента
-- **WHEN** агент занят и пользователь нажимает Resume
-- **THEN** промпт не отправляется, показывается тост «Wait until the agent finishes working»
+#### Scenario: Resume disabled during agent work
+- **WHEN** the agent is busy and the user presses Resume
+- **THEN** no prompt is sent, toast "Wait until the agent finishes working" appears
 
-#### Scenario: Нажатие Dismiss
-- **WHEN** пользователь нажимает Dismiss при простое агента
-- **THEN** агенту отправляется промпт, снимающий блок `init:` из config.yaml, и никакие шаги настройки не выполняются
+#### Scenario: Press Dismiss
+- **WHEN** the user presses Dismiss while the agent is idle
+- **THEN** a prompt that removes the `init:` block from config.yaml is sent to the agent, and no setup steps are executed
 
-#### Scenario: Dismiss заблокирован во время работы агента
-- **WHEN** агент занят и пользователь нажимает Dismiss
-- **THEN** промпт не отправляется, показывается тост «Wait until the agent finishes working»
+#### Scenario: Dismiss disabled during agent work
+- **WHEN** the agent is busy and the user presses Dismiss
+- **THEN** no prompt is sent, toast "Wait until the agent finishes working" appears
 
-#### Scenario: Маркер снят агентом
-- **WHEN** агент завершил настройку или выполнил снятие по Dismiss и убрал блок `init:` из config.yaml
-- **THEN** следующий опрос скрывает баннер
+#### Scenario: Marker removed by agent
+- **WHEN** the agent completed setup or performed dismissal via Dismiss and removed the `init:` block from config.yaml
+- **THEN** the next poll hides the banner

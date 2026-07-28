@@ -1,19 +1,19 @@
 ## ADDED Requirements
 
-### Requirement: Экран настроек отображает версию плагина
-Панель SHALL показывать экран Settings с версией плагина при активации. Заголовок экрана – цвет `warn`, без разделителя под ним (отступ вместо divider). Версия отображается на одной строке: «Plugin version» слева, значение версии справа.
+### Requirement: Settings screen displays plugin version
+The sidebar SHALL display a Settings screen with the plugin version when activated. The screen header is `warn` color, without a divider below it (spacing instead of divider). Version is displayed on one line: "Plugin version" on the left, version value on the right.
 
-#### Scenario: Открытие экрана Settings
-- **WHEN** пользователь нажимает кнопку Settings в заголовке
-- **THEN** отображается view Settings, перекрывающий текущий контент sidebar
+#### Scenario: Open Settings screen
+- **WHEN** the user clicks the Settings button in the header
+- **THEN** the Settings view is displayed, overlaying current sidebar content
 
-#### Scenario: Отображения версии
-- **WHEN** открыт экран Settings
-- **THEN** показывается строка «Plugin version» слева и значение версии (например `0.2.0`) справа на той же строке
+#### Scenario: Display version
+- **WHEN** the Settings screen is open
+- **THEN** a "Plugin version" line is shown on the left and the version value (e.g., `0.2.0`) on the right on the same line
 
-### Requirement: Экран настроек поддерживает навигацию назад
-Панель SHALL предоставлять кнопку возврата из экрана Settings к предыдущему view.
+### Requirement: Settings screen supports back navigation
+The sidebar SHALL provide a back button from the Settings screen to the previous view.
 
-#### Scenario: Нажатие кнопки назад
-- **WHEN** пользователь нажимает «← back» в экране Settings
-- **THEN** экран Settings закрывается и восстанавливается предыдущий контент sidebar
+#### Scenario: Click back button
+- **WHEN** the user clicks "← back" in the Settings screen
+- **THEN** the Settings screen closes and previous sidebar content is restored

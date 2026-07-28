@@ -1,20 +1,20 @@
-## 1. Вшивка версии при сборке
+## 1. Bake version at build time
 
-- [x] 1.1 Добавить `define: { "__PLUGIN_VERSION__": JSON.stringify(pkg.version) }` в `build.ts`
-- [x] 1.2 Создать `src/lib/version.ts` с константой `VERSION = typeof __PLUGIN_VERSION__ !== 'undefined' ? __PLUGIN_VERSION__ : 'dev'`
+- [x] 1.1 Add `define: { "__PLUGIN_VERSION__": JSON.stringify(pkg.version) }` to `build.ts`
+- [x] 1.2 Create `src/lib/version.ts` with constant `VERSION = typeof __PLUGIN_VERSION__ !== 'undefined' ? __PLUGIN_VERSION__ : 'dev'`
 
-## 2. Hover-подсказка версии на всю строку заголовка
+## 2. Version hover hint across entire header row
 
-- [x] 2.1 Переместить `onMouseOver`/`onMouseOut` на внешний `<box>` строки заголовка (не только на текст «OpenSpec»)
-- [x] 2.2 При hover показывать версию inline справа от «OpenSpec» цветом `textMuted`, скрывать при уходе курсора
+- [x] 2.1 Move `onMouseOver`/`onMouseOut` to the outer `<box>` of the header row (not just on "OpenSpec" text)
+- [x] 2.2 On hover, show version inline to the right of "OpenSpec" in `textMuted` color; hide when cursor leaves
 
-## 3. Кнопка Settings с привязкой цвета к hover строки
+## 3. Settings button with color tied to row hover
 
-- [x] 3.1 Добавить signal `showSettings` в sidebar.tsx
-- [x] 3.2 Цвет кнопки: по умолчанию `textMuted`, при hover строки заголовка – `warning`
-- [x] 3.3 По клику на Settings устанавливать `showSettings(true)`
+- [x] 3.1 Add signal `showSettings` in sidebar.tsx
+- [x] 3.2 Button color: default `textMuted`, on header row hover – `warning`
+- [x] 3.3 On click, set `showSettings(true)`
 
-## 4. Экран Settings
+## 4. Settings screen
 
-- [x] 4.1 Переработать `SettingsView`: заголовок «Settings» цветом `warning`, отступ вместо divider, строка «Plugin version» слева + версия справа
-- [x] 4.2 Добавить `<Show when={showSettings()}>` в sidebar.tsx перед основным контентом, рендерящий `SettingsView` с `onBack={() => setShowSettings(false)}`
+- [x] 4.1 Redesign `SettingsView`: "Settings" header in `warning` color, spacing instead of divider, "Plugin version" line on the left + version on the right
+- [x] 4.2 Add `<Show when={showSettings()}>` in sidebar.tsx before main content, rendering `SettingsView` with `onBack={() => setShowSettings(false)}`

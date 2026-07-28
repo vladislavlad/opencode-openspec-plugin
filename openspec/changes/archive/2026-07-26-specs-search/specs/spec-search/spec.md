@@ -1,151 +1,135 @@
 ## ADDED Requirements
 
-### Requirement: Совпадение по всем артефактам спецификации
-Система SHALL искать запрос по всему тексту спецификации: имени capability, заголовку из H1, разделу
-Purpose, а также именам и описаниям требований, именам и строкам сценариев. Ключевые слова схемы
-(SHALL, MUST, WHEN, THEN, GIVEN, AND, BUT) и Markdown-разметку система SHALL NOT учитывать при
-сопоставлении – они есть в каждой спецификации и как условие поиска бессмысленны.
+### Requirement: Matching across all spec artifacts
+The system SHALL search the query against the entire text of a specification: capability name, H1 title, Purpose section, as well as requirement names and descriptions, scenario names and lines. Schema keywords (SHALL, MUST, WHEN, THEN, GIVEN, AND, BUT) and Markdown markup SHALL NOT be considered during matching – they appear in every specification and are meaningless as search conditions.
 
-#### Scenario: Ключевые слова схемы не ищутся
-- **WHEN** пользователь вводит запрос `shall`, `must`, `when` или `then`
-- **THEN** результат пуст, хотя эти слова есть в тексте каждой спецификации
+#### Scenario: Schema keywords not searchable
+- **WHEN** the user enters query `shall`, `must`, `when`, or `then`
+- **THEN** result is empty, even though these words appear in every spec's text
 
-#### Scenario: Markdown-разметка не ищется
-- **WHEN** пользователь вводит запрос `**` или `- **WHEN**`
-- **THEN** результат пуст
+#### Scenario: Markdown markup not searchable
+- **WHEN** the user enters query `**` or `- **WHEN**`
+- **THEN** result is empty
 
-#### Scenario: Ключевое слово рядом с обычным словом
-- **WHEN** запрос содержит и ключевое слово, и обычное – например `SHALL показывать`
-- **THEN** ключевое слово отбрасывается, а поиск идёт по оставшемуся слову
+#### Scenario: Keyword adjacent to regular word
+- **WHEN** the query contains both a keyword and a regular word – e.g. `SHALL display`
+- **THEN** the keyword is dropped, and search proceeds on the remaining word
 
-#### Scenario: Совпадение по имени capability
-- **WHEN** запрос является подстрокой имени директории спецификации
-- **THEN** спецификация попадает в результат
+#### Scenario: Match by capability name
+- **WHEN** the query is a substring of the spec directory name
+- **THEN** the specification appears in results
 
-#### Scenario: Совпадение по Purpose
-- **WHEN** запрос встречается в тексте `## Purpose` спецификации
-- **THEN** спецификация попадает в результат
+#### Scenario: Match by Purpose
+- **WHEN** the query appears in the `## Purpose` text of a specification
+- **THEN** the specification appears in results
 
-#### Scenario: Совпадение по заголовку
-- **WHEN** заголовок из H1 отличается от имени директории и содержит запрос
-- **THEN** спецификация попадает в результат, хотя сам заголовок нигде не отображается
+#### Scenario: Match by title
+- **WHEN** the H1 title differs from directory name and contains the query
+- **THEN** the specification appears in results, even though the title itself is not displayed anywhere
 
-#### Scenario: Совпадение внутри требования
-- **WHEN** запрос встречается в имени или описании требования спецификации
-- **THEN** спецификация попадает в результат
+#### Scenario: Match within requirement
+- **WHEN** the query appears in a spec's requirement name or description
+- **THEN** the specification appears in results
 
-#### Scenario: Совпадение внутри сценария
-- **WHEN** запрос встречается в имени сценария или в строке его тела (например в `- **WHEN** …`)
-- **THEN** спецификация попадает в результат
+#### Scenario: Match within scenario
+- **WHEN** the query appears in a scenario name or body line (e.g. in `- **WHEN** …`)
+- **THEN** the specification appears in results
 
-#### Scenario: Регистр не учитывается
-- **WHEN** регистр запроса отличается от регистра текста спецификации
-- **THEN** совпадение всё равно засчитывается
+#### Scenario: Case-insensitive matching
+- **WHEN** query case differs from spec text case
+- **THEN** match is still counted
 
-### Requirement: Запрос из нескольких слов
-Система SHALL считать запрос набором токенов, разделённых пробелами, и требовать совпадения каждого
-токена; токены могут совпадать в разных артефактах одной спецификации.
+### Requirement: Multi-word query
+The system SHALL treat a query as a set of tokens separated by spaces and require each token to match; tokens may match in different artifacts of the same specification.
 
-#### Scenario: Все токены найдены в разных артефактах
-- **WHEN** один токен запроса встречается в Purpose, а другой – в тексте сценария той же
-  спецификации
-- **THEN** спецификация попадает в результат
+#### Scenario: All tokens found across different artifacts
+- **WHEN** one query token appears in Purpose, and another – in scenario text of the same specification
+- **THEN** the specification appears in results
 
-#### Scenario: Один из токенов не найден
-- **WHEN** хотя бы один токен запроса не встречается ни в одном артефакте спецификации
-- **THEN** спецификация исключается из результата
+#### Scenario: One token not found
+- **WHEN** at least one query token does not appear in any spec artifact
+- **THEN** the specification is excluded from results
 
-#### Scenario: Пустой запрос
-- **WHEN** запрос пуст или состоит только из пробелов
-- **THEN** возвращаются все спецификации в исходном порядке
+#### Scenario: Empty query
+- **WHEN** the query is empty or consists only of spaces
+- **THEN** all specifications are returned in original order
 
-### Requirement: Счётчик совпавших требований
-Система SHALL сообщать для каждой найденной спецификации количество требований, чей собственный
-текст (имя, описание, сценарии) удовлетворяет запросу.
+### Requirement: Matched requirement counter
+The system SHALL report for each found specification the number of requirements whose own text (name, description, scenarios) satisfies the query.
 
-#### Scenario: Совпадение внутри требований
-- **WHEN** запросу удовлетворяют два требования спецификации
-- **THEN** результат для этой спецификации содержит счётчик совпавших требований, равный 2
+#### Scenario: Match within requirements
+- **WHEN** two requirements of a specification satisfy the query
+- **THEN** the result for that specification contains a matched requirement counter equal to 2
 
-#### Scenario: Совпадение только на уровне спецификации
-- **WHEN** запрос совпал с заголовком или Purpose, но ни одно требование ему не удовлетворяет
-- **THEN** счётчик совпавших требований равен 0
+#### Scenario: Match only at spec level
+- **WHEN** the query matched title or Purpose, but no requirement satisfies it
+- **THEN** the matched requirement counter is 0
 
-### Requirement: Поле поиска
-Система SHALL отображать однострочное поле ввода с иконкой «⌕» и приглушённым placeholder-текстом,
-принимающее фокус по клику мышью, с отступом в одну строку под полем.
+### Requirement: Search field
+The system SHALL display a single-line input field with "⌕" icon and muted placeholder text, accepting focus on mouse click, with one blank line below the field.
 
-#### Scenario: Поле в покое
-- **WHEN** поле не сфокусировано и запрос пуст
-- **THEN** отображаются иконка «⌕» и placeholder цветом `textMuted`
+#### Scenario: Field at rest
+- **WHEN** the field is not focused and query is empty
+- **THEN** the "⌕" icon and placeholder in `textMuted` color are displayed
 
-#### Scenario: Отступ под полем
-- **WHEN** поле отрисовано над списком
-- **THEN** между полем и первым элементом списка остаётся пустая строка
+#### Scenario: Padding below field
+- **WHEN** the field is rendered above a list
+- **THEN** one blank line remains between the field and the first list item
 
-#### Scenario: Курсор не мигает
-- **WHEN** поле сфокусировано
-- **THEN** курсор отображается постоянным (не мигающим), чтобы перерисовка sidebar (наведение на
-  строку, опрос данных) не сбрасывала фазу мигания
+#### Scenario: Non-blinking cursor
+- **WHEN** the field is focused
+- **THEN** the cursor displays steady (non-blinking) so sidebar redraws (row hover, data polling) don't reset the blink phase
 
-#### Scenario: Фокус по клику
-- **WHEN** пользователь нажимает кнопку мыши на поле поиска
-- **THEN** поле получает клавиатурный фокус, показывает курсор и принимает ввод символов
+#### Scenario: Focus on click
+- **WHEN** the user clicks the mouse on the search field
+- **THEN** the field receives keyboard focus, shows a cursor, and accepts character input
 
-#### Scenario: Ввод обновляет запрос
-- **WHEN** пользователь печатает или вставляет текст в сфокусированное поле
-- **THEN** обработчик получает новое значение на каждое изменение, без подтверждения
+#### Scenario: Input updates query
+- **WHEN** the user types or pastes text into the focused field
+- **THEN** the handler receives the new value on each change, without confirmation
 
-#### Scenario: Очистка запроса
-- **WHEN** запрос не пуст и пользователь нажимает «✕» справа от поля
-- **THEN** значение поля и запрос очищаются
+#### Scenario: Clearing query
+- **WHEN** the query is non-empty and the user presses "✕" to the right of the field
+- **THEN** the field value and query are cleared
 
-### Requirement: Поиск внутри спецификации
-Система SHALL показывать то же поле поиска в детальном просмотре спецификации, использовать в нём тот
-же запрос, что и в списке спецификаций, и фильтровать по нему требования – включая текст их
-сценариев.
+### Requirement: Search within specification
+The system SHALL display the same search field in spec detail view, use the same query as in the specifications list, and filter requirements by it – including their scenario text.
 
-#### Scenario: Запрос переносится при переходе в спецификацию
-- **WHEN** пользователь с непустым запросом открывает спецификацию из отфильтрованного списка
-- **THEN** поле поиска внутри спецификации содержит тот же текст, а список требований сразу
-  отфильтрован по нему
+#### Scenario: Query carries over on navigation to spec
+- **WHEN** the user with a non-empty query opens a specification from the filtered list
+- **THEN** the search field inside the specification contains the same text, and the requirement list is immediately filtered by it
 
-#### Scenario: Совпадение по требованию или сценарию
-- **WHEN** запрос встречается в имени, описании требования или в имени/строках его сценариев
-- **THEN** требование остаётся в списке
+#### Scenario: Match by requirement or scenario
+- **WHEN** the query appears in a requirement's name, description, or scenario names/lines
+- **THEN** the requirement remains in the list
 
-#### Scenario: Счётчик совпавших сценариев
-- **WHEN** запросу удовлетворяют сценарии требования
-- **THEN** строка требования показывает количество совпавших сценариев вместо общего количества
+#### Scenario: Matched scenario counter
+- **WHEN** scenarios of a requirement satisfy the query
+- **THEN** the requirement row shows matched scenario count instead of total count
 
-#### Scenario: Запрос сохраняется при возврате
-- **WHEN** пользователь нажимает «← back» из спецификации
-- **THEN** поле поиска в списке спецификаций содержит тот же запрос, а список остаётся
-  отфильтрованным
+#### Scenario: Query persists on return
+- **WHEN** the user presses "← back" from a specification
+- **THEN** the search field in the specifications list contains the same query, and the list remains filtered
 
-#### Scenario: Изменение запроса внутри спецификации
-- **WHEN** пользователь правит запрос в поле внутри спецификации
-- **THEN** изменение применяется и к списку спецификаций после возврата
+#### Scenario: Changing query within spec
+- **WHEN** the user edits the query in the field inside a specification
+- **THEN** the change applies to the specifications list after return
 
-### Requirement: Возврат клавиатурного фокуса
-Система SHALL возвращать клавиатурный фокус элементу, который владел им до фокусировки поля
-(промпту opencode), при снятии фокуса с поля, и SHALL определять состояние фокуса по рендереру, а не
-по собственному флагу.
+### Requirement: Keyboard focus return
+The system SHALL return keyboard focus to the element that held it before focusing the field (the opencode prompt) on blur, and SHALL determine focus state from the renderer rather than its own flag.
 
-#### Scenario: Фокус забрал другой элемент
-- **WHEN** пользователь кликает по промпту opencode, пока поле сфокусировано
-- **THEN** поле перестаёт подсвечиваться как активное, а следующий клик по нему снова возвращает
-  фокус и курсор в поле
+#### Scenario: Focus taken by another element
+- **WHEN** the user clicks the opencode prompt while the field is focused
+- **THEN** the field stops highlighting as active, and the next click on it returns focus and cursor to the field
 
-#### Scenario: Снятие фокуса по Esc
-- **WHEN** поле сфокусировано и пользователь нажимает Esc
-- **THEN** поле теряет фокус, введённый запрос сохраняется, а фокус возвращается предыдущему
-  элементу
+#### Scenario: Blur on Esc
+- **WHEN** the field is focused and the user presses Esc
+- **THEN** the field loses focus, entered query is preserved, and focus returns to the previous element
 
-#### Scenario: Снятие фокуса по Enter
-- **WHEN** поле сфокусировано и пользователь нажимает Enter
-- **THEN** поле теряет фокус, а фокус возвращается предыдущему элементу
+#### Scenario: Blur on Enter
+- **WHEN** the field is focused and the user presses Enter
+- **THEN** the field loses focus, and focus returns to the previous element
 
-#### Scenario: Размонтирование сфокусированного поля
-- **WHEN** сфокусированное поле убирается с экрана (секция свёрнута или открыт detail-view)
-- **THEN** фокус возвращается предыдущему элементу, а не остаётся на удалённом поле
+#### Scenario: Unmounting a focused field
+- **WHEN** a focused field is removed from screen (section collapsed or detail-view opened)
+- **THEN** focus returns to the previous element rather than remaining on the removed field

@@ -1,83 +1,56 @@
 ## Why
 
-Секция «Specifications» – плоский список всех capability проекта. На реальных проектах их
-десятки, а нужное требование обычно ищут по тексту («где про archive?», «какой спек упоминает
-config.yaml?»), а не по имени директории. Сейчас единственный способ – открывать спеки одну за
-другой и читать глазами: сам плагин уже держит в памяти весь распарсенный текст (Purpose,
-требования, сценарии), но не даёт по нему искать.
+The "Specifications" section is a flat list of all project capabilities. On real projects there are dozens, and the requirement you need is usually found by text ("where's archive?", "which spec mentions config.yaml?"), not by directory name. Currently the only way is to open specs one by one and read with your eyes: the plugin already holds all parsed text in memory (Purpose, requirements, scenarios), but doesn't let you search it.
 
 ## What Changes
 
-- Над списком спецификаций в секции «Specifications» появляется поле поиска: приглушённый
-  placeholder «Search specs», иконка «⌕», клик мышью ставит курсор и позволяет вводить текст.
-- Ввод фильтрует список спецификаций вживую; счётчик в заголовке секции показывает количество
-  найденных.
-- Поиск идёт по всем артефактам спецификации: имя, заголовок из H1, Purpose, имена и описания
-  требований, имена и тело сценариев.
-- Запрос из нескольких слов – совпадение по каждому слову (AND), регистр не учитывается.
-- Когда совпадение пришло из требований, строка спецификации показывает `N matching requirements`
-  вместо обычного счётчика.
-- Esc и Enter снимают фокус с поля и возвращают его в промпт opencode; «✕» справа очищает запрос.
-- Пустой результат показывает приглушённое «No matches».
-- То же поле есть внутри спецификации, над списком требований: запрос переносится при переходе,
-  фильтрует требования (включая текст сценариев) и сохраняется при возврате назад.
-- Заодно из детального просмотра спецификации убраны строка заголовка (дублировала имя capability) и
-  описание: текста между H1 и первым разделом в схеме OpenSpec нет, поэтому он больше не парсится.
-- Разделитель рисуется по ширине контейнера: раньше строка из 37 «─» переносилась в узком sidebar и
-  остаток читался как лишняя пустая строка под каждым разделителем.
-- Секция «Completed Changes» раскрывается сама при первом появлении завершённых изменений – как
-  Active Changes и Specifications.
-- Ключевые слова схемы (SHALL, MUST, WHEN, THEN, …) и Markdown-разметка не участвуют в поиске: они
-  есть в каждой спеке, поэтому запросы `shall`, `when`, `**` возвращали весь список.
-- Разбор `spec.md` вынесен в модуль схемы `spec-driven` – когда появятся другие схемы, каждая
-  получит свой парсер и свою модель.
+- Above the specifications list in the "Specifications" section a search field appears: muted placeholder "Search specs", icon "⌕", mouse click places cursor and allows typing.
+- Input filters the specifications list live; counter in the section header shows number of matches.
+- Search covers all spec artifacts: name, H1 title, Purpose, requirement names and descriptions, scenario names and bodies.
+- Multi-word query – match on each word (AND), case-insensitive.
+- When a match comes from requirements, the spec row shows `N matching requirements` instead of the usual counter.
+- Esc and Enter remove focus from the field and return it to the opencode prompt; "✕" on the right clears the query.
+- Empty result shows muted "No matches".
+- The same field exists inside a specification, above the requirements list: query carries over on navigation, filters requirements (including scenario text), and persists when going back.
+- Also removed from spec detail view are the title line (duplicated capability name) and description: there is no text between H1 and the first section in the OpenSpec schema, so it's no longer parsed.
+- Divider draws to container width: previously a string of 37 "─" wrapped in narrow sidebar and the remainder read as an extra blank line under each divider.
+- The "Completed Changes" section auto-expands on first appearance of completed changes – like Active Changes and Specifications.
+- Schema keywords (SHALL, MUST, WHEN, THEN, …) and Markdown markup don't participate in search: they appear in every spec, so queries `shall`, `when`, `**` returned the entire list.
+- Parsing `spec.md` moved to the schema module `spec-driven` – when other schemas arrive, each gets its own parser and model.
 
 ## Capabilities
 
 ### New Capabilities
-- `spec-search`: Поиск по спецификациям – правила совпадения по всем артефактам и поле ввода с
-  управлением фокусом в терминале.
+- `spec-search`: Search across specifications – matching rules over all artifacts and an input field with focus management in the terminal.
 
 ### Modified Capabilities
-- `sidebar-ui`: Секция «Specifications» содержит поле поиска над списком и отображает
-  отфильтрованный список со счётчиком найденных.
-- `specs-browser-ui`: `SpecRow` показывает количество совпавших требований при активном запросе;
-  `SpecDetail` получает поле поиска над списком требований и фильтрует его.
-- `ui-primitives`: новый примитив `ClearButton` – «✕» с акцентной подсветкой на hover; `Divider`
-  рисуется по ширине контейнера (раньше переносился в узком sidebar), `DetailHeader` принимает цвет
-  заголовка.
-- `change-tracking-ui`: детальная карточка изменения использует общий `DetailHeader`.
-- `openspec-parsing`: поле `description` спецификации больше не парсится; разбор вынесен в модуль
-  схемы `spec-driven`, который отдаёт функцию очистки текста от синтаксиса.
+- `sidebar-ui`: The "Specifications" section contains a search field above the list and displays filtered results with match count.
+- `specs-browser-ui`: `SpecRow` shows matched requirement count during active query; `SpecDetail` gets a search field above requirements and filters them.
+- `ui-primitives`: new primitive `ClearButton` – "✕" with accent highlight on hover; `Divider` draws to container width (previously wrapped in narrow sidebar), `DetailHeader` accepts title color.
+- `change-tracking-ui`: change detail card uses shared `DetailHeader`.
+- `openspec-parsing`: spec `description` field no longer parsed; parsing moved to the schema module `spec-driven`, which provides a text syntax-stripping function.
 
 ## Non-goals
 
-- Не ищем по изменениям (changes) и задачам – только по спекам; секции Active/Completed Changes не
-  трогаем.
-- Не делаем fuzzy-поиск, ранжирование по релевантности и подсветку совпавших фрагментов внутри
-  текста – простое подстрочное совпадение.
-- Не поддерживаем другие схемы OpenSpec – только помечаем границу, чтобы их было куда добавить.
-- Не превращаем `spec.md` в жёсткую структуру: требование и сценарий хранятся текстом, как в файле;
-  ключевые слова отбрасываются только при сопоставлении.
-- Не добавляем горячую клавишу для фокуса на поле: фокус только мышью (у плагина нет своего
-  keymap-слоя).
-- Запрос не сохраняется между сессиями (`kv` не используем).
+- Do not search changes and tasks – only specs; Active/Completed Changes sections untouched.
+- No fuzzy search, relevance ranking, or matched fragment highlighting within text – simple substring match.
+- Don't support other OpenSpec schemas – only mark the boundary so they can be added later.
+- Don't turn `spec.md` into a rigid structure: requirement and scenario are stored as text, as in the file; keywords are dropped only during matching.
+- No hotkey for field focus: mouse only (the plugin has no keymap layer).
+- Query is not persisted between sessions (`kv` not used).
 
 ## Impact
 
-- `src/lib/spec-driven.ts`: новый модуль схемы – модель спеки и её парсер.
-- `src/lib/openspec.ts`: остаётся чтением директории и сборкой summary, модель ре-экспортируется.
-- `src/lib/search.ts`: новый модуль – токенизация запроса и сопоставление со спецификацией.
-- `src/components/search.tsx`: новый компонент `SearchField` (input + фокус/blur + очистка).
-- `src/components/primitives.tsx`: новый `ClearButton`.
-- `src/components/specs.tsx`: `SpecRow` получает счётчик совпавших требований, `SpecDetail` – поле
-  поиска и фильтрацию требований, `RequirementRow` – счётчик совпавших сценариев.
-- `src/components/changes.tsx`: `ChangeDetail` переходит на общий `DetailHeader`.
-- `src/lib/openspec.ts`: из `OpenSpecSpec` и `parseSpec` уходит поле `description`.
-- `src/sidebar.tsx`: сигнал запроса, мемо с отфильтрованным списком, вставка поля в секцию,
-  автораскрытие «Completed Changes».
-- `test/search.test.ts`: правила совпадения; `test/search-field.test.tsx`: поведение поля через
-  `testRender`; `test/specs-view.test.tsx`: разделитель, отступы экранов и фильтрация в UI.
-- `package.json`: в скрипт `test` добавлен `--preload @opentui/solid/preload` для `.tsx`-тестов.
-- `AGENTS.md`: команда тестов и правило про границу модуля схемы.
-- `src/lib/migrations.ts`: запись release notes для версии с фичей.
+- `src/lib/spec-driven.ts`: new schema module – spec model and its parser.
+- `src/lib/openspec.ts`: remains directory reading and summary assembly, model re-exported.
+- `src/lib/search.ts`: new module – query tokenization and matching against specifications.
+- `src/components/search.tsx`: new component `SearchField` (input + focus/blur + clear).
+- `src/components/primitives.tsx`: new `ClearButton`.
+- `src/components/specs.tsx`: `SpecRow` gets matched requirement counter, `SpecDetail` – search field and requirement filtering, `RequirementRow` – matched scenario counter.
+- `src/components/changes.tsx`: `ChangeDetail` transitions to shared `DetailHeader`.
+- `src/lib/openspec.ts`: `OpenSpecSpec` and `parseSpec` lose the `description` field.
+- `src/sidebar.tsx`: query signal, memo with filtered list, field insertion in section, "Completed Changes" auto-expand.
+- `test/search.test.ts`: matching rules; `test/search-field.test.tsx`: field behavior via `testRender`; `test/specs-view.test.tsx`: divider, screen padding and filtering in UI.
+- `package.json`: test script adds `--preload @opentui/solid/preload` for `.tsx` tests.
+- `AGENTS.md`: test command and schema module boundary rule.
+- `src/lib/migrations.ts`: release notes entry for the feature version.

@@ -1,95 +1,95 @@
 ## ADDED Requirements
 
-### Requirement: Промпт инициализации ведёт маркер настройки
-Промпт инициализации SHALL предписывать агенту создать маркер `plugin.init.in-progress: true` в `openspec/config.yaml` до установки CLI и удалить весь блок `init:` только после успешной валидации.
+### Requirement: Init prompt manages the setup marker
+The init prompt SHALL instruct the agent to create the marker `plugin.init.in-progress: true` in `openspec/config.yaml` before CLI installation and remove the entire `init:` block only after successful validation.
 
-#### Scenario: Маркер до установки
-- **WHEN** промпт инициализации начинает выполняться
-- **THEN** агент создаёт при необходимости `openspec/config.yaml` и записывает `schema` вместе с `plugin.init.in-progress: true` и пустым `done` – до проверки и установки CLI
+#### Scenario: Marker before installation
+- **WHEN** the init prompt begins execution
+- **THEN** the agent creates `openspec/config.yaml` if needed and writes `schema` along with `plugin.init.in-progress: true` and an empty `done` – before checking and installing CLI
 
-#### Scenario: Отмена установки CLI
-- **WHEN** пользователь выбирает «Cancel» на вопросе о пакетном менеджере
-- **THEN** агент удаляет созданный блок `init:` (а также созданные в этом ходе `openspec/config.yaml` и директорию `openspec/`, если в них больше ничего нет) и останавливается
+#### Scenario: Cancel CLI installation
+- **WHEN** the user chooses "Cancel" at the package manager question
+- **THEN** the agent removes the created `init:` block (as well as `openspec/config.yaml` and the `openspec/` directory created in this turn, if nothing else is in them) and stops
 
-#### Scenario: Снятие маркера после валидации
-- **WHEN** настройка завершена и `openspec validate --specs` проходит
-- **THEN** агент удаляет весь блок `init:` под `plugin:`, сохраняя `schema`, `context`, `rules` и прочие записи `plugin:`
+#### Scenario: Marker removal after validation
+- **WHEN** setup is complete and `openspec validate --specs` passes
+- **THEN** the agent removes the entire `init:` block under `plugin:`, preserving `schema`, `context`, `rules`, and other `plugin:` entries
 
-#### Scenario: Валидация не проходит
-- **WHEN** после исправлений валидация всё ещё не проходит
-- **THEN** блок `init:` остаётся в config.yaml, чтобы панель предложила продолжить
+#### Scenario: Validation fails
+- **WHEN** after fixes validation still does not pass
+- **THEN** the `init:` block remains in config.yaml so the sidebar can offer to continue
 
-#### Scenario: Снятие маркера при отказе от деривации
-- **WHEN** пользователь отказался выводить спецификации или проект оказался пустым
-- **THEN** агент всё равно доходит до финальной секции и снимает маркер
+#### Scenario: Marker removal when declining derivation
+- **WHEN** the user declined to derive specifications or the project turned out empty
+- **THEN** the agent still reaches the final section and removes the marker
 
-#### Scenario: Прерывание настройки
-- **WHEN** ход агента прерван до завершения настройки
-- **THEN** маркер остаётся в config.yaml и служит признаком незавершённой настройки
+#### Scenario: Setup interruption
+- **WHEN** the agent turn is interrupted before setup completion
+- **THEN** the marker remains in config.yaml and serves as an indicator of unfinished setup
 
-### Requirement: Промпт инициализации чекпоинтит пройденные этапы
-Промпт инициализации SHALL предписывать агенту записывать в `plugin.init.done` накопительный список пройденных этапов после каждого из них: `tooling`, `config`, `specs`.
+### Requirement: Init prompt checkpoints completed stages
+The init prompt SHALL instruct the agent to write an accumulating list of completed stages to `plugin.init.done` after each one: `tooling`, `config`, `specs`.
 
-#### Scenario: Этап установки пройден
-- **WHEN** `openspec init` отработал успешно
-- **THEN** агент записывает `plugin.init.done` равным `["tooling"]`
+#### Scenario: Installation stage passed
+- **WHEN** `openspec init` ran successfully
+- **THEN** the agent writes `plugin.init.done` equal to `["tooling"]`
 
-#### Scenario: Этап настройки пройден
-- **WHEN** `openspec/config.yaml` настроен
-- **THEN** агент записывает `plugin.init.done` равным `["tooling", "config"]`
+#### Scenario: Configuration stage passed
+- **WHEN** `openspec/config.yaml` is configured
+- **THEN** the agent writes `plugin.init.done` equal to `["tooling", "config"]`
 
-#### Scenario: Этап деривации пройден
-- **WHEN** спецификации выведены
-- **THEN** агент записывает `plugin.init.done` равным `["tooling", "config", "specs"]`
+#### Scenario: Derivation stage passed
+- **WHEN** specifications are derived
+- **THEN** the agent writes `plugin.init.done` equal to `["tooling", "config", "specs"]`
 
-### Requirement: Промпт инициализации пропускает пройденные этапы
-Промпт инициализации SHALL собираться из этапов установки, настройки и деривации, включая только те, что ещё не отмечены в `plugin.init.done`.
+### Requirement: Init prompt skips completed stages
+The init prompt SHALL be assembled from installation, configuration, and derivation stages, including only those not yet marked in `plugin.init.done`.
 
-#### Scenario: Первый запуск
-- **WHEN** промпт собирается без пройденных этапов
-- **THEN** он содержит запись маркера, установку CLI и `openspec init`, шаг настройки и шаг деривации, причём маркер записывается раньше установки
+#### Scenario: First run
+- **WHEN** the prompt is assembled without completed stages
+- **THEN** it contains marker writing, CLI installation and `openspec init`, a configuration step, and a derivation step, with the marker written before installation
 
-#### Scenario: Повтор после установки тулинга
-- **WHEN** промпт собирается с пройденным этапом `tooling`
-- **THEN** он не содержит команду `openspec init`, явно запрещает её повторный запуск и начинается с шага настройки
+#### Scenario: Repeat after tooling installation
+- **WHEN** the prompt is assembled with the `tooling` stage passed
+- **THEN** it does not contain the `openspec init` command, explicitly forbids re-running it, and starts from the configuration step
 
-#### Scenario: Повтор после настройки
-- **WHEN** промпт собирается с пройденными этапами `tooling` и `config`
-- **THEN** он не содержит шаг настройки, предписывает оставить `context` и `rules` без изменений и начинается с шага деривации
+#### Scenario: Repeat after configuration
+- **WHEN** the prompt is assembled with `tooling` and `config` stages passed
+- **THEN** it does not contain a configuration step, instructs to leave `context` and `rules` unchanged, and starts from the derivation step
 
-#### Scenario: Повтор после деривации
-- **WHEN** промпт собирается со всеми пройденными этапами
-- **THEN** он содержит только валидацию и снятие маркера
+#### Scenario: Repeat after derivation
+- **WHEN** the prompt is assembled with all stages passed
+- **THEN** it contains only validation and marker removal
 
-#### Scenario: Тулинг не пройден при пройденных поздних этапах
-- **WHEN** промпт собирается с непройденным `tooling`, но пройденными более поздними этапами
-- **THEN** он снова содержит установку и `openspec init`
+#### Scenario: Tooling not passed while later stages are passed
+- **WHEN** the prompt is assembled with `tooling` not passed but later stages passed
+- **THEN** it again contains installation and `openspec init`
 
-#### Scenario: Снятие маркера в любом варианте
-- **WHEN** промпт собран с любым набором пройденных этапов
-- **THEN** он содержит шаг снятия блока `init:`
+#### Scenario: Marker removal in any variant
+- **WHEN** the prompt is assembled with any set of completed stages
+- **THEN** it contains a step to remove the `init:` block
 
-### Requirement: Промпт снятия маркера настройки
-Система SHALL предоставлять отдельный промпт, который удаляет блок `init:` из `openspec/config.yaml` и не выполняет никаких других шагов настройки.
+### Requirement: Setup marker dismiss prompt
+The system SHALL provide a separate prompt that removes the `init:` block from `openspec/config.yaml` and performs no other setup steps.
 
-#### Scenario: Снятие по Dismiss
-- **WHEN** отправляется промпт снятия маркера
-- **THEN** он содержит удаление блока `init:` и не содержит шагов настройки, деривации или запуска `openspec init`
+#### Scenario: Dismiss via Dismiss
+- **WHEN** the marker dismiss prompt is sent
+- **THEN** it contains removal of the `init:` block and does not contain setup, derivation, or `openspec init` steps
 
-### Requirement: Резервный промпт инициализации снимает маркер
-Резервный промпт инициализации (когда команда baseline не зарегистрирована) SHALL устанавливать тулинг и снимать маркер, не выполняя настройку и деривацию.
+### Requirement: Fallback init prompt removes marker
+The fallback init prompt (when baseline command is not registered) SHALL install tooling and remove the marker without performing configuration and derivation.
 
-#### Scenario: Установка без последующих этапов
-- **WHEN** используется резервный промпт инициализации
-- **THEN** он содержит `openspec init` и снятие блока `init:`, но не содержит шага деривации
+#### Scenario: Installation without subsequent stages
+- **WHEN** the fallback init prompt is used
+- **THEN** it contains `openspec init` and removal of the `init:` block, but does not contain a derivation step
 
-### Requirement: CONFIG_PROMPT сохраняет служебный блок plugin
-Промпт `CONFIG_PROMPT` SHALL предписывать агенту сохранять существующий блок `plugin:` в `openspec/config.yaml` без изменений при перезаписи файла.
+### Requirement: CONFIG_PROMPT preserves the plugin service block
+The prompt `CONFIG_PROMPT` SHALL instruct the agent to preserve an existing `plugin:` block in `openspec/config.yaml` unchanged when overwriting the file.
 
-#### Scenario: Перезапись конфигурации с маркером настройки
-- **WHEN** агент перезаписывает config.yaml на шаге настройки, а в файле присутствует `plugin.init`
-- **THEN** блок `plugin:` сохраняется в файле без изменений
+#### Scenario: Configuration overwrite with setup marker
+- **WHEN** the agent overwrites config.yaml at the configuration step and `plugin.init` is present in the file
+- **THEN** the `plugin:` block is preserved in the file unchanged
 
-#### Scenario: Перезапись конфигурации с флагом обновления
-- **WHEN** агент перезаписывает config.yaml, а в файле присутствует `plugin.update-in-progress`
-- **THEN** блок `plugin:` сохраняется в файле без изменений
+#### Scenario: Configuration overwrite with update flag
+- **WHEN** the agent overwrites config.yaml and `plugin.update-in-progress` is present in the file
+- **THEN** the `plugin:` block is preserved in the file unchanged

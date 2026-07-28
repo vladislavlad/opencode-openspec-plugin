@@ -1,52 +1,51 @@
 ## Purpose
-Регистрация собственных слэш-команд OpenSpec в палитре OpenCode – `/opsx-config` и `/opsx-baseline` – с привязкой шаблонов промптов, передачей аргументов и обработкой ошибок регистрации. Содержимое самих промптов принадлежит `project-config` и `spec-derivation`; временная регистрация записанных `openspec init` команд – `init-flow`.
+Registering OpenSpec's own slash commands in OpenCode palette — `/opsx-config` and `/opsx-baseline` — with prompt template binding, argument passing and registration error handling. Prompt contents belong to `project-config` and `spec-derivation`; temporary registration of recorded `openspec init` commands belongs to `init-flow`.
 
 ## Requirements
 
-### Requirement: Регистрация команды /opsx-baseline
-Система SHALL зарегистрировать слэш-команду `/opsx-baseline` в пространстве имён `palette` с именем `openspec.baseline`, категорией `OpenSpec` и промптом `SPEC_BASELINE_PROMPT`. Описание команды SHALL соответствовать тому, что промпт действительно делает: настройку он не выполняет, а требует её заранее.
+### Requirement: Registering /opsx-baseline Command
+System SHALL register slash command `/opsx-baseline` in `palette` namespace with name `openspec.baseline`, category `OpenSpec` and prompt `SPEC_BASELINE_PROMPT`. Command description SHALL match what the prompt actually does: it doesn't perform configuration, but requires it beforehand.
 
-#### Scenario: Успешная регистрация baseline
-- **WHEN** функция `registerCommands` вызывается с валидным API
-- **THEN** команда `/opsx-baseline` доступна в палитре с заголовком «OpenSpec: Baseline specs from code» и описанием «Derive or refresh openspec/specs from the existing implementation (needs a configured project)»
+#### Scenario: Successful Baseline Registration
+- **WHEN** function `registerCommands` is called with valid API
+- **THEN** command `/opsx-baseline` is available in palette with title "OpenSpec: Baseline specs from code" and description "Derive or refresh openspec/specs from the existing implementation (needs a configured project)"
 
-### Requirement: Регистрация команды /opsx-config
-Система SHALL зарегистрировать слэш-команду `/opsx-config` в пространстве имён `palette` с именем `openspec.config`, категорией `OpenSpec` и промптом `CONFIG_PROMPT`.
+### Requirement: Registering /opsx-config Command
+System SHALL register slash command `/opsx-config` in `palette` namespace with name `openspec.config`, category `OpenSpec` and prompt `CONFIG_PROMPT`.
 
-#### Scenario: Успешная регистрация config
-- **WHEN** функция `registerCommands` вызывается с валидным API
-- **THEN** команда `/opsx-config` доступна в палитре с заголовком «OpenSpec: Configure project context» и описанием «Set stack, spec language and context in openspec/config.yaml»
+#### Scenario: Successful Config Registration
+- **WHEN** function `registerCommands` is called with valid API
+- **THEN** command `/opsx-config` is available in palette with title "OpenSpec: Configure project context" and description "Set stack, spec language and context in openspec/config.yaml"
 
-### Requirement: Очистка ввода и отправка промпта
-Система SHALL очищать текущий ввод пользователя и автоматически отправлять привязанный шаблон промпта при выполнении любой зарегистрированной команды, дополняя его текстом, введённым после слэша.
+### Requirement: Clearing Input And Submitting Prompt
+System SHALL clear current user input and automatically submit bound prompt template when executing any registered command, appending text entered after slash.
 
-#### Scenario: Выполнение команды /opsx-config
-- **WHEN** пользователь выбирает `/opsx-config` из палитры
-- **THEN** текст ввода очищается, а содержимое `CONFIG_PROMPT` отправляется модели
+#### Scenario: Executing /opsx-config Command
+- **WHEN** user selects `/opsx-config` from palette
+- **THEN** input text is cleared, and `CONFIG_PROMPT` content is sent to model
 
-#### Scenario: Выполнение команды /opsx-baseline
-- **WHEN** пользователь выбирает `/opsx-baseline` из палитры
-- **THEN** текст ввода очищается, а содержимое `SPEC_BASELINE_PROMPT` отправляется модели
+#### Scenario: Executing /opsx-baseline Command
+- **WHEN** user selects `/opsx-baseline` from palette
+- **THEN** input text is cleared, and `SPEC_BASELINE_PROMPT` content is sent to model
 
-#### Scenario: Передача аргументов
-- **WHEN** после имени команды введён текст (например, имя Change)
-- **THEN** этот текст добавляется к промпту как аргументы команды
+#### Scenario: Passing Arguments
+- **WHEN** text is entered after command name (e.g., Change name)
+- **THEN** this text is appended to prompt as command arguments
 
-### Requirement: Безопасная обработка ошибки регистрации
-Система SHALL перехватывать исключения при регистрации команды и показывать ошибку через toast, не прерывая работу остального интерфейса.
+### Requirement: Safe Registration Error Handling
+System SHALL catch exceptions during command registration and show error via toast, without interrupting rest of interface.
 
-#### Scenario: Ошибка регистрации одной команды
-- **WHEN** регистрация команды завершается с ошибкой
-- **THEN** отображается toast с вариантом `error` и сообщением вида `openspec: failed to register /<slashName> (<причина>)`, а функция возвращает `false` для этой команды
+#### Scenario: Single Command Registration Error
+- **WHEN** command registration ends with error
+- **THEN** toast displays with `error` variant and message like `openspec: failed to register /<slashName> (<reason>)`, and function returns `false` for this command
 
-### Requirement: Возврат доступности baseline
-Система SHALL возвращать объект `{ baselineAvailable: boolean }`, указывающий, успешно ли зарегистрирована команда `/opsx-baseline`.
+### Requirement: Returning Baseline Availability
+System SHALL return object `{ baselineAvailable: boolean }`, indicating whether `/opsx-baseline` command registered successfully.
 
-#### Scenario: Baseline зарегистрирован
-- **WHEN** регистрация `/opsx-baseline` прошла без ошибок
-- **THEN** `registerCommands` возвращает `{ baselineAvailable: true }`
+#### Scenario: Baseline Registered
+- **WHEN** registration of `/opsx-baseline` completes without errors
+- **THEN** `registerCommands` returns `{ baselineAvailable: true }`
 
-#### Scenario: Baseline не зарегистрирован
-- **WHEN** регистрация `/opsx-baseline` завершилась ошибкой
-- **THEN** `registerCommands` возвращает `{ baselineAvailable: false }`
-
+#### Scenario: Baseline Not Registered
+- **WHEN** registration of `/opsx-baseline` ends with error
+- **THEN** `registerCommands` returns `{ baselineAvailable: false }`

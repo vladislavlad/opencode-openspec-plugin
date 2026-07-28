@@ -1,20 +1,16 @@
 ## MODIFIED Requirements
 
-### Requirement: Заголовок детальной карточки и кнопка возврата
-Система SHALL отображать заголовок «Active Change» или «Completed Change» в зависимости от статуса и
-кнопку возврата к списку, используя общий примитив DetailHeader – так все детальные экраны имеют
-одинаковые отступы.
+### Requirement: Detail card header and back button
+The system SHALL display the title "Active Change" or "Completed Change" depending on status and a back button to return to the list, using the shared DetailHeader primitive – so all detail screens have identical padding.
 
-#### Scenario: Открытие активного изменения
-- **WHEN** детальная карточка открывается для незавершённого изменения
-- **THEN** заголовок показывает «Active Change» жёлтым цветом, а справа отображается кликабельная
-  кнопка «← back»
+#### Scenario: Opening an active change
+- **WHEN** the detail card opens for an unfinished change
+- **THEN** the header shows "Active Change" in yellow, and a clickable "← back" button appears on the right
 
-#### Scenario: Открытие завершённого изменения
-- **WHEN** детальная карточка открывается для завершённого изменения
-- **THEN** заголовок показывает «Completed Change» зелёным цветом
+#### Scenario: Opening a completed change
+- **WHEN** the detail card opens for a completed change
+- **THEN** the header shows "Completed Change" in green
 
-#### Scenario: Отступы совпадают с другими детальными экранами
-- **WHEN** открыта детальная карточка любого изменения
-- **THEN** над строкой заголовка ровно одна пустая строка, а между разделителем под заголовком и
-  именем изменения пустых строк нет
+#### Scenario: Padding matches other detail screens
+- **WHEN** any change's detail card is open
+- **THEN** exactly one blank line appears above the title line, and no blank lines exist between the divider below the heading and the change name

@@ -1,291 +1,291 @@
 ## Purpose
-Механика обновления плагина и CLI целиком: проверка npm, запоминание запущенной версии, обнаружение обновления мимо кнопки Update, миграции между версиями и весь интерфейс, через который это доходит до пользователя, – баннеры над рядом действий и секция версий в Settings.
+Plugin and CLI update mechanics: npm checks, remembering launched version, detecting update bypassing Update button, migrations between versions and entire interface through which this reaches user — banners above action row and versions section in Settings.
 
 ## Requirements
 
-### Requirement: Источники установленных версий
-Версия плагина SHALL браться из константы сборки `__PLUGIN_VERSION__`, подставляемой из `package.json`, и SHALL равняться `"dev"` в чекауте, где подстановки не было. Версия CLI SHALL читаться из поля `generatedBy` в любом `.opencode/skills/*/SKILL.md` – это версия, которой сгенерированы лежащие на диске инструкции, а не та, что стоит в системе.
+### Requirement: Sources Of Installed Versions
+Plugin version SHALL come from build constant `__PLUGIN_VERSION__`, substituted from `package.json`, and SHALL equal `"dev"` in checkout where substitution didn't occur. CLI version SHALL be read from field `generatedBy` in any `.opencode/skills/*/SKILL.md` — this is the version that generated instructions on disk, not the one installed system-wide.
 
-#### Scenario: Версия плагина из сборки
-- **WHEN** плагин собран `build.ts`
-- **THEN** `VERSION` равна значению `version` из `package.json`
+#### Scenario: Plugin Version From Build
+- **WHEN** plugin is built by `build.ts`
+- **THEN** `VERSION` equals `version` value from `package.json`
 
-#### Scenario: Dev-чекаут
-- **WHEN** плагин запущен из исходников без подстановки константы
-- **THEN** `VERSION` равна `"dev"`
+#### Scenario: Dev Checkout
+- **WHEN** plugin runs from sources without constant substitution
+- **THEN** `VERSION` equals `"dev"`
 
-#### Scenario: Версия CLI найдена
-- **WHEN** хотя бы один `SKILL.md` в `.opencode/skills` содержит `generatedBy` с номером вида `x.y.z`
-- **THEN** возвращается этот номер, поиск останавливается на первом совпадении
+#### Scenario: CLI Version Found
+- **WHEN** at least one `SKILL.md` in `.opencode/skills` contains `generatedBy` with number like `x.y.z`
+- **THEN** this number is returned, search stops on first match
 
-#### Scenario: Версия CLI не определяется
-- **WHEN** директории `.opencode/skills` нет, она пуста или ни в одном `SKILL.md` нет `generatedBy`
-- **THEN** возвращается `null`, и экран Settings показывает «unknown»
+#### Scenario: CLI Version Not Determined
+- **WHEN** directory `.opencode/skills` doesn't exist, is empty or no `SKILL.md` has `generatedBy`
+- **THEN** `null` is returned, and Settings screen shows "unknown"
 
-### Requirement: Сравнение версий по major.minor.patch
-Сравнение версий SHALL учитывать только три числовых компонента и SHALL считать отсутствующие или нечисловые компоненты нулями. Пререлизные суффиксы и метаданные сборки не учитываются – задача сравнения ровно одна: решить, существует ли обновление.
+### Requirement: Version Comparison By major.minor.patch
+Version comparison SHALL consider only three numeric components and SHALL treat missing or non-numeric components as zeros. Pre-release suffixes and build metadata are not considered — comparison task is exactly one: decide whether an update exists.
 
-#### Scenario: Обновление есть
-- **WHEN** сравниваются `0.4.0` и `0.3.9`
-- **THEN** первая признаётся строго больше
+#### Scenario: Update Exists
+- **WHEN** `0.4.0` and `0.3.9` are compared
+- **THEN** first is recognized strictly greater
 
-#### Scenario: Недостающие компоненты
-- **WHEN** сравниваются `1.2` и `1.2.0`
-- **THEN** они признаются равными – ни одна не строго больше другой
+#### Scenario: Missing Components
+- **WHEN** `1.2` and `1.2.0` are compared
+- **THEN** they are recognized equal — neither is strictly greater than other
 
-#### Scenario: Нечисловая версия
-- **WHEN** одна из версий не разбирается как числа (например `dev`)
-- **THEN** её компоненты считаются нулями
+#### Scenario: Non-numeric Version
+- **WHEN** one of versions doesn't parse as numbers (e.g., `dev`)
+- **THEN** its components are treated as zeros
 
-### Requirement: Проверка обновлений против npm
-Система SHALL запрашивать `latest` у реестра npm для плагина и CLI. Запросы SHALL выполняться параллельно, обрываться по таймауту в 3 секунды и при любой ошибке давать `null`, чтобы медленный или недоступный реестр не блокировал панель. Результат SHALL нести отдельный признак достижимости реестра, отличающий «всё свежее» от «проверить не удалось». Проверка SHALL выполняться один раз на рабочую директорию и по кнопке Check Versions, но не на опросе.
+### Requirement: Update Check Against npm
+System SHALL request `latest` from npm registry for plugin and CLI. Requests SHALL execute in parallel, abort on 3-second timeout and yield `null` on any error, so slow or unavailable registry doesn't block sidebar. Result SHALL carry separate reachability indicator distinguishing "everything fresh" from "couldn't check". Check SHALL execute once per working directory and by Check Versions button, but not on poll.
 
-#### Scenario: Реестр ответил
-- **WHEN** запрос к `registry.npmjs.org` вернул `latest` с полем `version`
-- **THEN** эта версия сравнивается с установленной, и при её превосходстве формируется предложение обновиться
+#### Scenario: Registry Responded
+- **WHEN** request to `registry.npmjs.org` returned `latest` with `version` field
+- **THEN** this version is compared with installed one, and if superior, update offer is formed
 
-#### Scenario: Реестр недоступен
-- **WHEN** запрос завершился ошибкой, не-`ok` ответом или не уложился в 3 секунды
-- **THEN** результат равен `null`, исключение наружу не выходит, панель продолжает работать
+#### Scenario: Registry Unavailable
+- **WHEN** request ended with error, non-ok response or exceeded 3 seconds
+- **THEN** result equals `null`, exception doesn't propagate out, sidebar continues working
 
-#### Scenario: Признак достижимости
-- **WHEN** хотя бы один из двух запросов вернул версию
-- **THEN** реестр считается достижимым; если оба вернули `null` – недостижимым, и по кнопке Check Versions показывается предупреждающий тост
+#### Scenario: Reachability Indicator
+- **WHEN** at least one of two requests returned a version
+- **THEN** registry is considered reachable; if both returned `null` — unreachable, and Check Versions button shows warning toast
 
-#### Scenario: Обновление CLI без известной текущей версии
-- **WHEN** версия CLI на диске не определена
-- **THEN** обновление CLI не предлагается – сравнивать не с чем
+#### Scenario: CLI Update Without Known Current Version
+- **WHEN** CLI version on disk is not determined
+- **THEN** CLI update isn't offered — nothing to compare against
 
-#### Scenario: Проверка не идёт на опросе
-- **WHEN** панель выполняет очередной трёхсекундный опрос
-- **THEN** запросы к реестру не выполняются
+#### Scenario: Check Doesn't Run On Poll
+- **WHEN** sidebar executes next three-second poll
+- **THEN** registry requests don't execute
 
-### Requirement: Промпт обновления
-Система SHALL формировать промпт обновления только под те компоненты, которые реально устарели, и SHALL описывать обновление плагина как правку спецификатора в `tui.json`, а обновление CLI – как глобальную установку с последующим `openspec update --force`. Промпт SHALL требовать не трогать ничего, кроме перечисленных шагов.
+### Requirement: Update Prompt
+System SHALL form update prompt only for components that are actually outdated, and SHALL describe plugin update as editing specifier in `tui.json`, and CLI update — as global install followed by `openspec update --force`. Prompt SHALL require touching nothing except listed steps.
 
-#### Scenario: Поиск tui.json
-- **WHEN** промпт обновляет плагин
-- **THEN** он велит искать `tui.json` сначала в `<project>/.opencode/`, затем в `~/.config/opencode/`
+#### Scenario: Finding tui.json
+- **WHEN** prompt updates plugin
+- **THEN** it instructs to search for `tui.json` first in `<project>/.opencode/`, then in `~/.config/opencode/`
 
-#### Scenario: Запись в массиве plugin может быть строкой или кортежем
-- **WHEN** промпт описывает правку записи
-- **THEN** он оговаривает оба вида записи – строка и кортеж `[спецификатор, { …options }]` – и велит править строковую часть
+#### Scenario: Plugin Array Entry Can Be String Or Tuple
+- **WHEN** prompt describes editing entry
+- **THEN** it covers both entry forms — string and tuple `[specifier, { …options }]` — and instructs to edit the string part
 
-#### Scenario: Dev-чекаут не обновляется
-- **WHEN** запись в `tui.json` указывает на локальный путь файловой системы
-- **THEN** промпт велит пропустить обновление плагина и сообщить об этом пользователю
+#### Scenario: Dev Checkout Not Updated
+- **WHEN** entry in `tui.json` points to local file system path
+- **THEN** prompt instructs to skip plugin update and inform user about it
 
-#### Scenario: Флаг обновления пишется вместе с правкой
-- **WHEN** промпт обновляет плагин
-- **THEN** он велит записать в `openspec/config.yaml` блок `plugin.update-in-progress` с полями `old` и `new`, сохранив `schema`, `context` и `rules`, и создать файл со `schema: spec-driven`, если его ещё нет
+#### Scenario: Update Flag Written Along With Edit
+- **WHEN** prompt updates plugin
+- **THEN** it instructs to write block `plugin.update-in-progress` with fields `old` and `new` into `openspec/config.yaml`, preserving `schema`, `context` and `rules`, and create file with `schema: spec-driven` if it doesn't exist yet
 
-#### Scenario: Обновление только CLI
-- **WHEN** устарел только CLI
-- **THEN** промпт не содержит шагов про `tui.json` и не пишет флаг – миграции плагина не запускаются
+#### Scenario: CLI Update Only
+- **WHEN** only CLI is outdated
+- **THEN** prompt contains no steps about `tui.json` and doesn't write flag — plugin migrations don't run
 
-#### Scenario: Завершение промпта
-- **WHEN** промпт собран под любой набор компонентов
-- **THEN** он заканчивается указанием попросить пользователя перезапустить opencode
+#### Scenario: Prompt Completion
+- **WHEN** prompt is assembled for any set of components
+- **THEN** it ends with instruction to ask user to restart opencode
 
-### Requirement: Запоминание последней запущенной версии плагина
-Система SHALL хранить версию плагина, запущенную в прошлый раз, в `kv` под ключом `openspec.lastVersion` и предоставлять чтение и запись этого значения.
+### Requirement: Remembering Last Launched Plugin Version
+System SHALL store version of plugin launched last time in `kv` under key `openspec.lastVersion` and provide reading and writing this value.
 
-#### Scenario: Чтение сохранённой версии
-- **WHEN** вызывается `readLastVersion(api)` и в `kv` под ключом `openspec.lastVersion` лежит строка
-- **THEN** возвращается эта строка
+#### Scenario: Reading Saved Version
+- **WHEN** `readLastVersion(api)` is called and string exists in `kv` under key `openspec.lastVersion`
+- **THEN** this string is returned
 
-#### Scenario: Записи ещё нет
-- **WHEN** вызывается `readLastVersion(api)` и значения под ключом нет
-- **THEN** возвращается `null`
+#### Scenario: No Entry Yet
+- **WHEN** `readLastVersion(api)` is called and no value exists under key
+- **THEN** `null` is returned
 
-#### Scenario: Значение испорчено
-- **WHEN** под ключом лежит значение, не являющееся строкой
-- **THEN** `readLastVersion` возвращает `null` – испорченная запись равносильна её отсутствию
+#### Scenario: Value Is Corrupted
+- **WHEN** non-string value lies under key
+- **THEN** `readLastVersion` returns `null` — corrupted entry equals its absence
 
-#### Scenario: Фиксация текущей версии
-- **WHEN** вызывается `recordVersion(api)`
-- **THEN** в `kv` под ключом `openspec.lastVersion` записывается константа `VERSION` из сборки
+#### Scenario: Fixing Current Version
+- **WHEN** `recordVersion(api)` is called
+- **THEN** build constant `VERSION` is written to `kv` under key `openspec.lastVersion`
 
-### Requirement: Обнаружение смены версии между запусками
-Система SHALL вычислять ожидающий диапазон миграции по сохранённой версии: диапазон возвращается только тогда, когда сохранённая версия строго ниже загруженной.
+### Requirement: Detecting Version Change Between Launches
+System SHALL compute pending migration range from saved version: range returns only when saved version is strictly below loaded one.
 
-#### Scenario: Плагин обновился мимо кнопки
-- **WHEN** сохранённая версия `0.3.0`, а загруженная `0.4.0`
-- **THEN** возвращается диапазон `{ old: "0.3.0", new: "0.4.0" }`
+#### Scenario: Plugin Updated Bypassing Button
+- **WHEN** saved version is `0.3.0`, and loaded is `0.4.0`
+- **THEN** range `{ old: "0.3.0", new: "0.4.0" }` returns
 
-#### Scenario: Первый запуск сборки с этим механизмом
-- **WHEN** сохранённой версии нет
-- **THEN** возвращается `null` – откуда пользователь пришёл, неизвестно, и показывать release notes задним числом нельзя
+#### Scenario: First Launch Of Build With This Mechanism
+- **WHEN** saved version doesn't exist
+- **THEN** `null` returns — where user came from is unknown, and showing release notes retroactively isn't possible
 
-#### Scenario: Версия не менялась
-- **WHEN** сохранённая версия совпадает с загруженной
-- **THEN** возвращается `null`
+#### Scenario: Version Didn't Change
+- **WHEN** saved version matches loaded one
+- **THEN** `null` returns
 
-#### Scenario: Откат на более раннюю версию
-- **WHEN** сохранённая версия выше загруженной
-- **THEN** возвращается `null` – миграции применяются только вперёд
+#### Scenario: Rollback To Earlier Version
+- **WHEN** saved version is above loaded one
+- **THEN** `null` returns — migrations apply only forward
 
-### Requirement: Решение о показе миграции сводит оба источника в одном месте
-Система SHALL вычислять решение о post-update баннере одной функцией, не зависящей от реактивного слоя, и SHALL получать проверку «есть ли записи миграций в диапазоне» параметром, а не импортом. Решение принимает флаг из config.yaml, сохранённую версию и загруженную версию, а возвращает одно из трёх: показать миграцию (с признаком, снимать ли флаг), попросить перезапуск, либо не показывать ничего (с признаком, надо ли зафиксировать версию).
+### Requirement: Migration Display Decision Unifies Both Sources In One Place
+System SHALL compute post-update banner decision with one function, independent of reactive layer, and SHALL receive "are there migration entries in range" check as parameter, not import. Decision takes flag from config.yaml, saved version and loaded version, and returns one of three: show migration (with indicator whether to clear flag), ask for restart, or show nothing (with indicator whether to fix version).
 
-#### Scenario: Флаг приоритетнее сохранённой версии
-- **WHEN** есть и флаг, и дрейф сохранённой версии
-- **THEN** используется диапазон из флага – он единственный знает точную версию, с которой уходили
+#### Scenario: Flag Takes Priority Over Saved Version
+- **WHEN** both flag and saved version drift exist
+- **THEN** range from flag is used — it alone knows exact version departed from
 
-#### Scenario: Во время незавершённого обновления версия не фиксируется
-- **WHEN** флаг присутствует, независимо от того, совпадает ли его новая версия с загруженной
-- **THEN** решение не просит зафиксировать версию – иначе диапазон был бы потерян до завершения миграции
+#### Scenario: During Unfinished Update Version Isn't Fixed
+- **WHEN** flag is present, regardless of whether its new version matches loaded one
+- **THEN** decision doesn't ask to fix version — otherwise range would be lost before migration completion
 
-#### Scenario: Фиксация версии, когда показывать нечего
-- **WHEN** флага нет и баннер показывать не за что, а сохранённая версия отличается от загруженной
-- **THEN** решение просит зафиксировать загруженную версию, чтобы проверка молчала до следующей смены
+#### Scenario: Fixing Version When Nothing To Show
+- **WHEN** no flag and nothing to show banner for, but saved version differs from loaded one
+- **THEN** decision asks to fix loaded version, so check stays silent until next change
 
-### Requirement: Таблица миграций ведётся по версиям релизов
-Записи миграций SHALL храниться по ключу – версии релиза, который их вводит, и каждая SHALL нести две части: шаги для агента (`instructions`, пустые когда делать нечего) и release notes для пересказа пользователю. Выборка по диапазону SHALL брать полуинтервал `(old, new]` – версия, с которой уходили, не переигрывается, версия, на которую пришли, применяется – и SHALL возвращать записи от старых к новым.
+### Requirement: Migrations Table Is Maintained By Release Versions
+Migration entries SHALL be stored by key — release version that introduces them, and each SHALL carry two parts: steps for agent (`instructions`, empty when nothing to do) and release notes for paraphrasing to user. Range selection SHALL take half-open interval `(old, new]` — version departed from isn't replayed, version arrived at is applied — and SHALL return entries from old to new.
 
-#### Scenario: Диапазон через несколько релизов
-- **WHEN** пользователь ушёл с `0.1.0` и пришёл на `0.3.0`, а записи есть для `0.1.0`, `0.2.0` и `0.3.0`
-- **THEN** возвращаются записи `0.2.0` и `0.3.0` именно в этом порядке
+#### Scenario: Range Across Several Releases
+- **WHEN** user left from `0.1.0` and arrived at `0.3.0`, with entries for `0.1.0`, `0.2.0` and `0.3.0`
+- **THEN** entries `0.2.0` and `0.3.0` return in exactly this order
 
-#### Scenario: В диапазоне записей нет
-- **WHEN** ни одна запись не попадает в диапазон
-- **THEN** проверка «есть ли что показывать» отвечает отрицательно, и баннер по этому источнику не появляется
+#### Scenario: No Entries In Range
+- **WHEN** no entry falls within range
+- **THEN** "is there anything to show" check answers negatively, and banner from this source doesn't appear
 
-### Requirement: Промпт завершения обновления
-Промпт завершения обновления SHALL состоять из последовательных этапов, каждый обособлен сепараторами `---` до и после блока. Этап контекста SHALL называть диапазон версий и сообщать о перезапуске (без сепараторов). Этап миграции SHALL начинаться с императивной инструкции "выполни эти шаги" и перечислять `instructions` по версиям; если шагов нет — этап пропускается целиком. Этап снятия флага SHALL присутствовать только при диапазоне из `plugin.update-in-progress` и содержать инструкцию удалить блок, сохранив остальное содержимое config.yaml. Этап release notes SHALL начинаться с инструкции "расскажи пользователю о новостях" и перечислять release notes по версиям. Каждый этап (миграция, снятие флага, release notes) SHALL быть обособлен `---` до и после блока. Агент SHALL выполнять этапы миграции и снятия флага молча и включать в ответ пользователю только этап release notes.
+### Requirement: Update Completion Prompt
+Update completion prompt SHALL consist of sequential stages, each separated by `---` before and after block. Context stage SHALL name version range and report about restart (without separators). Migration stage SHALL start with imperative instruction "execute these steps" and list `instructions` by versions; if no steps — stage is skipped entirely. Flag removal stage SHALL be present only for range from `plugin.update-in-progress` and contain instruction to delete block, preserving rest of config.yaml content. Release notes stage SHALL start with instruction "tell user about news" and list release notes by versions. Each stage (migration, flag removal, release notes) SHALL be separated by `---` before and after block. Agent SHALL execute migration and flag removal stages silently and include in response to user only release notes stage.
 
-#### Scenario: В диапазоне есть шаги
-- **WHEN** хотя бы у одной записи диапазона непустые `instructions`
-- **THEN** промпт содержит этап миграции с императивным заголовком, шагами по версиям и сепараторами `---` до и после блока
+#### Scenario: Steps Exist In Range
+- **WHEN** at least one entry in range has non-empty `instructions`
+- **THEN** prompt contains migration stage with imperative heading, steps by versions and separators `---` before and after block
 
-#### Scenario: Шагов нет, есть только release notes
-- **WHEN** у всех записей диапазона `instructions` пустые
-- **THEN** этап миграции пропускается целиком, промпт переходит к следующему этапу
+#### Scenario: No Steps, Only Release Notes
+- **WHEN** all entries in range have empty `instructions`
+- **THEN** migration stage is skipped entirely, prompt proceeds to next stage
 
-#### Scenario: Диапазон из флага
-- **WHEN** диапазон получен из `plugin.update-in-progress`
-- **THEN** промпт содержит отдельный этап с инструкцией удалить блок `plugin.update-in-progress`, сохранив остальное содержимое config.yaml, обособленный сепараторами `---`
+#### Scenario: Range From Flag
+- **WHEN** range obtained from `plugin.update-in-progress`
+- **THEN** prompt contains separate stage with instruction to delete block `plugin.update-in-progress`, preserving rest of config.yaml content, separated by `---`
 
-#### Scenario: Агент не пересказывает действия
-- **WHEN** агент получает промпт с разделёнными этапами и сепараторами
-- **THEN** агент выполняет миграцию и снятие флага молча, а пользователю передаёт только summary из release notes
+#### Scenario: Agent Doesn't Paraphrase Actions
+- **WHEN** agent receives prompt with separated stages and separators
+- **THEN** agent executes migration and flag removal silently, and passes user only summary from release notes
 
-### Requirement: Баннер предупреждения о доступных обновлениях в sidebar
-Панель SHALL показывать баннер над рядом действий (Explore/Propose), если доступно обновление плагина или CLI.
+### Requirement: Update Availability Warning Banner In Sidebar
+Sidebar SHALL show banner above action row (Explore/Propose) if plugin or CLI update is available.
 
-#### Scenario: Показ banner при наличии обновлений
-- **WHEN** `pluginUpdate` или `cliUpdate` не равны `null` и banner не dismissed
-- **THEN** отображается строка с текстом `textMuted` о доступных обновлениях, кнопкой Dismiss (`warn`) и кнопкой Settings (`accent`)
+#### Scenario: Show Banner With Updates Available
+- **WHEN** `pluginUpdate` or `cliUpdate` are not `null` and banner not dismissed
+- **THEN** line with `textMuted` text about available updates, Dismiss button (`warn`) and Settings button (`accent`) displays
 
-#### Scenario: Скрытие banner по Dismiss
-- **WHEN** пользователь нажимает Dismiss
-- **THEN** banner скрывается до следующей перезагрузки данных или нажатия Check Versions в Settings
+#### Scenario: Hide Banner On Dismiss
+- **WHEN** user presses Dismiss
+- **THEN** banner hides until next data reload or Check Versions press in Settings
 
-#### Scenario: Нажатие Settings в banner
-- **WHEN** пользователь нажимает Settings в banner
-- **THEN** открывается экран Settings, banner остаётся скрытым
+#### Scenario: Pressing Settings In Banner
+- **WHEN** user presses Settings in banner
+- **THEN** Settings screen opens, banner remains hidden
 
-#### Scenario: Banner не показывается при отсутствии обновлений
-- **WHEN** обновления недоступны или проверка завершилась ошибкой
-- **THEN** banner не отображается, ряд действий виден сразу
+#### Scenario: Banner Not Shown Without Updates
+- **WHEN** updates unavailable or check ended with error
+- **THEN** banner doesn't display, action row visible immediately
 
-### Requirement: Баннер post-update в sidebar
-Панель SHALL показывать баннер "Run checks after update" над рядом действий, когда есть ожидающий диапазон миграции. Диапазон берётся из двух источников: флага `plugin.update-in-progress` в config.yaml и роста версии, сохранённой в `kv`. Флаг приоритетнее – он единственный знает точную версию, с которой уходили.
+### Requirement: Post-update Banner In Sidebar
+Sidebar SHALL show "Run checks after update" banner above action row when there's a pending migration range. Range comes from two sources: flag `plugin.update-in-progress` in config.yaml and version growth saved in `kv`. Flag takes priority — it alone knows exact version departed from.
 
-#### Scenario: Показ banner после перезагрузки
-- **WHEN** плагин загружается, `updateFlag` содержит `{ old, new }` и `flag.new === VERSION`
-- **THEN** отображается баннер с текстом о необходимости завершения обновления и кнопкой Complete Update (`accent`)
+#### Scenario: Show Banner After Reload
+- **WHEN** plugin loads, `updateFlag` contains `{ old, new }` and `flag.new === VERSION`
+- **THEN** banner with text about need to complete update and Complete Update button (`accent`) displays
 
-#### Scenario: Новая версия не подхватилась
-- **WHEN** `updateFlag` содержит `{ old, new }`, но `flag.new !== VERSION`
-- **THEN** показывается сообщение «Reopen opencode to finish updating...» с кнопкой Reopen OpenCode (`error`), которая закрывает opencode; миграции не запускаются
+#### Scenario: New Version Didn't Pick Up
+- **WHEN** `updateFlag` contains `{ old, new }`, but `flag.new !== VERSION`
+- **THEN** message "Reopen opencode to finish updating..." shows with Reopen OpenCode button (`error`), which closes opencode; migrations don't run
 
-#### Scenario: Обновление прошло мимо кнопки Update
-- **WHEN** флага в config.yaml нет, сохранённая в `kv` версия ниже загруженной, и для диапазона есть хотя бы одна запись `MIGRATIONS`
-- **THEN** отображается тот же баннер с кнопкой Complete Update для диапазона от сохранённой версии до загруженной
+#### Scenario: Update Passed Bypassing Update Button
+- **WHEN** no flag in config.yaml, saved version in `kv` is below loaded one, and for range there's at least one `MIGRATIONS` entry
+- **THEN** same banner displays with Complete Update button for range from saved version to loaded one
 
-#### Scenario: В диапазоне нечего показывать
-- **WHEN** сохранённая версия ниже загруженной, но записей `MIGRATIONS` в диапазоне нет
-- **THEN** баннер не показывается, а версия молча фиксируется в `kv`
+#### Scenario: Nothing To Show In Range
+- **WHEN** saved version is below loaded one, but no `MIGRATIONS` entries in range
+- **THEN** banner doesn't show, and version silently fixes in `kv`
 
-#### Scenario: Показывать нечего с самого начала
-- **WHEN** сохранённой версии нет, либо она совпадает с загруженной, либо выше её
-- **THEN** баннер не показывается, а версия молча фиксируется в `kv`
+#### Scenario: Nothing To Show From Start
+- **WHEN** saved version doesn't exist, or matches loaded one, or is above it
+- **THEN** banner doesn't show, and version silently fixes in `kv`
 
-#### Scenario: Оба источника указывают на обновление
-- **WHEN** есть и флаг `plugin.update-in-progress`, и дрейф версии в `kv`
-- **THEN** используется диапазон из флага, баннер показывается один раз
+#### Scenario: Both Sources Indicate Update
+- **WHEN** both flag `plugin.update-in-progress` and version drift in `kv` exist
+- **THEN** range from flag is used, banner shows once
 
-#### Scenario: Нажатие Complete Update
-- **WHEN** пользователь нажимает Complete Update при простое агента
-- **THEN** плагин формирует промпт из миграционных инструкций для ожидающего диапазона и отправляет агенту напрямую; кнопки блокируются до завершения хода агента
+#### Scenario: Pressing Complete Update
+- **WHEN** user presses Complete Update while agent idle
+- **THEN** plugin forms prompt from migration instructions for pending range and sends to agent directly; buttons lock until agent turn completes
 
-#### Scenario: Промпт для диапазона из kv не снимает флаг
-- **WHEN** ожидающий диапазон получен из `kv`, а не из флага
-- **THEN** промпт не содержит требования удалить `plugin.update-in-progress` из config.yaml – снимать нечего
+#### Scenario: Prompt For Range From kv Doesn't Clear Flag
+- **WHEN** pending range obtained from `kv`, not from flag
+- **THEN** prompt doesn't contain requirement to delete `plugin.update-in-progress` from config.yaml — nothing to clear
 
-#### Scenario: Complete Update заблокирован во время работы агента
-- **WHEN** агент занят и пользователь нажимает Complete Update
-- **THEN** промпт не отправляется, показывается тост «Wait until the agent finishes working»
+#### Scenario: Complete Update Locked During Agent Work
+- **WHEN** agent is busy and user presses Complete Update
+- **THEN** prompt isn't sent, toast "Wait until the agent finishes working" shows
 
-#### Scenario: Успешное завершение миграции
-- **WHEN** агент завершил ход после Complete Update
-- **THEN** панель фиксирует `VERSION` в `kv`, и баннер по этому источнику больше не появляется
+#### Scenario: Successful Migration Completion
+- **WHEN** agent completed turn after Complete Update
+- **THEN** sidebar fixes `VERSION` in `kv`, and banner from this source no longer appears
 
-#### Scenario: Флаг снят агентом
-- **WHEN** агент завершил ход после Complete Update и снял `plugin.update-in-progress` из config.yaml
-- **THEN** `updateFlag` становится `null`, banner скрывается
+#### Scenario: Flag Cleared By Agent
+- **WHEN** agent completed turn after Complete Update and cleared `plugin.update-in-progress` from config.yaml
+- **THEN** `updateFlag` becomes `null`, banner hides
 
-### Requirement: Секция версий в Settings
-Панель SHALL показывать в экране Settings секцию версий с текущими версиями плагина и openspec CLI, доступными обновлениями и кнопками управления.
+### Requirement: Versions Section In Settings
+Sidebar SHALL show in Settings screen a versions section with current plugin and openspec CLI versions, available updates and control buttons.
 
-#### Scenario: Отображение версии плагина
-- **WHEN** открыт экран Settings
-- **THEN** показывается строка «Plugin version» слева и значение текущей версии (например `0.2.0`) справа на той же строке
+#### Scenario: Displaying Plugin Version
+- **WHEN** Settings screen is open
+- **THEN** line "Plugin version" on left and current version value (e.g., `0.2.0`) on right display on same line
 
-#### Scenario: Доступно обновление плагина
-- **WHEN** `pluginUpdate` не равно `null`
-- **THEN** под строкой версии отображается текст «x.y.z version available» и кнопка Update в следующей строке
+#### Scenario: Plugin Update Available
+- **WHEN** `pluginUpdate` is not `null`
+- **THEN** below version line text "x.y.z version available" and Update button in next line display
 
-#### Scenario: Отображение версии openspec CLI
-- **WHEN** открыт экран Settings
-- **THEN** показывается строка «OpenSpec CLI» слева и значение текущей версии (`generatedBy`) справа; если версия не определена – «unknown»
+#### Scenario: Displaying openspec CLI Version
+- **WHEN** Settings screen is open
+- **THEN** line "OpenSpec CLI" on left and current version value (`generatedBy`) on right display; if version not determined — "unknown"
 
-#### Scenario: Доступно обновление CLI
-- **WHEN** `cliUpdate` не равно `null`
-- **THEN** под строкой версии отображается текст «x.y.z version available» и кнопка Update в следующей строке
+#### Scenario: CLI Update Available
+- **WHEN** `cliUpdate` is not `null`
+- **THEN** below version line text "x.y.z version available" and Update button in next line display
 
-#### Scenario: Кнопка Check Versions
-- **WHEN** открыт экран Settings
-- **THEN** внизу секции версий отображается кнопка Check Versions, которая вызывает плагинную функцию `checkVersions` (без хода агента) для перезапуска проверки обновлений
+#### Scenario: Check Versions Button
+- **WHEN** Settings screen is open
+- **THEN** at bottom of versions section Check Versions button displays, which calls plugin function `checkVersions` (without agent turn) to restart update check
 
-#### Scenario: Нажатие Update для компонента
-- **WHEN** пользователь нажимает Update у строки плагина или CLI при простое агента
-- **THEN** плагин отправляет `buildUpdatePrompt` с этим компонентом через `sendPrompt`, кнопки блокируются до завершения хода агента; после обновления отображается сообщение «Reload opencode to update plugin» и кнопка Reload (`error`), закрывающая opencode
+#### Scenario: Pressing Update For Component
+- **WHEN** user presses Update next to plugin or CLI line while agent idle
+- **THEN** plugin sends `buildUpdatePrompt` with this component via `sendPrompt`, buttons lock until agent turn completes; after update message "Reload opencode to update plugin" and Reload button (`error`) display, closing opencode
 
-#### Scenario: Update заблокирован во время работы агента
-- **WHEN** агент занят и пользователь нажимает Update или Update All
-- **THEN** промпт не отправляется, показывается тост «Wait until the agent finishes working»
+#### Scenario: Update Locked During Agent Work
+- **WHEN** agent is busy and user presses Update or Update All
+- **THEN** prompt isn't sent, toast "Wait until the agent finishes working" shows
 
-#### Scenario: Кнопка Update All
-- **WHEN** доступно хотя бы одно обновление (плагина или CLI)
-- **THEN** внизу секции версий отображается кнопка Update All, которая отправляет `buildUpdatePrompt` только с реально устаревшими компонентами
+#### Scenario: Update All Button
+- **WHEN** at least one update (plugin or CLI) is available
+- **THEN** at bottom of versions section Update All button displays, which sends `buildUpdatePrompt` only with actually outdated components
 
-#### Scenario: Обновления недоступны – Update All скрыта
-- **WHEN** обновления недоступны или проверка ещё не выполнена
-- **THEN** кнопка Update All не отображается, видна только Check Versions
+#### Scenario: Updates Unavailable — Update All Hidden
+- **WHEN** updates unavailable or check hasn't executed yet
+- **THEN** Update All button doesn't display, only Check Versions visible
 
-### Requirement: Кнопки Check Versions и Reload блокируются во время работы агента
-Кнопка Check Versions SHALL быть заблокирована, когда агент занят. Нажатие на заблокированную кнопку SHALL не запускать проверку обновлений и SHALL показывать тост «Wait until the agent finishes working». Кнопка Reload SHALL быть заблокирована, когда агент занят. Нажатие на заблокированную кнопку SHALL не закрывать opencode и SHALL показывать тот же тост.
+### Requirement: Check Versions And Reload Buttons Lock During Agent Work
+Check Versions button SHALL be locked when agent is busy. Pressing locked button SHALL NOT start update check and SHALL show toast "Wait until the agent finishes working". Reload button SHALL be locked when agent is busy. Pressing locked button SHALL NOT close opencode and SHALL show same toast.
 
-#### Scenario: Check Versions заблокирован
-- **WHEN** агент занят и пользователь нажимает Check Versions в Settings
-- **THEN** проверка обновлений не запускается, показывается тост «Wait until the agent finishes working»
+#### Scenario: Check Versions Locked
+- **WHEN** agent is busy and user presses Check Versions in Settings
+- **THEN** update check doesn't start, toast "Wait until the agent finishes working" shows
 
-#### Scenario: Reload заблокирован
-- **WHEN** агент занят и пользователь нажимает Reload в Settings
-- **THEN** opencode не закрывается, показывается тост «Wait until the agent finishes working»
+#### Scenario: Reload Locked
+- **WHEN** agent is busy and user presses Reload in Settings
+- **THEN** opencode doesn't close, toast "Wait until the agent finishes working" shows
 
-#### Scenario: Кнопки разблокированы при простое
-- **WHEN** агент свободен
-- **THEN** обе кнопки активны и выполняют свои действия по нажатию
+#### Scenario: Buttons Unlocked When Idle
+- **WHEN** agent is free
+- **THEN** both buttons are active and execute their actions on press

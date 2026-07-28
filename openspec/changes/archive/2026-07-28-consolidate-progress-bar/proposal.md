@@ -1,27 +1,27 @@
 ## Why
 
-Счётчик задач отображается тремя разными способами: в ChangeDetail как "Tasks: done/total" в заголовке CollapsibleSection, на sidebar как отдельная строка "N/M tasks done" над ProgressBar, и в ChangeRow как "${totalTasks} tasks". Три формата для одного смысла — непоследовательно и дублирует логику отображения прогресса.
+The task counter is displayed in three different ways: in ChangeDetail as "Tasks: done/total" in the CollapsibleSection heading, on sidebar as a separate line "N/M tasks done" above ProgressBar, and in ChangeRow as "${totalTasks} tasks". Three formats for one meaning – inconsistent and duplicates progress display logic.
 
 ## What Changes
 
-- Добавить пропс `showNumberOfTasks` в `ProgressBar`, который рендерит строку "N/M tasks done" над баром
-- Убрать `count={{done, total}}` из Tasks CollapsibleSection в ChangeDetail — показать просто "Tasks"
-- Использовать один `ProgressBar` с `showNumberOfTasks` везде: sidebar Active Changes, ChangeRow и ChangeDetail
+- Add `showNumberOfTasks` prop to `ProgressBar`, which renders the line "N/M tasks done" above the bar
+- Remove `count={{done, total}}` from Tasks CollapsibleSection in ChangeDetail – show just "Tasks"
+- Use a single `ProgressBar` with `showNumberOfTasks` everywhere: sidebar Active Changes, ChangeRow, and ChangeDetail
 
 ## Capabilities
 
 ### New Capabilities
 
 ### Modified Capabilities
-- `ui-primitives`: ProgressBar получает опциональный пропс `showNumberOfTasks`, который добавляет строку со счётчиком задач над баром
-- `change-tracking-ui`: ChangeRow заменяет отдельную строку "N tasks" на встроенный счётчик в ProgressBar; Tasks секция больше не показывает count
+- `ui-primitives`: ProgressBar gets optional prop `showNumberOfTasks`, which adds a task counter line above the bar
+- `change-tracking-ui`: ChangeRow replaces separate "N tasks" line with inline counter in ProgressBar; Tasks section no longer shows count
 
 ## Non-goals
 
-- Не трогаем `count` prop CollapsibleSection для других секций (Completed Changes, Specifications)
+- Not touching `count` prop of CollapsibleSection for other sections (Completed Changes, Specifications)
 
 ## Impact
 
-- `src/components/primitives.tsx` — ProgressBar: новый пропс `showNumberOfTasks`
-- `src/components/changes.tsx` — ChangeDetail: убрать `count` у Tasks, добавить `showNumberOfTasks` в ProgressBar; ChangeRow: убрать `<text>` с "N tasks", добавить `showNumberOfTasks` в ProgressBar
-- `src/sidebar.tsx` — заменить отдельный `<text>` со счётчиком на `showNumberOfTasks` в ProgressBar
+- `src/components/primitives.tsx` – ProgressBar: new prop `showNumberOfTasks`
+- `src/components/changes.tsx` – ChangeDetail: remove `count` from Tasks, add `showNumberOfTasks` to ProgressBar; ChangeRow: remove `<text>` with "N tasks", add `showNumberOfTasks` to ProgressBar
+- `src/sidebar.tsx` – replace separate `<text>` with counter with `showNumberOfTasks` in ProgressBar

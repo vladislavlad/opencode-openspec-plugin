@@ -1,20 +1,20 @@
 ## MODIFIED Requirements
 
-### Requirement: ProgressBar отображает прогресс или скрывается
-Компонент SHALL отображать визуальный прогресс-бар с заполненными и пустыми блоками и процентом, когда total больше нуля; при total равном нулю компонент SHALL ничего не рендерить. При заданном пропсе `showNumberOfTasks` компонент SHALL дополнительно отображать строку "N/M tasks done" над баром цветом `muted`.
+### Requirement: ProgressBar displays progress or hides
+The component SHALL display a visual progress bar with filled and empty blocks and percentage when total is greater than zero; when total equals zero the component SHALL render nothing. When prop `showNumberOfTasks` is set, the component SHALL additionally display line "N/M tasks done" above the bar in `muted` color.
 
-#### Scenario: Прогресс отображается при наличии Tasks
-- **WHEN** total равен 10 и done равен 5
-- **THEN** на экране показаны заполненные блоки (█), пустые блоки (░) и текст «50%»
+#### Scenario: Progress displayed when Tasks exist
+- **WHEN** total equals 10 and done equals 5
+- **THEN** filled blocks (█), empty blocks (░), and text "50%" are shown on screen
 
-#### Scenario: Прогресс скрыт при отсутствии Tasks
-- **WHEN** total равен 0
-- **THEN** компонент ничего не отображает
+#### Scenario: Progress hidden when no Tasks
+- **WHEN** total equals 0
+- **THEN** component renders nothing
 
-#### Scenario: Счётчик задач отображается при showNumberOfTasks
-- **WHEN** total равен 10, done равен 3 и `showNumberOfTasks` равен true
-- **THEN** над прогресс-баром отображается строка "3/10 tasks done" цветом muted
+#### Scenario: Task counter displayed with showNumberOfTasks
+- **WHEN** total equals 10, done equals 3, and `showNumberOfTasks` equals true
+- **THEN** above the progress bar line "3/10 tasks done" is displayed in muted color
 
-#### Scenario: Счётчик задач скрыт без showNumberOfTasks
-- **WHEN** total равен 10, done равен 3 и `showNumberOfTasks` не задан или равен false
-- **THEN** строка со счётчиком не отображается, виден только прогресс-бар
+#### Scenario: Task counter hidden without showNumberOfTasks
+- **WHEN** total equals 10, done equals 3, and `showNumberOfTasks` is not set or equals false
+- **THEN** counter line is not displayed, only progress bar is visible

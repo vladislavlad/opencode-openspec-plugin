@@ -1,23 +1,23 @@
 ## MODIFIED Requirements
 
-### Requirement: Отображение строки Change в списке
-Система SHALL отображать каждую строку Change с именем, индикатором статуса (зелёный для завершённых, жёлтый для активных) и прогресс-баром со счётчиком выполненных задач.
+### Requirement: Displaying Change row in list
+The system SHALL display each Change row with name, status indicator (green for completed, yellow for active), and progress bar with task counter.
 
-#### Scenario: Активный Change в списке
-- **WHEN** Change имеет незавершённые Tasks
-- **THEN** строка отображает жёлтую точку (`warning`) перед именем и прогресс-бар с включённым счётчиком задач
+#### Scenario: Active Change in list
+- **WHEN** Change has incomplete Tasks
+- **THEN** row displays a yellow dot (`warning`) before the name and a progress bar with task counter enabled
 
-#### Scenario: Завершённый Change в списке
-- **WHEN** все Tasks Change завершены
-- **THEN** строка отображает зелёную точку (`success`) перед именем и прогресс-бар, заполненный полностью
+#### Scenario: Completed Change in list
+- **WHEN** all Tasks of Change are completed
+- **THEN** row displays a green dot (`success`) before the name and a fully filled progress bar
 
-### Requirement: Счётчик Tasks в заголовке секции
-Секция «Tasks» SHALL показывать только label без счётчика. Прогресс отображается через ProgressBar с `showNumberOfTasks` под именем Change.
+### Requirement: Task counter in section heading
+Section "Tasks" SHALL show only label without counter. Progress is displayed via ProgressBar with `showNumberOfTasks` below the Change name.
 
-#### Scenario: Заголовок Tasks без счётчика
-- **WHEN** открыта карточка Change с девятью Task, из которых пять завершены
-- **THEN** заголовок секции показывает «Tasks» без числа, а прогресс со счётчиком виден в ProgressBar под именем Change
+#### Scenario: Tasks heading without counter
+- **WHEN** Change card is open with nine Tasks, five of which are completed
+- **THEN** section heading shows "Tasks" without a number, and progress with counter is visible in ProgressBar below the Change name
 
-#### Scenario: Прогресс остаётся в шапке
-- **WHEN** открыта карточка Change с Task
-- **THEN** под именем Change отображается прогресс-бар с `showNumberOfTasks`, показывающий "N/M tasks done"
+#### Scenario: Progress remains in header
+- **WHEN** Change card is open with Tasks
+- **THEN** a progress bar with `showNumberOfTasks` is displayed below the Change name, showing "N/M tasks done"

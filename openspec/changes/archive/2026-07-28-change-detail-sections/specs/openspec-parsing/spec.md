@@ -1,46 +1,46 @@
 ## ADDED Requirements
 
-### Requirement: Разбор markdown-артефактов изменения на секции
-Система SHALL разбирать артефакты изменения (`proposal.md`, `design.md`) по заголовкам `##` и пропускать заголовки внутри блоков кода. Разбор – в отдельном модуле, не связанном со схемой `spec-driven`.
+### Requirement: Parsing change markdown artifacts into sections
+The system SHALL parse change artifacts (`proposal.md`, `design.md`) by `##` headings and skip headings inside code blocks. Parsing is in a separate module, not tied to the `spec-driven` schema.
 
-#### Scenario: Файл нарезается по заголовкам
-- **WHEN** `proposal.md` содержит `## Why` и `## What Changes` с текстом под каждым
-- **THEN** результат содержит две секции с этими именами и текстом каждой без ведущих и завершающих пустых строк
+#### Scenario: File split by headings
+- **WHEN** `proposal.md` contains `## Why` and `## What Changes` with text under each
+- **THEN** result contains two sections with those names and text for each without leading or trailing blank lines
 
-#### Scenario: Заголовок внутри блока кода
-- **WHEN** строка `## Why` находится между строками ограждения (``` или ~~~)
-- **THEN** новая секция не создаётся, строка остаётся частью тела текущей секции
+#### Scenario: Heading inside code block
+- **WHEN** line `## Why` is between fence lines (``` or ~~~)
+- **THEN** a new section is not created, the line remains part of the current section body
 
-#### Scenario: Выбор секции по имени
-- **WHEN** вызывающая сторона запрашивает секцию по имени без учёта регистра
-- **THEN** возвращается её тело, а при отсутствии секции – пустой результат
+#### Scenario: Section selection by name
+- **WHEN** caller requests a section by name case-insensitively
+- **THEN** its body is returned, and when no such section exists – an empty result
 
-#### Scenario: Текст до первого заголовка
-- **WHEN** файл начинается с текста, перед которым нет ни одного `##`
-- **THEN** этот текст не попадает ни в одну именованную секцию
+#### Scenario: Text before first heading
+- **WHEN** file begins with text that has no `##` preceding it
+- **THEN** this text does not enter any named section
 
-### Requirement: Стрип инлайн-разметки из текста
-Система SHALL удалять символы `**` из отображаемого текста. Стрип – на уровне рендера.
+### Requirement: Stripping inline markup from text
+The system SHALL remove `**` characters from displayed text. Stripping is at the render level.
 
-### Requirement: Тизер текста артефакта
-Система SHALL собирать тизер из начала первого непустого абзаца, обрезанного по бюджету символов. Бюджет – в символах, а не строках. Обрезка – по границе слова с многоточием. Тизер пуст, когда текста нет.
+### Requirement: Artifact text teaser
+The system SHALL assemble a teaser from the beginning of the first non-empty paragraph, truncated to a character budget. Budget – in characters, not lines. Truncation – at word boundary with ellipsis. Teaser is empty when there is no text.
 
-#### Scenario: Тизер из начала текста
-- **WHEN** запрошен тизер для текста из нескольких абзацев
-- **THEN** возвращается только первый непустой абзац
+#### Scenario: Teaser from beginning of text
+- **WHEN** a teaser is requested for multi-paragraph text
+- **THEN** only the first non-empty paragraph is returned
 
-#### Scenario: Источник тизера в предложении
-- **WHEN** тизер собирается по разобранному предложению
-- **THEN** берётся блок с именем «Why», а при его отсутствии – первый блок
+#### Scenario: Teaser source in proposal
+- **WHEN** a teaser is assembled from a parsed proposal
+- **THEN** the block named "Why" is taken, and when absent – the first block
 
-#### Scenario: Абзац длиннее бюджета
-- **WHEN** первый абзац длиннее заданного числа символов
-- **THEN** он обрезается по последней границе слова, помещающейся в бюджет, и заканчивается многоточием без оборванного слова и висящего знака препинания
+#### Scenario: Paragraph longer than budget
+- **WHEN** first paragraph exceeds the given number of characters
+- **THEN** it is truncated at the last word boundary fitting within the budget, and ends with ellipsis without a broken word or dangling punctuation mark
 
-#### Scenario: Текст короче бюджета
-- **WHEN** первый абзац помещается в бюджет
-- **THEN** возвращается он целиком, без многоточия
+#### Scenario: Text shorter than budget
+- **WHEN** first paragraph fits within the budget
+- **THEN** it is returned in full, without ellipsis
 
-#### Scenario: Пустой текст
-- **WHEN** текста нет или он состоит из пробельных символов
-- **THEN** тизер пуст
+#### Scenario: Empty text
+- **WHEN** there is no text or it consists of whitespace characters
+- **THEN** teaser is empty

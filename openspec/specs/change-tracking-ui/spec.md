@@ -1,185 +1,185 @@
 ## Purpose
-Change Tracking отображает список Changes с прогрессом, детальную карточку Change с кнопками действий и группами Tasks, а также диалог подтверждения удаления.
+Change Tracking displays a list of Changes with progress, a detailed Change card with action buttons and Task groups, and a delete confirmation dialog.
 
 ## Requirements
 
-### Requirement: Отображение строки Change в списке
-Система SHALL отображать каждую строку Change с именем, индикатором статуса (зелёный для завершённых, жёлтый для активных) и прогресс-баром со счётчиком выполненных задач.
+### Requirement: Displaying Change Row in List
+The system SHALL display each Change row with name, status indicator (green for completed, yellow for active), and a progress bar with completed task counter.
 
-#### Scenario: Активный Change в списке
-- **WHEN** Change имеет незавершённые Tasks
-- **THEN** строка отображает жёлтую точку (`warning`) перед именем и прогресс-бар с включённым счётчиком задач
+#### Scenario: Active Change in List
+- **WHEN** the Change has incomplete Tasks
+- **THEN** the row displays a yellow dot (`warning`) before the name and a progress bar with the task counter enabled
 
-#### Scenario: Завершённый Change в списке
-- **WHEN** все Tasks Change завершены
-- **THEN** строка отображает зелёную точку (`success`) перед именем и прогресс-бар, заполненный полностью
+#### Scenario: Completed Change in List
+- **WHEN** all Tasks of the Change are completed
+- **THEN** the row displays a green dot (`success`) before the name and a fully filled progress bar
 
-### Requirement: Подсветка и выбор строки при наведении
-Система SHALL подсвечивать строку Change при наведении курсора и обрабатывать клик для перехода к детальному виду.
+### Requirement: Row Highlighting and Selection on Hover
+The system SHALL highlight the Change row on cursor hover and handle click to navigate to the detail view.
 
-#### Scenario: Наведение курсора на строку
-- **WHEN** пользователь наводит курсор на строку Change
-- **THEN** фон строки меняется на приглушённый цвет, а текст прогресс-бара переключается на основной цвет
+#### Scenario: Cursor Hover on Row
+- **WHEN** the user hovers over a Change row
+- **THEN** the row background changes to a muted color, and progress bar text switches to the primary color
 
-#### Scenario: Клик по строке
-- **WHEN** пользователь кликает по строке Change
-- **THEN** вызывается обработчик выбора с именем Change для открытия детального вида
+#### Scenario: Click on Row
+- **WHEN** the user clicks on a Change row
+- **THEN** the selection handler is called with the Change name to open the detail view
 
-### Requirement: Заголовок детальной карточки и кнопка возврата
-Система SHALL отображать заголовок «Active Change» или «Completed Change» в зависимости от статуса и кнопку возврата к списку, используя общий примитив DetailHeader – так все детальные экраны имеют одинаковые отступы.
+### Requirement: Detail Card Header and Back Button
+The system SHALL display "Active Change" or "Completed Change" header depending on status, and a back button to return to the list, using the shared DetailHeader primitive so all detail screens have consistent spacing.
 
-#### Scenario: Открытие активного Change
-- **WHEN** детальная карточка открывается для незавершённого Change
-- **THEN** заголовок показывает «Active Change» жёлтым цветом, а справа отображается кликабельная кнопка «← back»
+#### Scenario: Opening Active Change
+- **WHEN** the detail card opens for an incomplete Change
+- **THEN** the header shows "Active Change" in yellow, and a clickable "← back" button is displayed on the right
 
-#### Scenario: Открытие завершённого Change
-- **WHEN** детальная карточка открывается для завершённого Change
-- **THEN** заголовок показывает «Completed Change» зелёным цветом
+#### Scenario: Opening Completed Change
+- **WHEN** the detail card opens for a completed Change
+- **THEN** the header shows "Completed Change" in green
 
-#### Scenario: Отступы совпадают с другими детальными экранами
-- **WHEN** открыта детальная карточка любого Change
-- **THEN** над строкой заголовка ровно одна пустая строка, а между разделителем под заголовком и именем Change пустых строк нет
+#### Scenario: Spacing Matches Other Detail Screens
+- **WHEN** any Change detail card is open
+- **THEN** there is exactly one empty line above the header, and no empty lines between the divider below the header and the Change name
 
-### Requirement: Кнопки действий Change
-Система SHALL показывать под прогресс-баром набор кнопок действий в зависимости от статуса Change: Apply, Update и Delete для активного; Archive и Update для завершённого. Команды кладутся в инпут без отправки, кроме Archive, которая отправляется сразу. Все кнопки действий SHALL блокироваться (disabled) когда агент busy — состояние управляется через `gate` prop.
+### Requirement: Change Action Buttons
+The system SHALL display a set of action buttons below the progress bar depending on Change status: Apply, Update, Delete for active; Archive and Update for completed. Commands are placed in the input without sending, except Archive which sends immediately. All action buttons SHALL be disabled when the agent is busy — state controlled via `gate` prop.
 
-#### Scenario: Действия активного Change
-- **WHEN** открыта детальная карточка активного (незавершённого) Change
-- **THEN** отображаются кнопки «Apply», «Update» и «Delete»
+#### Scenario: Active Change Actions
+- **WHEN** an active (incomplete) Change detail card is open
+- **THEN** "Apply", "Update" and "Delete" buttons are displayed
 
-#### Scenario: Нажатие кнопки Apply
-- **WHEN** пользователь нажимает кнопку «Apply»
-- **THEN** команда `/opsx-apply <имя Change>` подставляется в инпут без отправки
+#### Scenario: Apply Button Pressed
+- **WHEN** the user presses "Apply"
+- **THEN** the command `/opsx-apply <Change name>` is inserted into the input without sending
 
-#### Scenario: Нажатие кнопки Update
-- **WHEN** пользователь нажимает кнопку «Update»
-- **THEN** команда `/opsx-update <имя Change>` подставляется в инпут без отправки
+#### Scenario: Update Button Pressed
+- **WHEN** the user presses "Update"
+- **THEN** the command `/opsx-update <Change name>` is inserted into the input without sending
 
-#### Scenario: Нажатие кнопки Delete
-- **WHEN** пользователь нажимает кнопку «Delete»
-- **THEN** вместо кнопок действий появляется диалог подтверждения удаления
+#### Scenario: Delete Button Pressed
+- **WHEN** the user presses "Delete"
+- **THEN** a delete confirmation dialog appears instead of action buttons
 
-#### Scenario: Кнопки заблокированы во время busy
-- **WHEN** агент выполняет операцию (busy=true)
-- **THEN** все кнопки действий Apply, Update и Delete отображены в disabled состоянии с приглушённым цветом (`textMuted`)
+#### Scenario: Buttons Locked During Busy
+- **WHEN** the agent is performing an operation (busy=true)
+- **THEN** all action buttons Apply, Update and Delete are displayed in disabled state with muted color (`textMuted`)
 
-#### Scenario: Действия завершённого Change
-- **WHEN** открыта детальная карточка завершённого Change
-- **THEN** отображаются кнопки «Archive» и «Update» (без «Apply» и «Delete»)
+#### Scenario: Completed Change Actions
+- **WHEN** a completed Change detail card is open
+- **THEN** "Archive" and "Update" buttons are displayed (without "Apply" and "Delete")
 
-#### Scenario: Нажатие кнопки Archive
-- **WHEN** пользователь нажимает кнопку «Archive»
-- **THEN** команда `/opsx-archive <имя Change>` отправляется немедленно
+#### Scenario: Archive Button Pressed
+- **WHEN** the user presses "Archive"
+- **THEN** the command `/opsx-archive <Change name>` is sent immediately
 
-### Requirement: Диалог подтверждения удаления
-Система SHALL показывать встроенный диалог подтверждения с предупреждением и кнопками Delete/Cancel перед удалением Change.
+### Requirement: Delete Confirmation Dialog
+The system SHALL display an inline confirmation dialog with a warning and Delete/Cancel buttons before deleting a Change.
 
-#### Scenario: Подтверждение удаления
-- **WHEN** пользователь нажимает «Delete» в диалоге подтверждения
-- **THEN** вызывается обработчик удаления по имени Change, после чего происходит возврат к списку
+#### Scenario: Confirming Deletion
+- **WHEN** the user presses "Delete" in the confirmation dialog
+- **THEN** the delete handler is called by Change name, followed by return to the list
 
-#### Scenario: Отмена удаления
-- **WHEN** пользователь нажимает «Cancel» в диалоге подтверждения
-- **THEN** диалог закрывается и снова отображаются кнопки действий Apply/Update/Delete
+#### Scenario: Cancelling Deletion
+- **WHEN** the user presses "Cancel" in the confirmation dialog
+- **THEN** the dialog closes and Apply/Update/Delete action buttons are displayed again
 
-### Requirement: Рендеринг групп Tasks
-Task-группы SHALL рендериться с опциональным заголовком и списком Tasks. Заголовок группы – на нулевой колонке; Tasks – в колонке маркера.
+### Requirement: Rendering Task Groups
+Task groups SHALL render with an optional header and a list of Tasks. Group header — on column zero; Tasks — in the marker column.
 
-#### Scenario: Завершённый Task в группе
-- **WHEN** Task имеет статус done=true
-- **THEN** перед текстом Task отображается зелёная галочка «✓», а текст показан приглушённым цветом
+#### Scenario: Completed Task in Group
+- **WHEN** a Task has status done=true
+- **THEN** a green checkmark "✓" is displayed before the Task text, and the text is shown in muted color
 
-#### Scenario: Незавершённый Task в группе
-- **WHEN** Task имеет статус done=false
-- **THEN** перед текстом Task отображаются два пробела, а текст показан основным цветом
+#### Scenario: Incomplete Task in Group
+- **WHEN** a Task has status done=false
+- **THEN** two spaces are displayed before the Task text, and the text is shown in primary color
 
-#### Scenario: Заголовок группы
-- **WHEN** группа имеет заголовок (group.title)
-- **THEN** заголовок отображается над Tasks без ведущего отступа; если все Tasks в группе завершены – заголовок показан приглушённым цветом, иначе – акцентным
+#### Scenario: Group Header
+- **WHEN** a group has a header (group.title)
+- **THEN** the header is displayed above Tasks without leading indent; if all Tasks in the group are completed — the header is shown in muted color, otherwise — in accent color
 
-### Requirement: Секции Proposal, Design и Tasks в карточке Change
-Карточка SHALL состоять из трёх сворачиваемых секций: «Proposal», «Design», «Tasks». «Tasks» раскрыта по умолчанию; «Proposal» и «Design» свёрнуты. Состояние сбрасывается при повторном открытии.
+### Requirement: Proposal, Design and Tasks Sections in Change Card
+The card SHALL consist of three collapsible sections: "Proposal", "Design", "Tasks". "Tasks" is open by default; "Proposal" and "Design" are collapsed. State resets on reopening.
 
-#### Scenario: Порядок и начальное состояние секций
-- **WHEN** пользователь открывает детальную карточку Change
-- **THEN** под кнопками действий идут секции «Proposal», «Design» и «Tasks» именно в этом порядке, содержимое «Tasks» видно, содержимое «Proposal» и «Design» скрыто
+#### Scenario: Section Order and Initial State
+- **WHEN** the user opens a Change detail card
+- **THEN** below action buttons are sections "Proposal", "Design" and "Tasks" in that exact order, "Tasks" content is visible, "Proposal" and "Design" content is hidden
 
-#### Scenario: Раскрытие секции
-- **WHEN** пользователь кликает по заголовку свёрнутой секции
-- **THEN** её содержимое отображается, а состояние остальных секций не меняется
+#### Scenario: Expanding Section
+- **WHEN** the user clicks on a collapsed section header
+- **THEN** its content is displayed, and other sections' state remains unchanged
 
-#### Scenario: Возврат к карточке
-- **WHEN** пользователь уходит из карточки и открывает её снова
-- **THEN** секции показаны в начальном состоянии: «Tasks» раскрыта, «Proposal» и «Design» свёрнуты
+#### Scenario: Returning to Card
+- **WHEN** the user leaves the card and opens it again
+- **THEN** sections are shown in initial state: "Tasks" open, "Proposal" and "Design" collapsed
 
-### Requirement: Содержимое секций Proposal и Design
-«Proposal» SHALL показывать разделы `proposal.md` в порядке файла под своими заголовками; «Design» – тело `design.md`. Раздел `## Capabilities` SHALL не отображаться. Набор разделов SHALL не быть зашит в код.
+### Requirement: Proposal and Design Sections Content
+"Proposal" SHALL display `proposal.md` sections in file order under their own headers; "Design" — the body of `design.md`. Section `## Capabilities` SHALL NOT be displayed. The set of sections SHALL not be hardcoded.
 
-#### Scenario: Раскрытая секция Proposal
-- **WHEN** пользователь раскрывает секцию «Proposal» у Change, чей `proposal.md` содержит `## Why` и `## What Changes`
-- **THEN** отображается текст обоих разделов, каждый под своим заголовком, в порядке файла
+#### Scenario: Expanded Proposal Section
+- **WHEN** the user expands the "Proposal" section for a Change whose `proposal.md` contains `## Why` and `## What Changes`
+- **THEN** text from both sections is displayed, each under its own header, in file order
 
-#### Scenario: Незнакомый раздел Proposal
-- **WHEN** `proposal.md` содержит раздел с любым другим именем
-- **THEN** он отображается наравне с остальными, под своим заголовком
+#### Scenario: Unknown Proposal Section
+- **WHEN** `proposal.md` contains a section with any other name
+- **THEN** it is displayed alongside others, under its own header
 
-#### Scenario: Клик по тизеру раскрывает Proposal
-- **WHEN** пользователь кликает по тизеру свёрнутой секции «Proposal»
-- **THEN** секция раскрывается, как при клике на заголовок
+#### Scenario: Click on Teaser Expands Proposal
+- **WHEN** the user clicks on the teaser of a collapsed "Proposal" section
+- **THEN** the section expands, as when clicking the header
 
-#### Scenario: Символы `**` не проваливаются в UI
-- **WHEN** текст артефакта содержит инлайн-разметку `**текст**`
-- **THEN** отображается «текст» без символов `**`
+#### Scenario: `**` Characters Don't Leak Into UI
+- **WHEN** artifact text contains inline markup `**text**`
+- **THEN** "text" is displayed without `**` characters
 
-#### Scenario: Список изменений возможностей не дублируется
-- **WHEN** `proposal.md` содержит раздел `## Capabilities`
-- **THEN** его содержимое в карточке не отображается
+#### Scenario: Capabilities Changes List Is Not Duplicated
+- **WHEN** `proposal.md` contains section `## Capabilities`
+- **THEN** its content is not displayed in the card
 
-#### Scenario: Раскрытая секция Design
-- **WHEN** пользователь раскрывает секцию «Design»
-- **THEN** отображается тело `design.md` целиком, без обрезки по длине
+#### Scenario: Expanded Design Section
+- **WHEN** the user expands "Design"
+- **THEN** the full body of `design.md` is displayed, without length truncation
 
-### Requirement: Тизер Proposal в свёрнутой секции
-Свёрнутая «Proposal» SHALL показывать приглушённый тизер – начало `## Why`, а при его отсутствии – начало первого раздела, обрезанное до двух строк. Если текста нет, тизер не отображается.
+### Requirement: Proposal Teaser in Collapsed Section
+Collapsed "Proposal" SHALL display a muted teaser — the beginning of `## Why`, or if absent — the beginning of the first section, truncated to two lines. If there's no text, the teaser is not displayed.
 
-#### Scenario: Тизер виден без раскрытия
-- **WHEN** карточка Change открыта и секция «Proposal» свёрнута
-- **THEN** под её заголовком показано начало `## Why` цветом `textMuted`, с отступом и с многоточием на месте обрезки
+#### Scenario: Teaser Visible Without Expansion
+- **WHEN** the Change card is open and "Proposal" section is collapsed
+- **THEN** below its header the beginning of `## Why` is shown in `textMuted` color, with indent and ellipsis at truncation point
 
-#### Scenario: Тизер не растёт вместе с Proposal
-- **WHEN** раздел `## Why` содержит несколько длинных абзацев
-- **THEN** в тизер попадает только начало первого абзаца
+#### Scenario: Teaser Doesn't Grow With Proposal
+- **WHEN** the `## Why` section contains several long paragraphs
+- **THEN** only the beginning of the first paragraph appears in the teaser
 
-#### Scenario: Proposal без раздела Why
-- **WHEN** в `proposal.md` нет раздела `## Why`
-- **THEN** тизер берётся из первого раздела Proposal
+#### Scenario: Proposal Without Why Section
+- **WHEN** `proposal.md` has no `## Why` section
+- **THEN** the teaser is taken from the first Proposal section
 
-#### Scenario: Тизер пуст, когда Proposal пусто
-- **WHEN** в `proposal.md` нет разделов с текстом
-- **THEN** под заголовком свёрнутой секции ничего не показывается
+#### Scenario: Teaser Is Empty When Proposal Is Empty
+- **WHEN** `proposal.md` has no sections with text
+- **THEN** nothing is shown below the collapsed section header
 
-### Requirement: Отсутствующие артефакты Change
-Секция «Design» SHALL не отображаться, когда нет `design.md`. Секция «Proposal» SHALL оставаться на месте и при отсутствии `proposal.md` SHALL показывать приглушённое сообщение.
+### Requirement: Missing Change Artifacts
+The "Design" section SHALL NOT be displayed when there's no `design.md`. The "Proposal" section SHALL remain in place and when `proposal.md` is absent SHALL display a muted message.
 
-#### Scenario: Change без design.md
-- **WHEN** в директории Change нет файла `design.md`
-- **THEN** карточка показывает две секции – «Proposal» и «Tasks», – а заголовок «Design» не рендерится
+#### Scenario: Change Without design.md
+- **WHEN** the Change directory has no `design.md` file
+- **THEN** the card shows two sections — "Proposal" and "Tasks", and the "Design" header is not rendered
 
-#### Scenario: Change без proposal.md
-- **WHEN** в директории Change нет файла `proposal.md`
-- **THEN** секция «Proposal» отображается, а её раскрытое содержимое – приглушённое сообщение об отсутствии файла
+#### Scenario: Change Without proposal.md
+- **WHEN** the Change directory has no `proposal.md` file
+- **THEN** the "Proposal" section is displayed, and its expanded content is a muted message about missing file
 
-#### Scenario: Артефакты ещё читаются
-- **WHEN** карточка открыта, но чтение артефактов не завершено
-- **THEN** секции «Proposal» и «Tasks» уже на месте, содержимое «Proposal» пусто, и сообщение об отсутствии файла не показывается
+#### Scenario: Artifacts Still Being Read
+- **WHEN** the card is open but artifact reading is not complete
+- **THEN** "Proposal" and "Tasks" sections are already in place, "Proposal" content is empty, and no missing-file message is shown
 
-### Requirement: Счётчик Tasks в заголовке секции
-Секция «Tasks» SHALL показывать только label без счётчика. Прогресс отображается через ProgressBar с `showNumberOfTasks` под именем Change.
+### Requirement: Task Counter in Section Header
+The "Tasks" section SHALL show only label without counter. Progress is displayed via ProgressBar with `showNumberOfTasks` below the Change name.
 
-#### Scenario: Заголовок Tasks без счётчика
-- **WHEN** открыта карточка Change с девятью Task, из которых пять завершены
-- **THEN** заголовок секции показывает «Tasks» без числа, а прогресс со счётчиком виден в ProgressBar под именем Change
+#### Scenario: Tasks Header Without Counter
+- **WHEN** a Change card is open with nine Tasks, five of which are completed
+- **THEN** the section header shows "Tasks" without number, and progress with counter is visible in ProgressBar below the Change name
 
-#### Scenario: Прогресс остаётся в шапке
-- **WHEN** открыта карточка Change с Task
-- **THEN** под именем Change отображается прогресс-бар с `showNumberOfTasks`, показывающий "N/M tasks done"
+#### Scenario: Progress Remains in Header
+- **WHEN** a Change card is open with Tasks
+- **THEN** below the Change name a progress bar with `showNumberOfTasks` is displayed showing "N/M tasks done"

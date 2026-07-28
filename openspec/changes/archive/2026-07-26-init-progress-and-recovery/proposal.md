@@ -1,53 +1,53 @@
 ## Why
 
-`openspec init` создаёт `openspec/config.yaml` и весь тулинг (6 команд + 6 скиллов в `.opencode/`), но **не создаёт** подпапки `openspec/specs` и `openspec/changes`. Обнаружение корня требует наличия хотя бы одной поддиректории, поэтому сразу после успешного init `readOpenSpec` возвращает `null`, а `initialised` остаётся `false`.
+`openspec init` creates `openspec/config.yaml` and all the tooling (6 commands + 6 skills in `.opencode/`), but **does not create** the subdirectories `openspec/specs` and `openspec/changes`. Root detection requires at least one subdirectory, so immediately after a successful init `readOpenSpec` returns `null`, and `initialised` remains `false`.
 
-Отсюда два дефекта:
+This causes two defects:
 
-1. **Ложный экран Init.** Если спеки не выводились (пустой проект или пользователь ответил «No» на шаге деривации), ход завершается – и панель снова показывает кнопку Init, хотя инициализация прошла успешно. Промпт этот сценарий явно допускает («project directory is empty, so no specs were derived»), а интерфейс на нём ломается.
-2. **Ничего не видно во время настройки.** Индикатор «Initializing» перекрывает и экран инициализации, и браузер на весь ход. Деривация спеков – самая длинная фаза, и пользователь не видит, как наполняются спеки.
+1. **False Init screen.** If specs were not derived (empty project or the user answered "No" at the derivation step), the turn completes – and the sidebar shows the Init button again, even though initialization completed successfully. The prompt explicitly allows this scenario ("project directory is empty, so no specs were derived"), but the UI breaks on it.
+2. **Nothing visible during setup.** The "Initializing" indicator covers both the init screen and the browser for the entire turn. Spec derivation – the longest phase – leaves the user unable to see specs populating.
 
-Отдельно: незавершённая инициализация (ход прерван, opencode закрыт посреди настройки) ничем не отличается от «инициализация не начиналась» – контекст теряется, подсказки продолжить нет.
+Separately: an unfinished initialization (turn interrupted, opencode closed mid-setup) is indistinguishable from "initialization never started" – context is lost, there's no prompt to continue.
 
 ## What Changes
 
-- Обнаружение корня: директория считается корнем, если содержит поддиректории **или** файл `config.yaml`. Сразу после `openspec init` панель считает проект инициализированным
-- Индикатор «Initializing» больше не перекрывает браузер: во время настройки показывается компактная строка статуса над содержимым, а секции наполняются вживую по обычному опросу
-- Настройка ведёт чекпоинты в `openspec/config.yaml`: агент пишет `plugin.init.in-progress: true` **до** установки CLI (проверено: `openspec init` не трогает существующий config.yaml) и дополняет `plugin.init.done` после каждого этапа – `tooling` → `config` → `specs`. Раздел `init` удаляется целиком только после успешной валидации
-- Отмена установки CLI на вопросе о пакетном менеджере откатывает созданный маркер
-- Строка статуса показывает этап из `plugin.init.done`: установка → настройка → деривация → валидация
-- Маркер остался, а агент простаивает → баннер с этапом остановки и кнопками Resume / Dismiss
-- Resume пропускает пройденное: `buildInitPrompt(done)` собирает промпт только из незачекпоинченных этапов
-- Dismiss – это ход агента, снимающий раздел `init`, а не локальное скрытие баннера
-- Приглашение перезапустить opencode подавлено, пока настройка не завершена или не снята: Reload и Resume/Dismiss взаимоисключающие
-- Приглашение к перезапуску стало одним для обоих исходов эфемерной регистрации – раньше при успехе показывался один текст без кнопки, при неудаче другой и красным, как ошибка. Теперь всегда «Reload opencode to activate new commands and skills» цветом `warning` и кнопка «Reload OpenCode» цветом `error`; ряд действий скрывается только при неудачной регистрации, потому что подставляемые им `/opsx-*` не разрешатся
-- `quitOpencode` закрывает opencode отправкой `exit` вместо нативного `app.exit` – синхронный выход прерывал отрисовку и оставлял в терминале обрывок escape-последовательности
-- Этап `tooling` не зачекпоинчен → показывается экран Init, и Init начинает настройку с начала, даже если `.opencode` и `openspec` уже существуют (повторный `openspec init` безопасен – проверено)
-- `CONFIG_PROMPT` обязан сохранять существующий блок `plugin:` – иначе перезапись config.yaml на шаге конфигурации сотрёт маркер `init` и `update-in-progress`
-- Настройка прервалась до чекпоинта `tooling` → над кнопкой Init показывается «Setup aborted – press "Init" to continue» цветом `warning`
+- Root detection: a directory is considered root if it contains subdirectories **or** the file `config.yaml`. Immediately after `openspec init` the sidebar considers the project initialized
+- The "Initializing" indicator no longer covers the browser: during setup a compact status line appears above content, and sections populate live via regular polling
+- Setup writes checkpoints to `openspec/config.yaml`: the agent writes `plugin.init.in-progress: true` **before** installing CLI (verified: `openspec init` does not touch an existing config.yaml) and appends to `plugin.init.done` after each stage – `tooling` → `config` → `specs`. The `init` section is removed entirely only after successful validation
+- Cancelling CLI installation at the package manager question rolls back the created marker
+- The status line shows the stage from `plugin.init.done`: installing → configuring → deriving → validating
+- Marker remains, agent idle → banner with the stopped-at stage and Resume / Dismiss buttons
+- Resume skips completed stages: `buildInitPrompt(done)` assembles a prompt only from uncheckedpointed stages
+- Dismiss is an agent turn that removes the `init` section, not a local banner dismissal
+- The restart opencode prompt is suppressed while setup is in progress or dismissed: Reload and Resume/Dismiss are mutually exclusive
+- The restart prompt became unified for both outcomes of ephemeral registration – previously on success one text without a button was shown, on failure another in red, like an error. Now always "Reload opencode to activate new commands and skills" in `warning` color with a "Reload OpenCode" button in `error` color; the action row is hidden only on failed registration, because its `/opsx-*` commands won't resolve
+- `quitOpencode` closes opencode by sending `exit` instead of native `app.exit` – synchronous exit interrupted rendering and left an escape-sequence fragment in the terminal
+- Stage `tooling` not checkpointed → Init screen is shown, and Init starts setup from scratch even if `.opencode` and `openspec` already exist (repeated `openspec init` is safe – verified)
+- `CONFIG_PROMPT` must preserve an existing `plugin:` block – otherwise overwriting config.yaml at the configuration step will erase the `init` marker and `update-in-progress`
+- Setup interrupted before the `tooling` checkpoint → above the Init button "Setup aborted – press "Init" to continue" in `warning` color
 
 ## Capabilities
 
 ### Modified Capabilities
-- `openspec-parsing`: корень определяется по поддиректориям **или** `config.yaml`; чтение маркера `plugin.init` (`in-progress` + `done`) из config.yaml
-- `sidebar-ui`: статус-строка вместо полноэкранного индикатора, живое наполнение секций во время настройки, баннер незавершённой настройки с Resume/Dismiss, подавление баннера Reload до завершения, экран Init при незачекпоинченном тулинге
-- `slash-commands`: промпт инициализации ведёт маркер и чекпоинты по этапам, пропускает пройденное и снимает маркер после валидации; отдельный промпт Dismiss; `CONFIG_PROMPT` сохраняет блок `plugin:`
-- `prompt-sending`: `quitOpencode` закрывает opencode отправкой `exit` вместо `app.exit`
+- `openspec-parsing`: root is determined by subdirectories **or** `config.yaml`; reading the `plugin.init` marker (`in-progress` + `done`) from config.yaml
+- `sidebar-ui`: status line instead of full-screen indicator, live section population during setup, unfinished-setup banner with Resume/Dismiss, Reload banner suppression until completion, Init screen when tooling is not checkpointed
+- `slash-commands`: init prompt manages the marker and per-stage checkpoints, skips completed stages and removes the marker after validation; separate Dismiss prompt; `CONFIG_PROMPT` preserves the `plugin:` block
+- `prompt-sending`: `quitOpencode` closes opencode by sending `exit` instead of `app.exit`
 
 ## Impact
 
-- `src/lib/openspec.ts` – обнаружение корня по `config.yaml`, общий помощник листинга
-- `src/lib/updates.ts` – `readInitFlag(client)`: `plugin.init.in-progress` и список `done`; общий разбор config.yaml с `readUpdateFlag`
-- `src/lib/prompts.ts` – `INIT_STAGES`, чекпоинты по этапам, `buildInitPrompt(done)`, `INIT_DISMISS_PROMPT`; маркер и откат по Cancel в preflight; `OPENSPEC_INIT_ONLY_PROMPT` тоже снимает маркер; защита блока `plugin:` в `CONFIG_PROMPT`
-- `src/sidebar.tsx` – статус-строка с этапом, снятие полноэкранного гейта, баннер Resume/Dismiss, подавление приглашения к перезапуску, экран Init при незачекпоинченном тулинге, переписанный блок неудачной регистрации команд
-- `src/lib/send-prompt.ts` – `quitOpencode` через отправку `exit`
-- `src/lib/migrations.ts` – запись о релизе (изменение пользовательского поведения)
-- `test/openspec.test.ts`, `test/updates.test.ts`, `test/prompts.test.ts` – обнаружение корня, чтение флагов, сборка промпта
+- `src/lib/openspec.ts` – root detection via `config.yaml`, shared listing helper
+- `src/lib/updates.ts` – `readInitFlag(client)`: `plugin.init.in-progress` and list of `done`; shared config.yaml parsing with `readUpdateFlag`
+- `src/lib/prompts.ts` – `INIT_STAGES`, per-stage checkpoints, `buildInitPrompt(done)`, `INIT_DISMISS_PROMPT`; marker and rollback on Cancel in preflight; `OPENSPEC_INIT_ONLY_PROMPT` also removes the marker; `plugin:` block protection in `CONFIG_PROMPT`
+- `src/sidebar.tsx` – status line with stage, full-screen gate removal, Resume/Dismiss banner, restart prompt suppression, Init screen when tooling is not checkpointed, rewritten failed-registration block
+- `src/lib/send-prompt.ts` – `quitOpencode` via sending `exit`
+- `src/lib/migrations.ts` – release entry (user-facing behavior change)
+- `test/openspec.test.ts`, `test/updates.test.ts`, `test/prompts.test.ts` – root detection, flag reading, prompt assembly
 
 ## Non-goals
 
-- Не дробим Resume внутри деривации спеков: подэтапы baseline не чекпоинтятся, деривация перезапускается целиком (она идемпотентна)
-- Не разбиваем инициализацию на несколько ходов агента – остаётся один ход (Dismiss и Resume – отдельные ходы)
-- Не восстанавливаем этап `tooling` по наличию файлов на диске: источник истины – `plugin.init.done`, поэтому Init всегда начинает с начала
-- Не трогаем поток обновлений (`update-in-progress`) – только защищаем блок `plugin:` от перезаписи
-- Не создаём `openspec/specs` и `openspec/changes` силами плагина – плагин остаётся read-only над файловой системой
+- Do not split Resume within spec derivation: baseline sub-stages are not checkpointed, derivation restarts entirely (it is idempotent)
+- Do not split initialization across multiple agent turns – remains one turn (Dismiss and Resume are separate turns)
+- Do not recover the `tooling` stage from files on disk: source of truth is `plugin.init.done`, so Init always starts from scratch
+- Do not touch the update flow (`update-in-progress`) – only protect the `plugin:` block from overwrite
+- Do not create `openspec/specs` and `openspec/changes` via the plugin – the plugin remains read-only over the filesystem

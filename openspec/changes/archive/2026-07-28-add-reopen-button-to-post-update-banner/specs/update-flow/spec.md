@@ -1,48 +1,48 @@
 ## MODIFIED Requirements
 
-### Requirement: Баннер post-update в sidebar
-Панель SHALL показывать баннер "Run checks after update" над рядом действий, когда есть ожидающий диапазон миграции. Диапазон берётся из двух источников: флага `plugin.update-in-progress` в config.yaml и роста версии, сохранённой в `kv`. Флаг приоритетнее – он единственный знает точную версию, с которой уходили.
+### Requirement: Post-update banner in sidebar
+The sidebar SHALL show a "Run checks after update" banner above an action row when there is a pending migration range. The range is taken from two sources: the `plugin.update-in-progress` flag in config.yaml and the version increase stored in `kv`. The flag takes priority — it is the only source that knows the exact version we left from.
 
-#### Scenario: Показ banner после перезагрузки
-- **WHEN** плагин загружается, `updateFlag` содержит `{ old, new }` и `flag.new === VERSION`
-- **THEN** отображается баннер с текстом о необходимости завершения обновления и кнопкой Complete Update (`accent`)
+#### Scenario: Show banner after reload
+- **WHEN** the plugin loads, `updateFlag` contains `{ old, new }` and `flag.new === VERSION`
+- **THEN** a banner is displayed with a message about needing to complete the update and a Complete Update button (`accent`)
 
-#### Scenario: Новая версия не подхватилась
-- **WHEN** `updateFlag` содержит `{ old, new }`, но `flag.new !== VERSION`
-- **THEN** показывается сообщение «Reopen opencode to finish updating...» с кнопкой Reopen OpenCode (`error`), которая закрывает opencode; миграции не запускаются
+#### Scenario: New version didn't pick up
+- **WHEN** `updateFlag` contains `{ old, new }`, but `flag.new !== VERSION`
+- **THEN** a message "Reopen opencode to finish updating..." is shown with a Reopen OpenCode button (`error`) that closes opencode; no migrations are started
 
-#### Scenario: Обновление прошло мимо кнопки Update
-- **WHEN** флага в config.yaml нет, сохранённая в `kv` версия ниже загруженной, и для диапазона есть хотя бы одна запись `MIGRATIONS`
-- **THEN** отображается тот же баннер с кнопкой Complete Update для диапазона от сохранённой версии до загруженной
+#### Scenario: Update happened outside the Update button
+- **WHEN** there is no flag in config.yaml, the version stored in `kv` is lower than the loaded one, and there is at least one `MIGRATIONS` entry for the range
+- **THEN** the same banner with a Complete Update button is displayed for the range from the stored version to the loaded one
 
-#### Scenario: В диапазоне нечего показывать
-- **WHEN** сохранённая версия ниже загруженной, но записей `MIGRATIONS` в диапазоне нет
-- **THEN** баннер не показывается, а версия молча фиксируется в `kv`
+#### Scenario: Nothing to show in the range
+- **WHEN** the stored version is lower than the loaded one, but there are no `MIGRATIONS` entries in the range
+- **THEN** the banner is not shown, and the version is silently recorded in `kv`
 
-#### Scenario: Показывать нечего с самого начала
-- **WHEN** сохранённой версии нет, либо она совпадает с загруженной, либо выше её
-- **THEN** баннер не показывается, а версия молча фиксируется в `kv`
+#### Scenario: Nothing to show from the start
+- **WHEN** there is no stored version, or it matches the loaded one, or it is higher than the loaded one
+- **THEN** the banner is not shown, and the version is silently recorded in `kv`
 
-#### Scenario: Оба источника указывают на обновление
-- **WHEN** есть и флаг `plugin.update-in-progress`, и дрейф версии в `kv`
-- **THEN** используется диапазон из флага, баннер показывается один раз
+#### Scenario: Both sources indicate an update
+- **WHEN** both the `plugin.update-in-progress` flag and a version drift in `kv` are present
+- **THEN** the range from the flag is used, the banner is shown once
 
-#### Scenario: Нажатие Complete Update
-- **WHEN** пользователь нажимает Complete Update при простое агента
-- **THEN** плагин формирует промпт из миграционных инструкций для ожидающего диапазона и отправляет агенту напрямую; кнопки блокируются до завершения хода агента
+#### Scenario: Complete Update pressed
+- **WHEN** the user presses Complete Update while the agent is idle
+- **THEN** the plugin forms a prompt from migration instructions for the pending range and sends it directly to the agent; buttons are locked until the agent's turn completes
 
-#### Scenario: Промпт для диапазона из kv не снимает флаг
-- **WHEN** ожидающий диапазон получен из `kv`, а не из флага
-- **THEN** промпт не содержит требования удалить `plugin.update-in-progress` из config.yaml – снимать нечего
+#### Scenario: Prompt for a kv-derived range doesn't clear the flag
+- **WHEN** the pending range was obtained from `kv`, not from the flag
+- **THEN** the prompt does not contain a requirement to remove `plugin.update-in-progress` from config.yaml — there is nothing to clear
 
-#### Scenario: Complete Update заблокирован во время работы агента
-- **WHEN** агент занят и пользователь нажимает Complete Update
-- **THEN** промпт не отправляется, показывается тост «Wait until the agent finishes working»
+#### Scenario: Complete Update blocked while agent is busy
+- **WHEN** the agent is busy and the user presses Complete Update
+- **THEN** no prompt is sent, a toast "Wait until the agent finishes working" is shown
 
-#### Scenario: Успешное завершение миграции
-- **WHEN** агент завершил ход после Complete Update
-- **THEN** панель фиксирует `VERSION` в `kv`, и баннер по этому источнику больше не появляется
+#### Scenario: Successful migration completion
+- **WHEN** the agent completed its turn after Complete Update
+- **THEN** the sidebar records `VERSION` in `kv`, and the banner from this source no longer appears
 
-#### Scenario: Флаг снят агентом
-- **WHEN** агент завершил ход после Complete Update и снял `plugin.update-in-progress` из config.yaml
-- **THEN** `updateFlag` становится `null`, banner скрывается
+#### Scenario: Flag cleared by agent
+- **WHEN** the agent completed its turn after Complete Update and removed `plugin.update-in-progress` from config.yaml
+- **THEN** `updateFlag` becomes `null`, the banner is hidden

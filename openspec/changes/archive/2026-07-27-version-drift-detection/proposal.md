@@ -1,51 +1,51 @@
 ## Why
 
-Механизм `MIGRATIONS` запускается ровно одним путём: кнопка Update в Settings просит агента записать `plugin.update-in-progress` в `openspec/config.yaml`, после перезапуска панель видит флаг и предлагает Complete Update.
+The `MIGRATIONS` mechanism is triggered by exactly one path: the Update button in Settings asks the agent to write `plugin.update-in-progress` into `openspec/config.yaml`, after restart the sidebar sees the flag and offers Complete Update.
 
-Обновиться мимо этой кнопки можно как минимум тремя способами, и все они распространены:
+You can update past this button in at least three ways, all common:
 
-- `npm i -g` / правка `tui.json` руками;
-- спецификатор без версии (`"@vladislavlad/opencode-openspec-plugin"`) – opencode тянет свежую версию с npm сам при следующем запуске;
-- переустановка окружения, где `tui.json` уже указывает на новую версию.
+- `npm i -g` / editing `tui.json` by hand;
+- version-less specifier (`"@vladislavlad/opencode-openspec-plugin"`) – opencode pulls the fresh version from npm itself on next launch;
+- reinstalling an environment where `tui.json` already points to a new version.
 
-Во всех трёх случаях флага в config.yaml нет. Значит `instructions` не выполняются, а release notes пользователь не видит **никогда** – при том, что плагин уже обновился и ведёт себя по-новому. Фактически механизм работает только для тех, кто жмёт нашу кнопку, то есть для меньшинства.
+In all three cases, there's no flag in config.yaml. Meaning `instructions` don't execute, and release notes are never seen by the user **ever** – even though the plugin has updated and behaves differently. Effectively, the mechanism only works for those who press our button, i.e. a minority.
 
-Плагин при этом всё знает: `VERSION` вшита в сборку, а `TuiPluginApi.kv` переживает перезапуски и никем не используется. Сравнения хватает, чтобы поймать любое обновление.
+The plugin knows everything anyway: `VERSION` is baked into the build, and `TuiPluginApi.kv` survives restarts and isn't used by anyone. A comparison is enough to catch any update.
 
 ## What Changes
 
-- Плагин запоминает свою версию в `kv` под ключом `openspec.lastVersion` и на старте сравнивает её с `VERSION` из сборки
-- Версия в `kv` выросла → это обновление мимо кнопки; собирается тот же диапазон `(last, VERSION]`, что и по флагу, и предлагается Complete Update
-- Записи в `kv` нет (первый запуск сборки, умеющей это делать) → версия записывается молча, баннер не показывается: откуда пользователь пришёл – неизвестно, и вываливать на него все release notes подряд неправильно
-- Версия совпала или откатилась назад → версия записывается молча, баннер не показывается
-- Баннер по `kv` показывается, только если в диапазоне есть хоть одна запись `MIGRATIONS`: на патч-релизе без release notes показывать нечего, версия просто записывается
-- Флаг `plugin.update-in-progress` остаётся приоритетным источником: он знает точную версию `old`, с которой уходили, тогда как `kv` знает лишь последнюю запущенную. Оба источника сводятся к одному «ожидающему диапазону», UI один
-- Промпт миграции для диапазона из `kv` не содержит требования снять `plugin.update-in-progress` – снимать нечего
-- `kv` обновляется на `VERSION`, когда ход Complete Update завершился – по тому же переходу busy→idle, которым уже отслеживаются окончание настройки и приглашение к перезапуску
+- The plugin remembers its version in `kv` under key `openspec.lastVersion` and compares it on startup with `VERSION` from the build
+- Version in `kv` grew → this is an update past the button; the same range `(last, VERSION]` is assembled as for the flag, and Complete Update is offered
+- No entry in `kv` (first launch of a build that can do this) → version is written silently, no banner shown: where the user came from is unknown, and dumping all release notes on them isn't right
+- Version matched or rolled back → version is written silently, no banner shown
+- The `kv` banner only shows if there's at least one `MIGRATIONS` entry in range: on a patch release without release notes, there's nothing to show, the version is just recorded
+- The flag `plugin.update-in-progress` remains the priority source: it knows the exact `old` version you left from, while `kv` only knows the last launched. Both sources fold into one "pending range", single UI
+- Migration prompt for a `kv` range doesn't contain a requirement to remove `plugin.update-in-progress` – there's nothing to remove
+- `kv` updates to `VERSION` when the Complete Update turn finished – by the same busy→idle transition that already tracks setup completion and restart invitation
 
 ## Capabilities
 
 ### Added Capabilities
-- `plugin-lifecycle`: запись и чтение последней запущенной версии плагина через `kv`, обнаружение смены версии на старте
+- `plugin-lifecycle`: recording and reading last launched plugin version through `kv`, detecting version change on startup
 
 ### Modified Capabilities
-- `sidebar-ui`: баннер post-update питается двумя источниками (флаг config.yaml и дрейф версии в `kv`), флаг приоритетнее; после хода миграции панель фиксирует версию в `kv`
+- `sidebar-ui`: post-update banner feeds from two sources (config.yaml flag and version drift in `kv`), flag takes priority; after migration turn, sidebar records version to `kv`
 
 ## Impact
 
-- `src/lib/version-history.ts` – новый модуль: `readLastVersion(api)`, `recordVersion(api)`, ключ `kv`, правило «только вперёд» в `pendingVersionRange`
-- `src/lib/version-history.ts` – `decideMigration({ flag, last, current, hasEntries })`: вся таблица исходов одной чистой функцией, вне Solid. Внутри сайдбара её было не проверить иначе как живым TUI
-- `src/lib/migrations.ts` – `hasMigrations(old, next)` для решения «показывать ли баннер по `kv`»
-- `src/lib/migrations.ts` – `buildMigrationPrompt(range, { clearFlag })`: строка о снятии флага только когда флаг действительно есть
-- `src/sidebar.tsx` – сигнал версии из `kv`, memo поверх `decideMigration`, две ветки баннера вместо вложенного `Show`, фиксация версии по завершении хода
-- `test/version-history.test.ts` – чтение/запись `kv` и табличный тест решения: два источника × (первый запуск / совпадение / рост / откат / диапазон без записей)
-- `test/migrations.test.ts` – сборка диапазона, наличие/отсутствие строки о снятии флага
-- `src/lib/migrations.ts` – запись `MIGRATIONS` о релизе (изменение пользовательского поведения)
+- `src/lib/version-history.ts` – new module: `readLastVersion(api)`, `recordVersion(api)`, `kv` key, "forward only" rule in `pendingVersionRange`
+- `src/lib/version-history.ts` – `decideMigration({ flag, last, current, hasEntries })`: entire outcome table as one pure function, outside Solid. Inside the sidebar it couldn't be tested other than with a live TUI
+- `src/lib/migrations.ts` – `hasMigrations(old, next)` for deciding "whether to show banner from `kv`"
+- `src/lib/migrations.ts` – `buildMigrationPrompt(range, { clearFlag })`: flag removal line only when the flag actually exists
+- `src/sidebar.tsx` – version signal from `kv`, memo over `decideMigration`, two banner branches instead of nested `Show`, version recording on turn completion
+- `test/version-history.test.ts` – `kv` read/write and table test for decision: two sources × (first launch / match / growth / rollback / range without entries)
+- `test/migrations.test.ts` – range assembly, presence/absence of flag removal line
+- `src/lib/migrations.ts` – `MIGRATIONS` entry about the release (user-facing behavior change)
 
 ## Non-goals
 
-- Не показываем release notes задним числом тем, у кого записи в `kv` ещё нет: диапазон был бы выдуман
-- Не добавляем Dismiss рядом с Complete Update. Это второй путь выхода, своё состояние и своя ветка «а если флаг ещё и в config.yaml» – а цена нажатия и так один дешёвый ход агента. Если баннер окажется навязчивым, добавим отдельно
-- Не переносим `plugin.update-in-progress` в `kv`: флаг переживает смену машины вместе с репозиторием и остаётся единственным, кто знает `old` точно
-- Не трогаем проверку версий на npm и кнопки обновления – меняется только то, что происходит **после** того, как новая сборка уже загрузилась
-- Не храним в `kv` версию CLI: она читается из `generatedBy` на диске и в миграциях плагина не участвует
+- Don't show release notes retroactively to those who don't yet have entries in `kv`: the range would be made up
+- Don't add Dismiss alongside Complete Update. That's a second exit path, its own state, and its own branch "what if there's also a flag in config.yaml" – while the cost of pressing is already one cheap agent turn. If the banner turns out intrusive, we'll add it separately
+- Don't move `plugin.update-in-progress` to `kv`: the flag survives machine changes along with the repository and remains the only thing that knows `old` exactly
+- Don't touch npm version checks and update buttons – only what happens **after** a new build has already loaded is changed
+- Don't store CLI version in `kv`: it's read from `generatedBy` on disk and doesn't participate in plugin migrations

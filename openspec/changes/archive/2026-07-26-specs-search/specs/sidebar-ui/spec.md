@@ -1,45 +1,39 @@
 ## MODIFIED Requirements
 
-### Requirement: Секция завершённых изменений
-Панель SHALL отображать сворачиваемую секцию «Completed Changes» со всеми завершёнными изменениями и
-раскрывать её один раз, когда завершённые изменения появляются впервые.
+### Requirement: Completed changes section
+The sidebar SHALL display a collapsible "Completed Changes" section with all completed changes and expand it once when completed changes appear for the first time.
 
-#### Scenario: Отображение завершённых изменений
-- **WHEN** summary содержит изменения, для которых `isComplete()` возвращает `true`
-- **THEN** секция «Completed Changes» отображает строки `ChangeRow` с количеством элементов в
-  заголовке
+#### Scenario: Display completed changes
+- **WHEN** summary contains changes for which `isComplete()` returns `true`
+- **THEN** the "Completed Changes" section displays `ChangeRow` rows with item count in heading
 
-#### Scenario: Автооткрытие при появлении элементов
-- **WHEN** завершённые изменения появляются впервые после загрузки
-- **THEN** секция автоматически раскрывается один раз, дальше состояние определяет пользователь
+#### Scenario: Auto-expand on element appearance
+- **WHEN** completed changes appear for the first time after load
+- **THEN** the section automatically expands once, further state is determined by user
 
-### Requirement: Секция спецификаций
-Панель SHALL отображать сворачиваемую секцию «Specifications» с полем поиска над списком и
-спецификациями из summary, отфильтрованными по запросу.
+### Requirement: Specifications section
+The sidebar SHALL display a collapsible "Specifications" section with a search field above the list and specifications from summary filtered by query.
 
-#### Scenario: Отображение спецификаций
-- **WHEN** summary содержит список спецификаций, а запрос поиска пуст
-- **THEN** секция «Specifications» отображает поле поиска, а под ним строки `SpecRow` с общим
-  количеством элементов в заголовке
+#### Scenario: Display specifications
+- **WHEN** summary contains a list of specifications and search query is empty
+- **THEN** the "Specifications" section displays a search field, below it `SpecRow` rows with total item count in heading
 
-#### Scenario: Автооткрытие при появлении элементов
-- **WHEN** спецификации появляются впервые после загрузки
-- **THEN** секция автоматически раскрывается один раз
+#### Scenario: Auto-expand on element appearance
+- **WHEN** specifications appear for the first time after load
+- **THEN** the section automatically expands once
 
-#### Scenario: Поле поиска над списком
-- **WHEN** секция «Specifications» раскрыта
-- **THEN** первым элементом секции, до всех строк спецификаций, отображается поле поиска с
-  placeholder «Search specs»
+#### Scenario: Search field above list
+- **WHEN** the "Specifications" section is expanded
+- **THEN** as the first section element, before all spec rows, a search field with placeholder "Search specs" appears
 
-#### Scenario: Фильтрация списка по запросу
-- **WHEN** пользователь ввёл запрос в поле поиска
-- **THEN** список показывает только спецификации, удовлетворяющие запросу, а счётчик в заголовке
-  секции отражает количество найденных
+#### Scenario: Filter list by query
+- **WHEN** the user entered a query in the search field
+- **THEN** the list shows only specifications satisfying the query, and counter in section heading reflects match count
 
-#### Scenario: Пустой результат
-- **WHEN** запрос не пуст и ни одна спецификация ему не удовлетворяет
-- **THEN** вместо списка отображается приглушённый текст «No matches»
+#### Scenario: Empty result
+- **WHEN** query is non-empty and no specification satisfies it
+- **THEN** muted text "No matches" appears instead of a list
 
-#### Scenario: Сброс запроса
-- **WHEN** запрос очищен
-- **THEN** список снова показывает все спецификации, а счётчик – их общее количество
+#### Scenario: Reset query
+- **WHEN** query is cleared
+- **THEN** the list again shows all specifications, and counter – their total count

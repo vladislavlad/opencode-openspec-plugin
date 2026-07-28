@@ -1,182 +1,182 @@
 ## Purpose
-Оболочка боковой панели OpenSpec: единственный опрос данных, заголовок, ряд быстрых действий, три сворачиваемые секции и навигация с детализацией. Настройка проекта и обновления живут в своих возможностях (`init-flow`, `update-flow`) и получают данные из этого же опроса.
+OpenSpec sidebar shell: single data poll, header, action row, three collapsible sections and navigation with detail views. Project configuration and updates live in their own capabilities (`init-flow`, `update-flow`) and receive data from this same poll.
 
 ## Requirements
 
-### Requirement: Опрос данных openspec
-Панель SHALL периодически опрашивать директорию openspec и реестр команд opencode, обновляя интерфейс.
+### Requirement: Openspec Data Polling
+Sidebar SHALL periodically poll openspec directory and opencode command registry, updating interface.
 
-#### Scenario: Периодический опрос
-- **WHEN** панель активна и рабочая директория установлена
-- **THEN** данные перезагружаются каждые 3 секунды через `setInterval`
+#### Scenario: Periodic Polling
+- **WHEN** sidebar is active and working directory is set
+- **THEN** data reloads every 3 seconds via `setInterval`
 
-#### Scenario: Смена директории
-- **WHEN** значение `props.api.state.path.directory` изменяется
-- **THEN** выполняется немедленная перезагрузка данных
+#### Scenario: Directory Change
+- **WHEN** value of `props.api.state.path.directory` changes
+- **THEN** immediate data reload executes
 
-#### Scenario: Проверка загруженности команд
-- **WHEN** во время опроса запрашивается список команд через `api.client.command.list`
-- **THEN** флаг `commandsReady` устанавливается по наличию команды `opsx-propose`; при ошибке запроса флаг сохраняет прежнее значение
+#### Scenario: Checking Commands Availability
+- **WHEN** during poll command list is requested via `api.client.command.list`
+- **THEN** flag `commandsReady` is set based on presence of command `opsx-propose`; on request error, flag retains previous value
 
-#### Scenario: Ошибка загрузки
-- **WHEN** запрос к файловой системе завершается с ошибкой
-- **THEN** summary сбрасывается в `null`, а состояние инициализации устанавливается в `false`
+#### Scenario: Load Error
+- **WHEN** file system request ends with error
+- **THEN** summary resets to `null`, and initialization state sets to `false`
 
-### Requirement: Ряд действий в обзоре
-Панель SHALL показывать вверху sidebar строку заголовка с текстом «OpenSpec», hover-подсказкой версии на всю строку и кнопкой Settings справа, а также ряд действий с кнопками Explore, Propose и Archive.
+### Requirement: Action Row In Overview
+Sidebar SHALL show at the top a header line with text "OpenSpec", full-line version hover tooltip, Settings button on right, and an action row with Explore, Propose and Archive buttons.
 
-#### Scenario: Explore и Propose
-- **WHEN** пользователь нажимает Explore или Propose
-- **THEN** в промпт дописывается `/opsx-explore ` или `/opsx-propose ` без отправки, курсор готов к вводу описания
+#### Scenario: Explore And Propose
+- **WHEN** user presses Explore or Propose
+- **THEN** prompt is appended with `/opsx-explore ` or `/opsx-propose ` without submission, cursor ready for description input
 
-#### Scenario: Archive виден при завершённых Changes
-- **WHEN** количество завершённых Changes больше нуля
-- **THEN** в ряду действий отображается кнопка Archive цвета `success`
+#### Scenario: Archive Visible With Completed Changes
+- **WHEN** number of completed Changes is greater than zero
+- **THEN** action row displays Archive button in `success` color
 
-#### Scenario: Запуск Archive
-- **WHEN** пользователь нажимает Archive
-- **THEN** команда `/opsx-archive` отправляется как ход агента (инпут очищается перед отправкой); при одном завершённом Change его имя передаётся сразу, при нескольких команда запрашивает выбор
+#### Scenario: Launching Archive
+- **WHEN** user presses Archive
+- **THEN** command `/opsx-archive` is sent as agent turn (input cleared before submit); with one completed Change its name is passed immediately, with multiple the command asks for selection
 
-#### Scenario: Hover версии на строке заголовка
-- **WHEN** курсор находится над любым местом строки заголовка sidebar
-- **THEN** рядом с текстом «OpenSpec» отображается версия плагина (например `0.2.0`, цвет `textMuted`)
+#### Scenario: Version Hover On Header Line
+- **WHEN** cursor is over any part of sidebar header line
+- **THEN** plugin version (e.g., `0.2.0`, color `textMuted`) displays next to "OpenSpec" text
 
-#### Scenario: Скрытие версии при уходе курсора
-- **WHEN** курсор уходит со строки заголовка
-- **THEN** версия скрывается, кнопка Settings возвращается к цвету `textMuted`
+#### Scenario: Version Hidden On Cursor Leave
+- **WHEN** cursor leaves header line
+- **THEN** version hides, Settings button returns to `textMuted` color
 
-#### Scenario: Кнопка Settings в покое
-- **WHEN** sidebar отображает обзор или любой detail view и курсор не на строке заголовка
-- **THEN** справа в заголовке отображается кнопка Settings цвета `textMuted`
+#### Scenario: Settings Button At Rest
+- **WHEN** sidebar shows overview or any detail view and cursor is not on header line
+- **THEN** right side of header displays Settings button in `textMuted` color
 
-#### Scenario: Кнопка Settings при hover строки
-- **WHEN** курсор находится над строкой заголовка
-- **THEN** кнопка Settings меняет цвет на `accent`
+#### Scenario: Settings Button On Line Hover
+- **WHEN** cursor is over header line
+- **THEN** Settings button changes color to `accent`
 
-#### Scenario: Обновление доступно – постоянный accent кнопки Settings
-- **WHEN** `pluginUpdate` или `cliUpdate` не равны `null`
-- **THEN** кнопка Settings отображается цветом `accent` независимо от hover
+#### Scenario: Update Available — Persistent Accent For Settings Button
+- **WHEN** `pluginUpdate` or `cliUpdate` are not `null`
+- **THEN** Settings button displays in `accent` color regardless of hover
 
-#### Scenario: Нажатие кнопки Settings
-- **WHEN** пользователь нажимает кнопку Settings
-- **THEN** открывается экран Settings, перекрывающий текущий контент
+#### Scenario: Pressing Settings Button
+- **WHEN** user presses Settings button
+- **THEN** Settings screen opens, overlaying current content
 
-### Requirement: Блокировка действий во время работы агента
-Панель SHALL блокировать кнопки-действия, отправляющие промпт, пока агент занят, и сообщать причину.
+### Requirement: Action Lock During Agent Work
+Sidebar SHALL lock action buttons that submit prompts while agent is busy, and indicate reason.
 
-#### Scenario: Кнопка в заблокированном состоянии
-- **WHEN** агент занят (статус сессии `busy` или `retry`)
-- **THEN** кнопки-действия отображаются приглушённо (цвет `textMuted`), а клик показывает тост «Wait until the agent finishes working» вместо выполнения
+#### Scenario: Button In Locked State
+- **WHEN** agent is busy (session status `busy` or `retry`)
+- **THEN** action buttons display muted (color `textMuted`), and click shows toast "Wait until the agent finishes working" instead of executing
 
-#### Scenario: Навигация не блокируется
-- **WHEN** агент занят
-- **THEN** навигация (кнопка «назад», строки списков, сворачивание секций) остаётся доступной
+#### Scenario: Navigation Not Blocked
+- **WHEN** agent is busy
+- **THEN** navigation ("back" button, list rows, section collapse) remains available
 
-### Requirement: Прогресс Tasks под активными Changes
-Панель SHALL показывать сводный прогресс Tasks активных Changes под заголовком свёрнутой секции «Active Changes».
+### Requirement: Tasks Progress Under Active Changes
+Sidebar SHALL show aggregated Tasks progress for active Changes under collapsed "Active Changes" section header.
 
-#### Scenario: Сводка при свёрнутом разделе
-- **WHEN** секция «Active Changes» свёрнута и активных Changes больше нуля
-- **THEN** под заголовком отображается `X/Y tasks done` (цвет `textMuted`) и прогресс-бар, агрегированные по активным Changes
+#### Scenario: Summary When Section Collapsed
+- **WHEN** "Active Changes" section is collapsed and there are more than zero active Changes
+- **THEN** `X/Y tasks done` (color `textMuted`) and progress bar, aggregated across active Changes, display under header
 
-#### Scenario: Скрытие при раскрытии
-- **WHEN** секция «Active Changes» раскрыта
-- **THEN** сводка не показывается – вместо неё видны строки Changes
+#### Scenario: Hidden On Expand
+- **WHEN** "Active Changes" section is expanded
+- **THEN** summary doesn't show — Change rows are visible instead
 
-#### Scenario: Нет активных Changes
-- **WHEN** активных Changes нет
-- **THEN** сводка не показывается
+#### Scenario: No Active Changes
+- **WHEN** there are no active Changes
+- **THEN** summary doesn't show
 
-### Requirement: Секция активных Changes
-Панель SHALL отображать сворачиваемую секцию «Active Changes» со всеми незавершёнными Changes.
+### Requirement: Active Changes Section
+Sidebar SHALL display collapsible "Active Changes" section with all unfinished Changes.
 
-#### Scenario: Отображение активных Changes
-- **WHEN** summary содержит Changes, для которых `isComplete()` возвращает `false`
-- **THEN** секция «Active Changes» отображает строки `ChangeRow` с количеством элементов в заголовке
+#### Scenario: Displaying Active Changes
+- **WHEN** summary contains Changes for which `isComplete()` returns `false`
+- **THEN** "Active Changes" section displays `ChangeRow` rows with item count in header
 
-#### Scenario: Автооткрытие при появлении элементов
-- **WHEN** активные Changes появляются впервые после загрузки
-- **THEN** секция автоматически раскрывается один раз
+#### Scenario: Auto-open On Items Appear
+- **WHEN** active Changes appear for the first time after load
+- **THEN** section auto-expands once
 
-#### Scenario: Сворачивание и разворачивание
-- **WHEN** пользователь нажимает на заголовок секции
-- **THEN** секция переключается между свёрнутым и развёрнутым состоянием
+#### Scenario: Collapse And Expand
+- **WHEN** user presses on section header
+- **THEN** section toggles between collapsed and expanded states
 
-### Requirement: Секция завершённых Changes
-Панель SHALL отображать сворачиваемую секцию «Completed Changes» со всеми завершёнными Changes и раскрывать её один раз, когда завершённые Changes появляются впервые.
+### Requirement: Completed Changes Section
+Sidebar SHALL display collapsible "Completed Changes" section with all completed Changes, expanding it once when completed Changes appear for the first time.
 
-#### Scenario: Отображение завершённых Changes
-- **WHEN** summary содержит Changes, для которых `isComplete()` возвращает `true`
-- **THEN** секция «Completed Changes» отображает строки `ChangeRow` с количеством элементов в заголовке
+#### Scenario: Displaying Completed Changes
+- **WHEN** summary contains Changes for which `isComplete()` returns `true`
+- **THEN** "Completed Changes" section displays `ChangeRow` rows with item count in header
 
-#### Scenario: Автооткрытие при появлении элементов
-- **WHEN** завершённые Changes появляются впервые после загрузки
-- **THEN** секция автоматически раскрывается один раз, дальше состояние определяет пользователь
+#### Scenario: Auto-open On Items Appear
+- **WHEN** completed Changes appear for the first time after load
+- **THEN** section auto-expands once, further state is determined by user
 
-### Requirement: Секция спецификаций
-Панель SHALL отображать сворачиваемую секцию «Specifications» с полем поиска над списком и спецификациями из summary, отфильтрованными по запросу.
+### Requirement: Specifications Section
+Sidebar SHALL display collapsible "Specifications" section with search field above list and specifications from summary, filtered by query.
 
-#### Scenario: Отображение спецификаций
-- **WHEN** summary содержит список спецификаций, а запрос поиска пуст
-- **THEN** секция «Specifications» отображает поле поиска, а под ним строки `SpecRow` с общим количеством элементов в заголовке
+#### Scenario: Displaying Specifications
+- **WHEN** summary contains specification list and search query is empty
+- **THEN** "Specifications" section displays search field, then `SpecRow` rows below it, with total item count in header
 
-#### Scenario: Автооткрытие при появлении элементов
-- **WHEN** спецификации появляются впервые после загрузки
-- **THEN** секция автоматически раскрывается один раз
+#### Scenario: Auto-open On Items Appear
+- **WHEN** specifications appear for the first time after load
+- **THEN** section auto-expands once
 
-#### Scenario: Поле поиска над списком
-- **WHEN** секция «Specifications» раскрыта
-- **THEN** первым элементом секции, до всех строк спецификаций, отображается поле поиска – его поведение описано в `spec-search`
+#### Scenario: Search Field Above List
+- **WHEN** "Specifications" section is expanded
+- **THEN** first element of section, before all specification rows, displays search field — its behavior is described in `spec-search`
 
-#### Scenario: Фильтрация списка по запросу
-- **WHEN** пользователь ввёл запрос в поле поиска
-- **THEN** список показывает только спецификации, удовлетворяющие запросу, а счётчик в заголовке секции отражает количество найденных
+#### Scenario: Filtering List By Query
+- **WHEN** user entered query in search field
+- **THEN** list shows only specifications matching query, and counter in section header reflects number found
 
-#### Scenario: Пустой результат
-- **WHEN** запрос не пуст и ни одна спецификация ему не удовлетворяет
-- **THEN** вместо списка отображается приглушённый текст «No matches»
+#### Scenario: Empty Result
+- **WHEN** query is not empty and no specification matches it
+- **THEN** muted text "No matches" displays instead of list
 
-#### Scenario: Сброс запроса
-- **WHEN** запрос очищен
-- **THEN** список снова показывает все спецификации, а счётчик – их общее количество
+#### Scenario: Query Reset
+- **WHEN** query is cleared
+- **THEN** list shows all specifications again, counter — their total count
 
-### Requirement: Навигация с детализацией
-Панель SHALL поддерживать детализированную навигацию по Changes, спецификациям и требованиям со взаимоисключающим состоянием выделения.
+### Requirement: Navigation With Detail Views
+Sidebar SHALL support detailed navigation through Changes, specifications and requirements with mutually exclusive selection state.
 
-#### Scenario: Открытие деталей Change
-- **WHEN** пользователь выбирает строку из списка Changes
-- **THEN** отображается `ChangeDetail`, а выделения spec и requirement сбрасываются
+#### Scenario: Opening Change Details
+- **WHEN** user selects a row from Changes list
+- **THEN** `ChangeDetail` displays, and spec and requirement selections reset
 
-#### Scenario: Открытие деталей спецификации
-- **WHEN** пользователь выбирает строку из списка спецификаций
-- **THEN** отображается `SpecDetail`, а выделения change и requirement сбрасываются
+#### Scenario: Opening Specification Details
+- **WHEN** user selects a row from specifications list
+- **THEN** `SpecDetail` displays, and change and requirement selections reset
 
-#### Scenario: Открытие деталей требования
-- **WHEN** пользователь выбирает требование внутри спецификации
-- **THEN** отображается `RequirementDetail` поверх `SpecDetail`
+#### Scenario: Opening Requirement Details
+- **WHEN** user selects a requirement within specification
+- **THEN** `RequirementDetail` displays over `SpecDetail`
 
-#### Scenario: Кнопка «назад»
-- **WHEN** пользователь нажимает кнопку возврата в любом детализированном представлении
-- **THEN** навигация возвращается к предыдущему уровню, а hover-состояние сбрасывается
+#### Scenario: "Back" Button
+- **WHEN** user presses back button in any detail view
+- **THEN** navigation returns to previous level, and hover state resets
 
-### Requirement: Чтение артефактов открытого Change
-Панель SHALL читать `proposal.md` и `design.md` Change один раз – при его открытии – и SHALL не включать это чтение в периодический опрос. Панель SHALL сначала получать список файлов директории Change и читать только существующие. Ошибка чтения SHALL трактоваться как отсутствие артефакта и SHALL не сбрасывать summary. Прочитанное SHALL передаваться в `ChangeDetail` пропсом.
+### Requirement: Reading Open Change Artifacts
+Sidebar SHALL read `proposal.md` and `design.md` of a Change once — when it's opened — and SHALL NOT include this reading in periodic poll. Sidebar SHALL first get the Change directory file list and only read existing files. Read error SHALL be treated as artifact absence and SHALL NOT reset summary. Read content SHALL be passed to `ChangeDetail` via prop.
 
-#### Scenario: Открытие Change
-- **WHEN** пользователь выбирает Change из списка
-- **THEN** директория Change читается один раз, и её артефакты передаются в `ChangeDetail`
+#### Scenario: Opening Change
+- **WHEN** user selects a Change from list
+- **THEN** Change directory is read once, and its artifacts are passed to `ChangeDetail`
 
-#### Scenario: Опрос не дорожает
-- **WHEN** проходит очередной трёхсекундный тик опроса
-- **THEN** `proposal.md` и `design.md` не читаются – опрос по-прежнему читает только `tasks.md`, спецификации, `config.yaml` и список команд
+#### Scenario: Poll Doesn't Grow Expensive
+- **WHEN** next three-second poll tick fires
+- **THEN** `proposal.md` and `design.md` are not read — poll still only reads `tasks.md`, specifications, `config.yaml` and command list
 
-#### Scenario: Смена выбранного Change
-- **WHEN** пользователь возвращается к списку и открывает другой Change
-- **THEN** прочитанные артефакты предыдущего Change сбрасываются, а новые читаются заново
+#### Scenario: Changing Selected Change
+- **WHEN** user returns to list and opens a different Change
+- **THEN** previously read artifacts reset, new ones re-read
 
-#### Scenario: Артефакт недоступен
-- **WHEN** чтение файла артефакта завершается ошибкой
-- **THEN** артефакт считается отсутствующим, summary сохраняется, а состояние инициализации не меняется
+#### Scenario: Artifact Unavailable
+- **WHEN** artifact file read ends with error
+- **THEN** artifact is considered absent, summary preserved, initialization state unchanged
 
 ### Requirement: Reload button label consistency
 Every reload button in the sidebar SHALL use the label "Reload OpenCode" to clearly indicate that opencode will be reopened.

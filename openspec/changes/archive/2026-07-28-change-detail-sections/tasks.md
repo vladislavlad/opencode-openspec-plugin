@@ -1,39 +1,39 @@
-## 1. Разбор артефактов change'а
+## 1. Parsing change artifacts
 
-- [x] 1.1 Модуль `src/lib/change-docs.ts`: модель `ChangeDocs`, разбор markdown по `##` с пропуском блоков кода
-- [x] 1.2 Выбор секции по имени и тизер – начало первого абзаца, обрезанное по бюджету символов
-- [x] 1.3 Тесты: нарезка секций, пропуск `##` в блоках кода, выбор по имени, тизер без обрезки слов
+- [x] 1.1 Module `src/lib/change-docs.ts`: `ChangeDocs` model, parsing markdown by `##` skipping code blocks
+- [x] 1.2 Section selection by name and teaser – beginning of first paragraph, truncated to character budget
+- [x] 1.3 Tests: section splitting, skipping `##` in code blocks, selection by name, teaser without word truncation
 
-## 2. Чтение артефактов при открытии change'а
+## 2. Reading artifacts on change open
 
-- [x] 2.1 В `src/sidebar.tsx` читать директорию change'а один раз при выборе: `list` + чтение существующих; результат в сигнал, сбрасывается при смене выбора
-- [x] 2.2 Прокрутить данные в `ChangeDetail`; пока чтение идёт – секции на месте с пустыми телами
+- [x] 2.1 In `src/sidebar.tsx`, read the change directory once on selection: `list` + reading existing files; result into a signal, reset on selection change
+- [x] 2.2 Flow data into `ChangeDetail`; while reading is in progress – sections are in place with empty bodies
 
-## 3. Примитив рендера markdown
+## 3. Markdown render primitive
 
-- [x] 3.1 `Markdown` в `src/components/primitives.tsx`: заголовки, буллеты, блоки кода, абзацы; пустые строки схлопываются; стрип `**` из текста
-- [x] 3.2 Тест: заголовок, буллет, блок кода и абзац рендерятся по-разному
+- [x] 3.1 `Markdown` in `src/components/primitives.tsx`: headings, bullets, code blocks, paragraphs; blank lines collapse; strip `**` from text
+- [x] 3.2 Test: heading, bullet, code block, and paragraph render differently
 
-## 4. Три секции в карточке изменения
+## 4. Three sections in the change card
 
-- [x] 4.1 `CollapsibleSection`: `count` опционален – без него голый лейбл
-- [x] 4.2 Секции Proposal / Design / Tasks; Tasks открыта, остальные свёрнуты; Design скрыт без файла; отсутствие proposal.md – приглушённое сообщение
-- [x] 4.3 Тизер Proposal через `collapsedSummary`: начало `Why`, приглушённый цвет, отступ; бюджет в символах (88), обрезка по слову; клик по тизеру раскрывает секцию
-- [x] 4.4 Число задач – в заголовке `Tasks: done/total`; отдельная строка убрана, прогресс-бар остался
-- [x] 4.5 Заголовок группы – на нулевую колонку; задачи – в колонке маркера
-- [x] 4.6 Тесты: дефолты раскрытости, скрытый Design, тизер, счётчик в заголовке, висячий заголовок группы
+- [x] 4.1 `CollapsibleSection`: `count` is optional – without it, a bare label
+- [x] 4.2 Proposal / Design / Tasks sections; Tasks open, others collapsed; Design hidden without file; missing proposal.md – muted message
+- [x] 4.3 Proposal teaser via `collapsedSummary`: beginning of `Why`, muted color, indentation; character budget (88), word-boundary truncation; click on teaser expands section
+- [x] 4.4 Task count – in header `Tasks: done/total`; separate line removed, progress bar remains
+- [x] 4.5 Group heading – on column zero; tasks – in marker column
+- [x] 4.6 Tests: default expanded states, hidden Design, teaser, counter in header, hanging group heading
 
-## 5. Проверка и релиз
+## 5. Verification and release
 
 - [x] 5.1 `bun run typecheck`, `bun run test`, `bun run build`
-- [x] 5.2 Найденные дефекты исправлены
-- [x] 5.3 Запись в `MIGRATIONS` под версию 0.3.1
-- [x] 5.4 Обновить `AGENTS.md`: добавить `lib/change-docs` в Layout и таблицу capabilities
+- [x] 5.2 Found defects fixed
+- [x] 5.3 Entry in `MIGRATIONS` for version 0.3.1
+- [x] 5.4 Update `AGENTS.md`: add `lib/change-docs` to Layout and capabilities table
 - [x] 5.5 `openspec validate change-detail-sections --strict`
-- [x] 5.6 Версия в `package.json` → 0.3.1
+- [x] 5.6 Version in `package.json` → 0.3.1
 
-## 6. Провести ручное тестирование
+## 6. Manual testing
 
-- [x] 6.1 Проверить все разделы proposal.md в порядке файла (кроме Capabilities); тизер – из Why или первого раздела
-- [x] 6.2 Исправить лишний пустой ряд: `Markdown` не рендерит пустые строки по краям
-- [x] 6.3 Добавить тесты: выбор тизера, клик по тизеру (`mockMouse`), один пустой ряд между Design и Tasks; стрип `**`, клик раскрывает Proposal
+- [x] 6.1 Verify all proposal.md sections in file order (except Capabilities); teaser – from Why or first section
+- [x] 6.2 Fix extra empty row: `Markdown` does not render blank lines at edges
+- [x] 6.3 Add tests: teaser selection, click on teaser (`mockMouse`), one empty row between Design and Tasks; strip `**`, click expands Proposal

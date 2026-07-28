@@ -1,69 +1,43 @@
-## 1. Логика поиска
+## 1. Search logic
 
-- [x] 1.1 Создать `src/lib/search.ts`: токенизация запроса и сборка текста спецификации из всех
-      артефактов (name, title, purpose, требования, сценарии)
-- [x] 1.2 Реализовать `searchSpecs(specs, query)` – фильтрация по AND-токенам + счётчик совпавших
-      требований для каждой найденной спецификации
-- [x] 1.3 Покрыть тестами в `test/search.test.ts`: пустой запрос, регистр, совпадения по каждому
-      артефакту, мультитокен в разных артефактах, счётчик требований
+- [x] 1.1 Create `src/lib/search.ts`: query tokenization and spec text assembly from all artifacts (name, title, purpose, requirements, scenarios)
+- [x] 1.2 Implement `searchSpecs(specs, query)` – filtering by AND tokens + matched requirement counter for each found specification
+- [x] 1.3 Cover with tests in `test/search.test.ts`: empty query, case sensitivity, matches across each artifact, multi-token across different artifacts, requirement counter
 
-## 2. Поле поиска
+## 2. Search field
 
-- [x] 2.1 Создать `src/components/search.tsx` с компонентом `SearchField`: иконка «⌕», `<input>` с
-      placeholder цветом `textMuted`, кнопка «✕» при непустом запросе
-- [x] 2.2 Управление фокусом: клик – фокус, Esc (`onKeyDown`) и Enter (`onSubmit`) – снятие фокуса с
-      возвратом на ранее сфокусированный элемент через `renderer.currentFocusedRenderable`,
-      то же в `onCleanup`
-- [x] 2.3 Render-тесты поля в `test/search-field.test.tsx` через `testRender` (клик, ввод, Esc/Enter,
-      очистка); подключить `--preload @opentui/solid/preload` в скрипт `test`
-- [x] 2.4 Отделка: отступ в строку под полем, `cursorStyle={{ blinking: false }}`,
-      синхронизация состояния фокуса с рендерером (`ref` + событие `focused_renderable`) + тест на
-      «кликнул мимо и обратно»
+- [x] 2.1 Create `src/components/search.tsx` with `SearchField` component: "⌕" icon, `<input>` with placeholder in `textMuted` color, "✕" button when query is non-empty
+- [x] 2.2 Focus management: click – focus, Esc (`onKeyDown`) and Enter (`onSubmit`) – blur with return to previously focused element via `renderer.currentFocusedRenderable`, same in `onCleanup`
+- [x] 2.3 Render tests for field in `test/search-field.test.tsx` via `testRender` (click, input, Esc/Enter, clear); connect `--preload @opentui/solid/preload` to test script
+- [x] 2.4 Polish: one-line padding below field, `cursorStyle={{ blinking: false }}`, focus state sync with renderer (`ref` + `focused_renderable` event) + test for "click away and back"
 
-## 3. Интеграция в sidebar
+## 3. Sidebar integration
 
-- [x] 3.1 `SpecRow` принимает опциональный `matchedRequirements` и печатает
-      `N matching requirements`, когда он больше нуля
-- [x] 3.2 В `sidebar.tsx` завести сигнал запроса и мемо `searchSpecs`, отрисовать `SearchField`
-      первым элементом секции «Specifications», список – из результата, счётчик секции – его длина,
-      пустой результат – «No matches»
-- [x] 3.3 Проверить `bun run typecheck`, `bun run test` и `bun run build`
+- [x] 3.1 `SpecRow` accepts optional `matchedRequirements` and prints `N matching requirements` when it's greater than zero
+- [x] 3.2 In `sidebar.tsx` create query signal and memo `searchSpecs`, render `SearchField` as first element of "Specifications" section, list from result, section counter – its length, empty result – "No matches"
+- [x] 3.3 Run `bun run typecheck`, `bun run test`, and `bun run build`
 
-## 4. Поиск внутри спецификации
+## 4. Search within specification
 
-- [x] 4.1 Вынести «✕» в примитив `ClearButton` (отступ справа, акцентная заливка на hover)
-- [x] 4.2 `searchRequirements(reqs, query)` в `src/lib/search.ts` + тесты: фильтрация требований по
-      их тексту и сценариям, счётчик совпавших сценариев
-- [x] 4.3 `SpecDetail` рендерит `SearchField` под заголовком `Requirements`, работает с общим
-      сигналом запроса из `sidebar.tsx` (перенос при переходе и сохранение при возврате),
-      `RequirementRow` печатает `N matching scenarios`
-- [x] 4.4 Убрать из `SpecDetail` строку заголовка с отступом и описание; выкинуть поле `description`
-      спецификации из `OpenSpecSpec`, `parseSpec`, `specEquals`, поиска и тестов
+- [x] 4.1 Extract "✕" into primitive `ClearButton` (right padding, accent fill on hover)
+- [x] 4.2 `searchRequirements(reqs, query)` in `src/lib/search.ts` + tests: requirement filtering by their text and scenarios, matched scenario counter
+- [x] 4.3 `SpecDetail` renders `SearchField` under the `Requirements` heading, works with shared query signal from `sidebar.tsx` (carry-over on navigation and persistence on return), `RequirementRow` prints `N matching scenarios`
+- [x] 4.4 Remove title line with padding and description from `SpecDetail`; drop spec `description` field from `OpenSpecSpec`, `parseSpec`, `specEquals`, search, and tests
 
-## 5. Отделка экранов change
+## 5. Change screen polish
 
-- [x] 5.1 `ChangeDetail` использует общий `DetailHeader` (с `color` для статуса) вместо своей копии
-      шапки – отступы совпадают с экраном Specification
-- [x] 5.2 `Divider` рисовать бордером бокса по ширине контейнера вместо строки из 37 «─»: в узком
-      sidebar строка переносилась и остаток читался как лишняя пустая строка под каждым разделителем
-- [x] 5.3 Автораскрытие секции «Completed Changes» при первом появлении завершённых изменений –
-      как у Active Changes и Specifications
-- [x] 5.4 Render-тесты в `test/specs-view.test.tsx`: ширина разделителя на узком sidebar, отступы
-      change-экрана, `SpecDetail` без title/description, фильтрация требований и «No matches»,
-      счётчик совпавших требований в `SpecRow`
+- [x] 5.1 `ChangeDetail` uses shared `DetailHeader` (with `color` for status) instead of its own header copy – padding matches Specification screen
+- [x] 5.2 Draw `Divider` as a box border to container width instead of a string of 37 "─": in narrow sidebar the line wrapped and the remainder read as an extra blank line under each divider
+- [x] 5.3 Auto-expand "Completed Changes" section on first appearance of completed changes – like Active Changes and Specifications
+- [x] 5.4 Render tests in `test/specs-view.test.tsx`: divider width on narrow sidebar, change-screen padding, `SpecDetail` without title/description, requirement filtering and "No matches", matched requirement counter in `SpecRow`
 
-## 6. Ключевые слова схемы вне поиска
+## 6. Schema keywords out of search
 
-- [x] 6.1 Вынести модель спеки и разбор `spec.md` в `src/lib/spec-driven.ts` с пометкой, что это
-      схема `spec-driven`; `openspec.ts` оставить чтением директории и ре-экспортом модели
-- [x] 6.2 Экспортировать из модуля схемы `stripSyntax` – снятие ключевых слов (SHALL, MUST, WHEN,
-      THEN, GIVEN, AND, BUT) и Markdown-разметки; хранение оставить как есть, текстом из файла
-- [x] 6.3 Применить `stripSyntax` в поиске к запросу и к индексируемому тексту; запрос, состоящий
-      только из ключевых слов, не находит ничего (в отличие от пустого запроса)
-- [x] 6.4 Тесты: ключевые слова и разметка не ищутся, запрос только из ключевых слов, ключевое слово
-      рядом с обычным
+- [x] 6.1 Move spec model and `spec.md` parsing to `src/lib/spec-driven.ts` with a note that it's the `spec-driven` schema; leave `openspec.ts` for directory reading and model re-export
+- [x] 6.2 Export from schema module `stripSyntax` – removal of keywords (SHALL, MUST, WHEN, THEN, GIVEN, AND, BUT) and Markdown markup; storage stays as-is, text from file
+- [x] 6.3 Apply `stripSyntax` in search to query and indexed text; a query consisting only of keywords finds nothing (unlike an empty query)
+- [x] 6.4 Tests: keywords and markup are not searchable, query of only keywords, keyword adjacent to regular word
 
-## 7. Релиз
+## 7. Release
 
-- [x] 7.1 Добавить запись в `MIGRATIONS` (`src/lib/migrations.ts`) для версии релиза: release notes
-      про поиск по спекам, без шагов миграции
+- [x] 7.1 Add entry to `MIGRATIONS` (`src/lib/migrations.ts`) for release version: release notes about spec search, no migration steps

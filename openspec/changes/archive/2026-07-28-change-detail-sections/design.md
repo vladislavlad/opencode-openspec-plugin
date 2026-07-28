@@ -1,36 +1,36 @@
-## Решения
+## Decisions
 
-### Три секции и дефолты раскрытости
+### Three sections and default expanded states
 
-Рендерить `proposal.md` сплошным текстом над задачами нельзя – при ширине ~40 колонок задачи уедут за экран. Сворачивание платит только тому, кто открыл. Порядок Proposal → Design → Tasks повторяет порядок чтения change'а.
+Rendering `proposal.md` as continuous text above tasks is not possible – at ~40 columns wide, tasks will scroll off-screen. Collapsing only costs space for whoever expands it. The order Proposal → Design → Tasks mirrors the order a change is read.
 
-`Tasks` открыта – иначе регресс. `Proposal` свёрнута с тизером из начала `## Why`: голый заголовок скроет фичу, раскрытая секция вернёт стену текста. Тизер – две строки через `collapsedSummary`. `Design` свёрнута без тизера: первые строки design.md – обычно общие слова.
+`Tasks` is open – otherwise regression. `Proposal` is collapsed with a teaser from the beginning of `## Why`: a bare heading would hide the feature, an expanded section returns a wall of text. Teaser – two lines via `collapsedSummary`. `Design` is collapsed without a teaser: the first lines of design.md are usually general words.
 
-### Тизер меряется символами
+### Teaser is measured in characters
 
-Абзац markdown – одна строка файла, десяток строк терминала. Бюджет ≈88 символов, обрезка по слову с многоточием. Второй абзац в тизер не попадает.
+A markdown paragraph is one file line, a dozen terminal lines. Budget ≈88 characters, truncation at word boundary with ellipsis. A second paragraph does not enter the teaser.
 
-### Разделы предложения не зашиты в код
+### Proposal sections are not hardcoded
 
-Рендерятся все разделы `proposal.md` в порядке файла, кроме `## Capabilities` – это список дельт, у него будет своя секция.
+All sections of `proposal.md` are rendered in file order, except `## Capabilities` – it is a list of deltas, which will have its own section.
 
-### Отсутствующий design.md прячет секцию целиком
+### Missing design.md hides the entire section
 
-`design.md` опционален; строка «Design ✗» – шум. `proposal.md` обязателен: его отсутствие показывается приглушённым сообщением.
+`design.md` is optional; a "Design ✗" line is noise. `proposal.md` is required: its absence is shown with a muted message.
 
-### Чтение при открытии
+### Reading on open
 
-Опрос каждые 3 секунды уже читает `tasks.md`. Два дополнительных чтения удвоят цикл ради данных на одном экране. Артефакты читаются один раз: `list` директории + файлы. Содержимое не обновляется – приемлемо, файлы пишутся один раз.
+The poll every 3 seconds already reads `tasks.md`. Two additional reads would double the cycle for data on one screen. Artifacts are read once: directory `list` + files. Content is not refreshed – acceptable, files are written once.
 
-### Общий парсер секций
+### Common section parser
 
-Разбор – «нарезать markdown по `##`, уважая блоки кода» – та же техника, что в `spec-driven.ts`. Модуль `lib/change-docs.ts` отдаёт список секций, выбор по имени делает вызывающая сторона. Примитив `Markdown` рендерит заголовки, буллеты, код и абзацы; таблицы, ссылки и вложенные списки не поддерживаются – терминальная строка узкая.
+Parsing – "split markdown by `##`, respecting code blocks" – is the same technique as in `spec-driven.ts`. Module `lib/change-docs.ts` returns a list of sections; selection by name is done by the caller. The `Markdown` primitive renders headings, bullets, code, and paragraphs; tables, links, and nested lists are not supported – terminal lines are narrow.
 
-### Счётчик и отступы
+### Counter and indentation
 
-Счётчик задач – в заголовке `Tasks: done/total`, экономится строка. Заголовок группы – на нулевую колонку, задачи – с отступом.
+Task counter – in the header `Tasks: done/total`, saving a line. Group heading – on column zero, tasks – indented.
 
-## Риски
+## Risks
 
-- **Длинный `design.md` в раскрытом виде.** Сайдбар прокручивается; если будет больно – рендерить только оглавление.
-- **Тизер при отсутствии Why.** Тизера не будет, заголовок секции останется голым.
+- **Long `design.md` when expanded.** The sidebar scrolls; if it becomes painful – render only a table of contents.
+- **Teaser without Why.** No teaser will appear, the section heading remains bare.

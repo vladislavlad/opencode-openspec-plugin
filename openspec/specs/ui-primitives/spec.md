@@ -1,162 +1,162 @@
 ## Purpose
-Набор общих UI-компонентов для терминального интерфейса: прогресс-бар, кнопка, разделитель, заголовок детального вида, абзац текста, сворачиваемая секция и экран неинициализированного проекта.
+Set of common UI components for terminal interface: progress bar, button, divider, detail header, text paragraph, collapsible section and uninitialized project screen.
 
 ## Requirements
 
-### Requirement: ProgressBar отображает прогресс или скрывается
-Компонент SHALL отображать визуальный прогресс-бар с заполненными и пустыми блоками и процентом, когда total больше нуля; при total равном нулю компонент SHALL ничего не рендерить. При заданном пропсе `showNumberOfTasks` компонент SHALL дополнительно отображать строку "N/M tasks done" над баром цветом `muted`.
+### Requirement: ProgressBar Displays Progress Or Hides
+Component SHALL display visual progress bar with filled and empty blocks and percentage when total is greater than zero; when total equals zero component SHALL render nothing. When prop `showNumberOfTasks` is set, component SHALL additionally display line "N/M tasks done" above bar in `muted` color.
 
-#### Scenario: Прогресс отображается при наличии Tasks
-- **WHEN** total равен 10 и done равен 5
-- **THEN** на экране показаны заполненные блоки (█), пустые блоки (░) и текст «50%»
+#### Scenario: Progress Displays With Tasks
+- **WHEN** total equals 10 and done equals 5
+- **THEN** filled blocks (█), empty blocks (░) and text "50%" show on screen
 
-#### Scenario: Прогресс скрыт при отсутствии Tasks
-- **WHEN** total равен 0
-- **THEN** компонент ничего не отображает
+#### Scenario: Progress Hidden Without Tasks
+- **WHEN** total equals 0
+- **THEN** component displays nothing
 
-#### Scenario: Счётчик задач отображается при showNumberOfTasks
-- **WHEN** total равен 10, done равен 3 и `showNumberOfTasks` равен true
-- **THEN** над прогресс-баром отображается строка "3/10 tasks done" цветом muted
+#### Scenario: Task Counter Displays With showNumberOfTasks
+- **WHEN** total equals 10, done equals 3 and `showNumberOfTasks` equals true
+- **THEN** above progress bar line "3/10 tasks done" in muted color displays
 
-#### Scenario: Счётчик задач скрыт без showNumberOfTasks
-- **WHEN** total равен 10, done равен 3 и `showNumberOfTasks` не задан или равен false
-- **THEN** строка со счётчиком не отображается, виден только прогресс-бар
+#### Scenario: Task Counter Hidden Without showNumberOfTasks
+- **WHEN** total equals 10, done equals 3 and `showNumberOfTasks` is not set or equals false
+- **THEN** counter line doesn't display, only progress bar visible
 
-### Requirement: Button реагирует на наведение и клик
-Компонент SHALL изменять цвет фона на заданный color при наведении курсора, возвращать исходный фон при уходе курсора и вызывать onClick при нажатии мыши.
+### Requirement: Button Responds To Hover And Click
+Component SHALL change background color to given color on cursor hover, return original background on cursor leave, and call onClick on mouse press.
 
-#### Scenario: Фон подсвечивается при наведении
-- **WHEN** курсор находится над кнопкой
-- **THEN** backgroundColor установлен в значение props.color, а цвет текста переключён на background темы
+#### Scenario: Background Highlights On Hover
+- **WHEN** cursor is over button
+- **THEN** backgroundColor set to props.color value, and text color switched to theme background
 
-#### Scenario: Клик вызывает обработчик
-- **WHEN** пользователь нажимает кнопку мышью (mouseDown)
-- **THEN** вызывается функция onClick
+#### Scenario: Click Calls Handler
+- **WHEN** user presses button with mouse (mouseDown)
+- **THEN** onClick function is called
 
-### Requirement: Button в заблокированном состоянии
-Компонент SHALL принимать признак блокировки и обработчик клика по заблокированной кнопке одним набором пропсов, пригодным для распространения на любую кнопку. Заблокированная кнопка SHALL оставаться видимой и кликабельной, но SHALL вызывать обработчик блокировки вместо основного.
+### Requirement: Button In Locked State
+Component SHALL accept lock indicator and locked button click handler as one set of props, suitable for spreading on any button. Locked button SHALL remain visible and clickable, but SHALL call lock handler instead of primary one.
 
-#### Scenario: Внешний вид заблокированной кнопки
-- **WHEN** признак блокировки возвращает true
-- **THEN** текст отображается цветом `textMuted`, а при наведении фон заливается `textMuted` вместо цвета кнопки
+#### Scenario: Locked Button Appearance
+- **WHEN** lock indicator returns true
+- **THEN** text displays in `textMuted` color, and on hover background fills with `textMuted` instead of button color
 
-#### Scenario: Клик по заблокированной кнопке
-- **WHEN** пользователь нажимает заблокированную кнопку
-- **THEN** вызывается обработчик блокировки, а `onClick` не вызывается
+#### Scenario: Click On Locked Button
+- **WHEN** user presses locked button
+- **THEN** lock handler is called, and `onClick` is not called
 
-#### Scenario: Признак блокировки не задан
-- **WHEN** пропсы блокировки не переданы
-- **THEN** кнопка ведёт себя как обычная – клик вызывает `onClick`
+#### Scenario: Lock Indicator Not Set
+- **WHEN** lock props are not passed
+- **THEN** button behaves normally — click calls `onClick`
 
-### Requirement: Divider рисует горизонтальную линию
-Компонент SHALL рендерить горизонтальную линию цветом borderSubtle текущей темы ровно по ширине контейнера, занимая одну строку при любой ширине sidebar.
+### Requirement: Divider Draws Horizontal Line
+Component SHALL render horizontal line in current theme's borderSubtle color exactly across container width, occupying one line at any sidebar width.
 
-#### Scenario: Разделитель отображается с правильным цветом
-- **WHEN** компонент рендерится с валидной темой
-- **THEN** на экране видна горизонтальная линия цвета theme.borderSubtle
+#### Scenario: Divider Displays With Correct Color
+- **WHEN** component renders with valid theme
+- **THEN** horizontal line of color theme.borderSubtle is visible on screen
 
-#### Scenario: Узкий sidebar
-- **WHEN** ширина sidebar меньше длины линии по умолчанию
-- **THEN** линия занимает ровно одну строку по всей ширине, без переноса остатка на следующую строку
+#### Scenario: Narrow Sidebar
+- **WHEN** sidebar width is less than default line length
+- **THEN** line occupies exactly one line across full width, without wrapping remainder to next line
 
-### Requirement: DetailHeader показывает заголовок и кнопку возврата
-Компонент SHALL отображать жирный label слева – акцентным цветом или заданным через `color`, – кликабельную надпись «← back» справа с подсветкой фона при наведении, Divider под строкой заголовка и пустую строку над ней.
+### Requirement: DetailHeader Shows Heading And Back Button
+Component SHALL display bold label on left — in accent color or given via `color` — clickable "← back" text on right with background highlight on hover, Divider below header line and empty line above it.
 
-#### Scenario: Заголовок и кнопка back видны
-- **WHEN** компонент рендерится с label «Tasks»
-- **THEN** слева отображён жирный текст «Tasks» цветом accent, справа – «← back», ниже – разделитель Divider
+#### Scenario: Header And Back Button Visible
+- **WHEN** component renders with label "Tasks"
+- **THEN** bold text "Tasks" in accent color displays on left, "← back" on right, Divider below
 
-#### Scenario: Кнопка back реагирует на наведение
-- **WHEN** курсор находится над областью «← back»
-- **THEN** фон заливается цветом `accent`, а текст перекрашивается в `background`
+#### Scenario: Back Button Responds To Hover
+- **WHEN** cursor is over "← back" area
+- **THEN** background fills with `accent` color, and text repaints to `background`
 
-#### Scenario: Свой цвет заголовка
-- **WHEN** компонент получает `color`
-- **THEN** label отображается этим цветом вместо accent
+#### Scenario: Custom Header Color
+- **WHEN** component receives `color`
+- **THEN** label displays in this color instead of accent
 
-### Requirement: Paragraph разбивает текст по строкам с переносом слов
-Компонент SHALL разделять props.text по символу новой строки (\n), рендерить каждую строку как отдельную строку терминала с word-wrap, а пустые строки заменять на пробел.
+### Requirement: Paragraph Splits Text By Lines With Word Wrap
+Component SHALL split props.text by newline character (\n), render each line as separate terminal line with word-wrap, and replace empty lines with space.
 
-#### Scenario: Многострочный текст отображается корректно
-- **WHEN** text содержит «Hello\nWorld»
-- **THEN** на экране две строки: первая – «Hello», вторая – «World», обе с wrapMode word
+#### Scenario: Multi-line Text Displays Correctly
+- **WHEN** text contains "Hello\nWorld"
+- **THEN** two lines on screen: first — "Hello", second — "World", both with wrapMode word
 
-#### Scenario: Пустая строка рендерится как пробел
-- **WHEN** text содержит «Line1\n\nLine3»
-- **THEN** между «Line1» и «Line3» отображена пустая строка, содержащая один символ пробела
+#### Scenario: Empty Line Renders As Space
+- **WHEN** text contains "Line1\n\nLine3"
+- **THEN** between "Line1" and "Line3" an empty line containing one space character displays
 
-### Requirement: CollapsibleSection раскрывает и сворачивает содержимое
-Компонент SHALL показывать индикатор ▼ при открытом состоянии и ▶ при закрытом, отображать label в заголовке, а дочерние элементы вместе с Divider – только когда open возвращает true. Счётчик `count` SHALL быть опциональным: при объекте `{ done, total }` заголовок показывает «Label: done/total», при числе – «Label: N». Без счётчика – только label. В свёрнутом состоянии компонент SHALL отображать переданный `collapsedSummary`, если он есть.
+### Requirement: CollapsibleSection Expands And Collapses Content
+Component SHALL show indicator ▼ when open and ▶ when closed, display label in header, and children with Divider — only when open returns true. Counter `count` SHALL be optional: for object `{ done, total }` header shows "Label: done/total", for number — "Label: N". Without counter — only label. In collapsed state component SHALL display passed `collapsedSummary`, if present.
 
-#### Scenario: Секция раскрыта
-- **WHEN** open() возвращает true
-- **THEN** виден индикатор «▼», текст «Label: 3», разделитель Divider и дочерний контент
+#### Scenario: Section Expanded
+- **WHEN** open() returns true
+- **THEN** indicator "▼", text "Label: 3", Divider and child content are visible
 
-#### Scenario: Секция свёрнута
-- **WHEN** open() возвращает false
-- **THEN** виден индикатор «▶» и заголовок, но Divider и children скрыты
+#### Scenario: Section Collapsed
+- **WHEN** open() returns false
+- **THEN** indicator "▶" and header are visible, but Divider and children hidden
 
-#### Scenario: Заголовок без счётчика
-- **WHEN** `count` не передан
-- **THEN** заголовок показывает только label, без двоеточия и числа
+#### Scenario: Header Without Counter
+- **WHEN** `count` is not passed
+- **THEN** header shows only label, without colon and number
 
-#### Scenario: Превью в свёрнутом состоянии
-- **WHEN** секция свёрнута и передан `collapsedSummary`
-- **THEN** он отображается под заголовком вместо дочернего контента
+#### Scenario: Preview In Collapsed State
+- **WHEN** section is collapsed and `collapsedSummary` is passed
+- **THEN** it displays below header instead of child content
 
-#### Scenario: Клик по заголовку вызывает onToggle
-- **WHEN** пользователь нажимает мышью на строку заголовка секции
-- **THEN** вызывается функция onToggle
+#### Scenario: Click On Header Calls onToggle
+- **WHEN** user presses mouse on section header line
+- **THEN** onToggle function is called
 
-### Requirement: Markdown рендерит текст артефактов
-Система SHALL предоставлять примитив рендера markdown, отображающий заголовки, буллеты, блоки кода в ограждении и обычные абзацы. Строки, не подпадающие ни под одну из этих форм, SHALL рендериться абзацем через `Paragraph`. Таблицы, ссылки, вложенные списки и инлайн-форматирование SHALL не поддерживаться – их разметка проходит как обычный текст.
+### Requirement: Markdown Renders Artifact Text
+System SHALL provide markdown render primitive, displaying headings, bullets, fenced code blocks and regular paragraphs. Lines that don't fall under any of these forms SHALL render as paragraph via `Paragraph`. Tables, links, nested lists and inline formatting SHALL NOT be supported — their markup passes through as regular text.
 
-#### Scenario: Заголовок
-- **WHEN** строка начинается с одного или нескольких `#`
-- **THEN** она отображается без символов `#`, выделенным цветом заголовка
+#### Scenario: Heading
+- **WHEN** line starts with one or more `#`
+- **THEN** it displays without `#` characters, in heading color
 
-#### Scenario: Буллет
-- **WHEN** строка начинается с маркера списка `-` или `*`
-- **THEN** она отображается с маркером и переносом по словам
+#### Scenario: Bullet
+- **WHEN** line starts with list marker `-` or `*`
+- **THEN** it displays with marker and word wrap
 
-#### Scenario: Блок кода
-- **WHEN** текст содержит участок между строками ограждения (``` или ~~~)
-- **THEN** содержимое участка отображается как есть, а строки внутри него не интерпретируются как заголовки или буллеты
+#### Scenario: Code Block
+- **WHEN** text contains section between fence lines (``` or ~~~)
+- **THEN** section content displays as-is, and lines within are not interpreted as headings or bullets
 
-#### Scenario: Обычный текст
-- **WHEN** строка не является заголовком, буллетом или частью блока кода
-- **THEN** она рендерится абзацем через `Paragraph` с переносом по словам
+#### Scenario: Regular Text
+- **WHEN** line is not a heading, bullet or part of code block
+- **THEN** it renders as paragraph via `Paragraph` with word wrap
 
-#### Scenario: Пустые строки по краям текста
-- **WHEN** текст начинается или заканчивается пустыми строками – например, файл заканчивается переводом строки
-- **THEN** они не дают собственных строк на экране, и содержимое не отделяется лишним пустым рядом от того, что нарисовано вокруг
+#### Scenario: Empty Lines At Text Edges
+- **WHEN** text starts or ends with empty lines — e.g., file ends with newline
+- **THEN** they don't produce their own screen lines, and content isn't separated by extra empty row from what's drawn around it
 
-#### Scenario: Пустые строки внутри текста
-- **WHEN** внутри текста идут подряд несколько пустых строк
-- **THEN** на экране между абзацами остаётся ровно один пустой ряд
+#### Scenario: Empty Lines Within Text
+- **WHEN** several consecutive empty lines appear within text
+- **THEN** on screen exactly one empty row remains between paragraphs
 
-### Requirement: NotInitialised показывает приглашение к инициализации
-Компонент SHALL отображать приглушённый текст «Not initialized for this project» и кнопку «Init», клик по которой вызывает onInit.
+### Requirement: NotInitialised Shows Initialization Invitation
+Component SHALL display muted text "Not initialized for this project" and "Init" button, whose click calls onInit.
 
-#### Scenario: Экран неинициализированного проекта виден
-- **WHEN** компонент рендерится
-- **THEN** на экране текст «Not initialized for this project» цветом textMuted и кнопка с label «Init»
+#### Scenario: Uninitialized Project Screen Visible
+- **WHEN** component renders
+- **THEN** screen shows text "Not initialized for this project" in textMuted color and button with label "Init"
 
-#### Scenario: Кнопка Init вызывает обработчик
-- **WHEN** пользователь нажимает кнопку «Init»
-- **THEN** вызывается функция onInit
+#### Scenario: Init Button Calls Handler
+- **WHEN** user presses "Init" button
+- **THEN** onInit function is called
 
-### Requirement: ClearButton очищает поле ввода
-Система SHALL предоставлять примитив ClearButton – кликабельный «✕» с отступом в один символ справа, приглушённый в покое и с акцентной заливкой при наведении, как у кнопки «← back».
+### Requirement: ClearButton Clears Input Field
+System SHALL provide ClearButton primitive — clickable "✕" with one-character right padding, muted at rest and with accent fill on hover, like "← back" button.
 
-#### Scenario: Кнопка в покое
-- **WHEN** ClearButton отрисован и курсор не над ним
-- **THEN** «✕» отображается цветом `textMuted` без фона, с отступом в один символ справа
+#### Scenario: Button At Rest
+- **WHEN** ClearButton is drawn and cursor not over it
+- **THEN** "✕" displays in `textMuted` color without background, with one-character right padding
 
-#### Scenario: Подсветка при наведении
-- **WHEN** курсор находится над ClearButton
-- **THEN** фон заливается цветом `accent`, а глиф перекрашивается в `background`
+#### Scenario: Highlight On Hover
+- **WHEN** cursor is over ClearButton
+- **THEN** background fills with `accent` color, and glyph repaints to `background`
 
-#### Scenario: Очистка по клику
-- **WHEN** пользователь нажимает кнопку мыши на ClearButton
-- **THEN** вызывается обработчик onClear
+#### Scenario: Clear On Click
+- **WHEN** user presses mouse button on ClearButton
+- **THEN** onClear handler is called

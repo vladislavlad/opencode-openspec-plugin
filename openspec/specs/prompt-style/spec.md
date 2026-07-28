@@ -1,34 +1,34 @@
 ## Purpose
-Правила, которые обязан соблюдать каждый промпт плагина независимо от того, какой возможности он принадлежит: на каком языке вести диалог с пользователем и как задавать вопросы с множественным выбором.
+Rules that every plugin prompt must follow regardless of which capability it belongs to: what language to converse with the user in and how to ask multi-select questions.
 
 ## Requirements
 
-### Requirement: Промпты говорят с пользователем на его языке, сохраняя термины
-Каждый промпт, который обращается к пользователю – задаёт вопросы или пересказывает ему что-то, – SHALL предписывать вести диалог на том языке, на котором пишет пользователь, и SHALL запрещать транслитерацию терминов OpenSpec (proposal, change, spec, requirement, scenario, task), оставляя их по-английски. Указание SHALL встречаться в промпте один раз, а не повторяться с каждым вложенным этапом.
+### Requirement: Prompts Speak To User In Their Language, Preserving Terms
+Every prompt that addresses the user — asks questions or paraphrases something for them — SHALL instruct to conduct dialogue in the language the user writes in, and SHALL prohibit transliterating OpenSpec terms (proposal, change, spec, requirement, scenario, task), leaving them in English. The instruction SHALL appear once in the prompt, not repeat with each nested step.
 
-#### Scenario: Диалог на языке пользователя
-- **WHEN** собран любой из промптов, задающих вопросы: `/opsx-config`, `/opsx-baseline`, инициализация или её резервный вариант
-- **THEN** он содержит указание писать вопросы, варианты и итоги на языке пользователя и не транслитерировать термины OpenSpec
+#### Scenario: Dialogue In User's Language
+- **WHEN** any of the prompts that ask questions is assembled: `/opsx-config`, `/opsx-baseline`, initialization or its fallback variant
+- **THEN** it contains an instruction to write questions, options and summaries in user's language and not transliterate OpenSpec terms
 
-#### Scenario: Пересказ release notes
-- **WHEN** собран промпт завершения обновления, который велит пересказать пользователю release notes
-- **THEN** он содержит то же указание – пересказ на языке пользователя, термины OpenSpec без транслитерации
+#### Scenario: Paraphrasing Release Notes
+- **WHEN** the update completion prompt is assembled, instructing to paraphrase release notes for the user
+- **THEN** it contains the same instruction — paraphrase in user's language, OpenSpec terms without transliteration
 
-#### Scenario: Указание не дублируется
-- **WHEN** промпт инициализации встраивает в себя шаги настройки и деривации
-- **THEN** указание о языке диалога встречается в нём ровно один раз
+#### Scenario: Instruction Not Duplicated
+- **WHEN** initialization prompt embeds configuration and derivation steps within itself
+- **THEN** the dialogue language instruction appears exactly once
 
-### Requirement: Множественный выбор задаётся указанием, а не ремаркой
-Промпты SHALL требовать включённый множественный выбор отдельным указанием для каждого вопроса, где он нужен: подтверждение списка способностей, «Stack» и «Context». Формулировка SHALL прямо говорить, что пользователь должен иметь возможность выбрать несколько вариантов сразу.
+### Requirement: Multi-Select Is Specified As An Instruction, Not A Remark
+Prompts SHALL require enabled multi-select as a separate instruction for each question where it's needed: capability list confirmation, "Stack" and "Context". The wording SHALL explicitly state that the user must be able to select multiple options at once.
 
-#### Scenario: Подтверждение списка способностей
-- **WHEN** собран промпт деривации
-- **THEN** фаза подтверждения содержит указание включить множественный выбор, а не упоминание «multi-select» в скобках
+#### Scenario: Capability List Confirmation
+- **WHEN** derivation prompt is assembled
+- **THEN** confirmation phase contains an instruction to enable multi-select, not a mention of "multi-select" in parentheses
 
-#### Scenario: Вопросы настройки
-- **WHEN** собран промпт настройки
-- **THEN** он отдельной строкой требует включённого множественного выбора для «Stack» и «Context»
+#### Scenario: Configuration Questions
+- **WHEN** configuration prompt is assembled
+- **THEN** it has a separate line requiring enabled multi-select for "Stack" and "Context"
 
-#### Scenario: Вопрос о найденных способностях
-- **WHEN** фаза подтверждения задаёт вопрос
-- **THEN** он спрашивает, для каких из перечисленных способностей писать спецификации, а не какие способности добавить дополнительно
+#### Scenario: Question About Found Capabilities
+- **WHEN** confirmation phase asks a question
+- **THEN** it asks which of the listed capabilities to write specifications for, not which additional capabilities to add

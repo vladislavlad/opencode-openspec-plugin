@@ -1,23 +1,23 @@
 ## Context
 
-ProgressBar — единственный компонент для визуализации прогресса задач, но отображение текстового счётчика "N/M tasks done" реализовано по-разному в sidebar (отдельный `<text>`), ChangeRow (`${totalTasks} tasks`) и ChangeDetail (`count` prop CollapsibleSection). Нужно свести к одному формату.
+ProgressBar is the only component for visualizing task progress, but displaying the text counter "N/M tasks done" is implemented differently in sidebar (separate `<text>`), ChangeRow (`${totalTasks} tasks`), and ChangeDetail (`count` prop of CollapsibleSection). Need to consolidate into one format.
 
 ## Goals / Non-Goals
 
 **Goals:**
-- Один ProgressBar с опциональным `showNumberOfTasks` рендерит строку "N/M tasks done" над баром
-- Tasks в ChangeDetail — просто "Tasks", без счётчика в заголовке
-- Формат прогресса консистентен на sidebar, ChangeRow и ChangeDetail
+- One ProgressBar with optional `showNumberOfTasks` renders the line "N/M tasks done" above the bar
+- Tasks in ChangeDetail – just "Tasks", without counter in heading
+- Progress format is consistent across sidebar, ChangeRow, and ChangeDetail
 
 **Non-Goals:**
-- Не трогаем `count` prop CollapsibleSection для других секций (Completed Changes, Specifications)
+- Not touching `count` prop of CollapsibleSection for other sections (Completed Changes, Specifications)
 
 ## Decisions
 
-- **Пропс `showNumberOfTasks: boolean` вместо общего `label`** — задача конкретна, не нужно усложнять компонент абстрактным API. Строка "N/M tasks done" рендерится над баром без ведущих пробелов; отступ обеспечивается через `paddingLeft={2}` на уровне вызывающего `<box>`.
-- **Убираем `count` у Tasks в ChangeDetail** — прогресс уже виден из ProgressBar под названием Change; дублирование в заголовке секции избыточно.
-- **Убираем "N tasks" в ChangeRow** — заменяем на `showNumberOfTasks` в том же ProgressBar, который уже есть в строке.
+- **Prop `showNumberOfTasks: boolean` instead of generic `label`** – the task is specific, no need to complicate the component with an abstract API. Line "N/M tasks done" renders above the bar without leading spaces; indentation is provided via `paddingLeft={2}` at the calling `<box>` level.
+- **Remove `count` from Tasks in ChangeDetail** – progress is already visible from ProgressBar below the Change name; duplication in section heading is redundant.
+- **Remove "N tasks" from ChangeRow** – replace with `showNumberOfTasks` in the same ProgressBar that already exists in the row.
 
 ## Risks / Trade-offs
 
-Нет рисков — косметическое изменение, не затрагивает логику и данные.
+No risks – cosmetic change, does not affect logic or data.

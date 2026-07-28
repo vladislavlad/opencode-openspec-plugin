@@ -1,32 +1,32 @@
 ## MODIFIED Requirements
 
-### Requirement: Кнопки действий Change
-Система SHALL показывать под прогресс-баром набор кнопок действий в зависимости от статуса Change: Apply, Update и Delete для активного; Archive и Update для завершённого. Команды кладутся в инпут без отправки, кроме Archive, которая отправляется сразу. Все кнопки действий SHALL блокироваться (disabled) когда агент busy — состояние управляется через `gate` prop.
+### Requirement: Change action buttons
+The system SHALL show a set of action buttons below the progress bar depending on the Change status: Apply, Update, and Delete for active; Archive and Update for completed. Commands are placed in the input without sending, except Archive which is sent immediately. All action buttons SHALL be blocked (disabled) when the agent is busy — state is managed through the `gate` prop.
 
-#### Scenario: Действия активного Change
-- **WHEN** открыта детальная карточка активного (незавершённого) Change
-- **THEN** отображаются кнопки «Apply», «Update» и «Delete»
+#### Scenario: Active change actions
+- **WHEN** the detailed card of an active (incomplete) Change is open
+- **THEN** "Apply", "Update" and "Delete" buttons are displayed
 
-#### Scenario: Нажатие кнопки Apply
-- **WHEN** пользователь нажимает кнопку «Apply»
-- **THEN** команда `/opsx-apply <имя Change>` подставляется в инпут без отправки
+#### Scenario: Apply button pressed
+- **WHEN** the user presses the "Apply" button
+- **THEN** the command `/opsx-apply <Change name>` is inserted into the input without sending
 
-#### Scenario: Нажатие кнопки Update
-- **WHEN** пользователь нажимает кнопку «Update»
-- **THEN** команда `/opsx-update <имя Change>` подставляется в инпут без отправки
+#### Scenario: Update button pressed
+- **WHEN** the user presses the "Update" button
+- **THEN** the command `/opsx-update <Change name>` is inserted into the input without sending
 
-#### Scenario: Нажатие кнопки Delete
-- **WHEN** пользователь нажимает кнопку «Delete»
-- **THEN** вместо кнопок действий появляется диалог подтверждения удаления
+#### Scenario: Delete button pressed
+- **WHEN** the user presses the "Delete" button
+- **THEN** a deletion confirmation dialog appears instead of action buttons
 
-#### Scenario: Кнопки заблокированы во время busy
-- **WHEN** агент выполняет операцию (busy=true)
-- **THEN** все кнопки действий Apply, Update и Delete отображены в disabled состоянии с приглушённым цветом (`textMuted`)
+#### Scenario: Buttons blocked during busy
+- **WHEN** the agent is performing an operation (busy=true)
+- **THEN** all action buttons Apply, Update and Delete are displayed in a disabled state with muted color (`textMuted`)
 
-#### Scenario: Действия завершённого Change
-- **WHEN** открыта детальная карточка завершённого Change
-- **THEN** отображаются кнопки «Archive» и «Update» (без «Apply» и «Delete»)
+#### Scenario: Completed change actions
+- **WHEN** the detailed card of a completed Change is open
+- **THEN** "Archive" and "Update" buttons are displayed (without "Apply" and "Delete")
 
-#### Scenario: Нажатие кнопки Archive
-- **WHEN** пользователь нажимает кнопку «Archive»
-- **THEN** команда `/opsx-archive <имя Change>` отправляется немедленно
+#### Scenario: Archive button pressed
+- **WHEN** the user presses the "Archive" button
+- **THEN** the command `/opsx-archive <Change name>` is sent immediately

@@ -1,127 +1,127 @@
 ## ADDED Requirements
 
-### Requirement: Проверка обновления плагина через npm registry
-Плагин SHALL асинхронно проверять наличие новой версии `@vladislavlad/opencode-openspec-plugin` в npm registry при загрузке sidebar и по запросу пользователя, не блокируя рендер.
+### Requirement: Plugin update check via npm registry
+The plugin SHALL asynchronously check for a new version of `@vladislavlad/opencode-openspec-plugin` in the npm registry on sidebar load and on user request, without blocking render.
 
-#### Scenario: Успешная проверка
-- **WHEN** sidebar загружается или пользователь нажимает Check Versions
-- **THEN** HTTP GET к `registry.npmjs.org/@vladislavlad%2Fopencode-openspec-plugin/latest` возвращает актуальную версию, которая сравнивается с текущей (`__PLUGIN_VERSION__`)
+#### Scenario: Successful check
+- **WHEN** sidebar loads or the user clicks Check Versions
+- **THEN** HTTP GET to `registry.npmjs.org/@vladislavlad%2Fopencode-openspec-plugin/latest` returns the latest version, which is compared with current (`__PLUGIN_VERSION__`)
 
-#### Scenario: Доступно обновление плагина
-- **WHEN** версия latest в npm больше текущей версии плагина
-- **THEN** состояние `pluginUpdate` содержит `{ current, next }`, banner показывается
+#### Scenario: Plugin update available
+- **WHEN** the npm latest version is greater than the current plugin version
+- **THEN** `pluginUpdate` state contains `{ current, next }`, banner is shown
 
-#### Scenario: Обновления нет
-- **WHEN** версия latest совпадает с текущей или меньше
-- **THEN** состояние `pluginUpdate` равно `null`, banner не показывается
+#### Scenario: No update
+- **WHEN** the latest version matches or is less than current
+- **THEN** `pluginUpdate` state equals `null`, banner is not shown
 
-#### Scenario: Ошибка запроса к npm registry
-- **WHEN** HTTP-запрос завершается с ошибкой или таймаутом (3с)
-- **THEN** ошибка игнорируется молча, `pluginUpdate` равен `null`, banner не показывается, рендер не задерживается
+#### Scenario: npm registry request error
+- **WHEN** HTTP request fails with an error or timeout (3s)
+- **THEN** error is silently ignored, `pluginUpdate` equals `null`, banner is not shown, render is not delayed
 
-### Requirement: Определение версии CLI и проверка обновления
-Плагин SHALL определять текущую версию openspec CLI из штампа `generatedBy` и проверять наличие обновления через npm registry.
+### Requirement: CLI version detection and update check
+The plugin SHALL determine the current openspec CLI version from the `generatedBy` stamp and check for updates via npm registry.
 
-#### Scenario: Определение current-версии CLI
-- **WHEN** существует хотя бы один `.opencode/skills/*/SKILL.md`
-- **THEN** плагин извлекает `metadata.generatedBy` как текущую версию CLI
+#### Scenario: Determine current CLI version
+- **WHEN** at least one `.opencode/skills/*/SKILL.md` exists
+- **THEN** the plugin extracts `metadata.generatedBy` as the current CLI version
 
-#### Scenario: Версия CLI не определена
-- **WHEN** ни один `SKILL.md` не найден или в нём нет `generatedBy`
-- **THEN** плагин устанавливает версию CLI в «unknown», проверка обновления CLI пропускается
+#### Scenario: CLI version not determined
+- **WHEN** no `SKILL.md` is found or it has no `generatedBy`
+- **THEN** the plugin sets CLI version to "unknown", CLI update check is skipped
 
-#### Scenario: Проверка версии CLI через npm registry
-- **WHEN** current-версия CLI определена и HTTP GET к `registry.npmjs.org/@fission-ai%2Fopenspec/latest` завершается успешно
-- **THEN** плагин извлекает версию latest openspec CLI и сравнивает с `generatedBy`
+#### Scenario: Check CLI version via npm registry
+- **WHEN** current CLI version is determined and HTTP GET to `registry.npmjs.org/@fission-ai%2Fopenspec/latest` succeeds
+- **THEN** the plugin extracts the latest openspec CLI version and compares with `generatedBy`
 
-#### Scenario: Доступно обновление CLI
-- **WHEN** версия latest openspec больше текущей
-- **THEN** состояние `cliUpdate` содержит `{ current, next }`, banner показывается
+#### Scenario: CLI update available
+- **WHEN** the latest openspec version is greater than current
+- **THEN** `cliUpdate` state contains `{ current, next }`, banner is shown
 
-#### Scenario: Ошибка проверки CLI
-- **WHEN** запрос к registry завершается с ошибкой или версия не определена
-- **THEN** ошибка игнорируется молча, `cliUpdate` равен `null`
+#### Scenario: CLI check error
+- **WHEN** registry request fails or version is not determined
+- **THEN** error is silently ignored, `cliUpdate` equals `null`
 
-### Requirement: Проверка версий из панели
-Плагин SHALL предоставлять плагинную функцию проверки версий, вызываемую при загрузке sidebar и кнопкой Check Versions, без хода агента. Ручная проверка SHALL сообщать итог тостом.
+### Requirement: Version check from panel
+The plugin SHALL provide a plugin function for checking versions, called on sidebar load and by the Check Versions button, without an agent turn. Manual check SHALL report result via toast.
 
-#### Scenario: Автопроверка при загрузке
-- **WHEN** sidebar загружается и определена директория проекта
-- **THEN** плагин вызывает `checkVersions` асинхронно (fire-and-forget), результат кладётся в сигналы sidebar; тост не показывается
+#### Scenario: Auto-check on load
+- **WHEN** sidebar loads and project directory is determined
+- **THEN** plugin calls `checkVersions` asynchronously (fire-and-forget), result goes into sidebar signals; no toast shown
 
-#### Scenario: Ручная проверка
-- **WHEN** пользователь нажимает Check Versions в Settings
-- **THEN** плагин повторно вызывает `checkVersions` (обычный fetch, без агента) и обновляет сигналы; dismissed-баннер снова может показаться
+#### Scenario: Manual check
+- **WHEN** the user clicks Check Versions in Settings
+- **THEN** plugin re-calls `checkVersions` (regular fetch, no agent) and updates signals; dismissed banner may appear again
 
-#### Scenario: Ручная проверка – всё актуально
-- **WHEN** ручная проверка завершилась успешно (`reachable`) и обновлений нет
-- **THEN** показывается тост `success` «All versions are up to date»
+#### Scenario: Manual check – all current
+- **WHEN** manual check completes successfully (`reachable`) with no updates
+- **THEN** a `success` toast "All versions are up to date" is shown
 
-#### Scenario: Ручная проверка – доступно обновление
-- **WHEN** ручная проверка нашла обновление плагина или CLI
-- **THEN** тост не показывается – обновление подсвечивается в баннере и строках Settings
+#### Scenario: Manual check – update available
+- **WHEN** manual check finds a plugin or CLI update
+- **THEN** no toast is shown – the update is highlighted in the banner and Settings lines
 
-#### Scenario: Ручная проверка – registry недоступен
-- **WHEN** ручная проверка не смогла достучаться до registry (оба запроса вернули `null`, `reachable` = false)
-- **THEN** показывается тост `warning` «Couldn't reach npm registry», ложное «актуально» не выводится
+#### Scenario: Manual check – registry unavailable
+- **WHEN** manual check cannot reach registry (both requests returned `null`, `reachable` = false)
+- **THEN** a `warning` toast "Couldn't reach npm registry" is shown; no false "up to date" message
 
-### Requirement: Обновление плагина и CLI прямым промптом
-Панель SHALL запускать обновление прямым промптом агенту через `sendPrompt`, без регистрации palette-команд, раздельно для плагина и CLI.
+### Requirement: Plugin and CLI update via direct prompt
+The panel SHALL trigger updates by sending a direct prompt to the agent through `sendPrompt`, without registering palette commands, separately for plugin and CLI.
 
-#### Scenario: Обновление плагина
-- **WHEN** пользователь нажимает Update у строки плагина при простое агента
-- **THEN** плагин отправляет `buildUpdatePrompt({ plugin })`; агент правит спецификатор в `tui.json` на `@vladislavlad/opencode-openspec-plugin@<next>`, записывает `plugin.update-in-progress: { old, new }` в config.yaml и сообщает о необходимости перезапуска opencode
+#### Scenario: Update plugin
+- **WHEN** the user clicks Update on the plugin line while agent is idle
+- **THEN** plugin sends `buildUpdatePrompt({ plugin })`; agent edits the specifier in `tui.json` to `@vladislavlad/opencode-openspec-plugin@<next>`, writes `plugin.update-in-progress: { old, new }` to config.yaml and reports that opencode restart is needed
 
-#### Scenario: Обновление CLI
-- **WHEN** пользователь нажимает Update у строки CLI при простое агента
-- **THEN** плагин отправляет `buildUpdatePrompt({ cli })`; агент выполняет `npm i -g @fission-ai/openspec@<next>` через определённый пакетный менеджер и `openspec update --force`, затем сообщает о необходимости перезапуска opencode
+#### Scenario: Update CLI
+- **WHEN** the user clicks Update on the CLI line while agent is idle
+- **THEN** plugin sends `buildUpdatePrompt({ cli })`; agent runs `npm i -g @fission-ai/openspec@<next>` through the determined package manager and `openspec update --force`, then reports that opencode restart is needed
 
 #### Scenario: Update All
-- **WHEN** пользователь нажимает Update All при простое агента
-- **THEN** плагин отправляет `buildUpdatePrompt` только с реально устаревшими компонентами; блоки плагина и CLI объединяются, reload запрашивается один раз
+- **WHEN** the user clicks Update All while agent is idle
+- **THEN** plugin sends `buildUpdatePrompt` only with actually outdated components; plugin and CLI blocks are combined, reload requested once
 
-#### Scenario: Dev-запись в tui.json
-- **WHEN** запись плагина в `tui.json` – локальный путь (dev-режим), а не npm-имя
-- **THEN** PLUGIN-блок промпта пропускается – обновлять нечего
+#### Scenario: Dev entry in tui.json
+- **WHEN** the plugin entry in `tui.json` is a local path (dev mode), not an npm name
+- **THEN** the PLUGIN block of the prompt is skipped – nothing to update
 
-#### Scenario: Обновление заблокировано во время работы агента
-- **WHEN** агент занят и пользователь нажимает Update или Update All
-- **THEN** промпт не отправляется, показывается тост «Wait until the agent finishes working»
+#### Scenario: Update blocked while agent is working
+- **WHEN** agent is busy and user clicks Update or Update All
+- **THEN** prompt is not sent, toast "Wait until the agent finishes working" is shown
 
-### Requirement: Флаг update-in-progress в config.yaml
-Плагин SHALL читать флаг `plugin.update-in-progress` из config.yaml при загрузке и показывать баннер post-update.
+### Requirement: update-in-progress flag in config.yaml
+The plugin SHALL read the `plugin.update-in-progress` flag from config.yaml on load and display a post-update banner.
 
-#### Scenario: Обнаружение флага при загрузке
-- **WHEN** плагин загружается и config.yaml содержит `plugin.update-in-progress` с полями `old`/`new`
-- **THEN** состояние `updateFlag` содержит `{ old, new }`
+#### Scenario: Flag detected on load
+- **WHEN** plugin loads and config.yaml contains `plugin.update-in-progress` with `old`/`new` fields
+- **THEN** `updateFlag` state contains `{ old, new }`
 
-#### Scenario: Флаг отсутствует
-- **WHEN** config.yaml не содержит `plugin.update-in-progress`
-- **THEN** `updateFlag` равен `null`, баннер post-update не показывается, плагин работает в обычном режиме
+#### Scenario: Flag absent
+- **WHEN** config.yaml does not contain `plugin.update-in-progress`
+- **THEN** `updateFlag` equals `null`, post-update banner is not shown, plugin operates normally
 
-#### Scenario: Флаг пишется только при обновлении плагина
-- **WHEN** выполняется CLI-only обновление
-- **THEN** `plugin.update-in-progress` не записывается – после reload баннер post-update не показывается
+#### Scenario: Flag written only on plugin update
+- **WHEN** a CLI-only update runs
+- **THEN** `plugin.update-in-progress` is not written – after reload the post-update banner is not shown
 
-### Requirement: Миграции после обновления
-Панель SHALL предоставлять кнопку Complete Update, которая формирует промпт из миграционных инструкций и release notes и отправляет агенту напрямую. Каждая миграция описывается как `Migration { instructions, releaseNotes }`.
+### Requirement: Migrations after update
+The panel SHALL provide a Complete Update button that forms a prompt from migration instructions and release notes and sends it directly to the agent. Each migration is described as `Migration { instructions, releaseNotes }`.
 
-#### Scenario: Нажатие Complete Update
-- **WHEN** пользователь нажимает Complete Update при простое агента
-- **THEN** плагин читает `updateFlag`, вызывает `buildMigrationPrompt({ old, new })` (миграции из `migrations.ts` для диапазона `(old, new]`) и отправляет промпт агенту через `sendPrompt`
+#### Scenario: Click Complete Update
+- **WHEN** the user clicks Complete Update while agent is idle
+- **THEN** plugin reads `updateFlag`, calls `buildMigrationPrompt({ old, new })` (migrations from `migrations.ts` for range `(old, new]`) and sends prompt to agent via `sendPrompt`
 
-#### Scenario: Агент рассказывает что нового
-- **WHEN** у миграций в диапазоне заполнены `releaseNotes`
-- **THEN** промпт просит агента изложить пользователю, какие фичи появились в этих версиях (по версиям), помимо выполнения `instructions`
+#### Scenario: Agent reports what's new
+- **WHEN** migrations in the range have `releaseNotes` filled
+- **THEN** prompt asks agent to tell user which features appeared in these versions (by version), in addition to executing `instructions`
 
-#### Scenario: Complete Update заблокирован во время работы агента
-- **WHEN** агент занят и пользователь нажимает Complete Update
-- **THEN** промпт не отправляется, показывается тост «Wait until the agent finishes working»
+#### Scenario: Complete Update blocked while agent is working
+- **WHEN** agent is busy and user clicks Complete Update
+- **THEN** prompt is not sent, toast "Wait until the agent finishes working" is shown
 
-#### Scenario: Миграция выполнена успешно
-- **WHEN** агент завершил ход после Complete Update и снял `plugin.update-in-progress` из config.yaml
-- **THEN** следующий poll видит пустой флаг, `updateFlag` становится `null`, banner скрывается
+#### Scenario: Migration completed successfully
+- **WHEN** agent completes turn after Complete Update and clears `plugin.update-in-progress` from config.yaml
+- **THEN** next poll sees empty flag, `updateFlag` becomes `null`, banner hidden
 
-#### Scenario: Инструкции миграции не найдены
-- **WHEN** для диапазона версий нет инструкций в `migrations.ts`
-- **THEN** агент получает минимальный промпт с проверкой версий и снятием флага `plugin.update-in-progress`
+#### Scenario: No migration instructions found
+- **WHEN** no instructions exist in `migrations.ts` for the version range
+- **THEN** agent receives a minimal prompt with version check and clearing of `plugin.update-in-progress` flag

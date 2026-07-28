@@ -1,43 +1,37 @@
 ## ADDED Requirements
 
-### Requirement: Разбор spec.md привязан к схеме spec-driven
-Разбор `spec.md` и его модель SHALL жить в отдельном модуле схемы `spec-driven` – там же, где знание
-о её синтаксисе: заголовках `### Requirement:` / `#### Scenario:`, ключевых словах SHALL/MUST и
-WHEN/THEN.
+### Requirement: spec.md parsing bound to spec-driven schema
+Parsing of `spec.md` and its model SHALL live in a separate schema module `spec-driven` – alongside knowledge of its syntax: headings `### Requirement:` / `#### Scenario:`, keywords SHALL/MUST and WHEN/THEN.
 
-#### Scenario: Появление другой схемы
-- **WHEN** потребуется поддержать схему, отличную от `spec-driven`
-- **THEN** для неё добавляется отдельный модуль со своим парсером и моделью, а чтение директории и
-  сборка summary не меняются
+#### Scenario: Appearance of another schema
+- **WHEN** support is needed for a schema other than `spec-driven`
+- **THEN** a separate module with its own parser and model is added, while directory reading and summary assembly remain unchanged
 
-### Requirement: Отделение синтаксиса схемы от текста
-Модуль схемы SHALL предоставлять функцию, убирающую из текста ключевые слова схемы и
-Markdown-разметку, чтобы потребители (поиск) работали с прозой, не зная синтаксиса.
+### Requirement: Separating schema syntax from text
+The schema module SHALL provide a function that removes schema keywords and Markdown markup from text so consumers (search) work with prose without knowing the syntax.
 
-#### Scenario: Ключевые слова убираются
-- **WHEN** в текст попадают слова SHALL, MUST, WHEN, THEN, GIVEN, AND, BUT как отдельные слова
-- **THEN** функция возвращает текст без них
+#### Scenario: Keywords removed
+- **WHEN** words SHALL, MUST, WHEN, THEN, GIVEN, AND, BUT appear as separate words in text
+- **THEN** the function returns text without them
 
-#### Scenario: Разметка убирается
-- **WHEN** в тексте встречаются `*`, `_`, `` ` `` или ведущий маркер списка
-- **THEN** функция возвращает текст без этих символов
+#### Scenario: Markup removed
+- **WHEN** `*`, `_`, `` ` `` or leading list markers appear in text
+- **THEN** the function returns text without these characters
 
 ## MODIFIED Requirements
 
-### Requirement: Парсинг назначения
-Система SHALL извлекать назначение спецификации из текста под `## Purpose`. Текста между H1 и первым
-H2 в схеме OpenSpec нет, поэтому он не парсится и не хранится.
+### Requirement: Purpose parsing
+The system SHALL extract specification purpose from text under `## Purpose`. There is no text between H1 and the first H2 in the OpenSpec schema, so it is not parsed or stored.
 
-#### Scenario: Секция Purpose присутствует
-- **WHEN** файл содержит `## Purpose` с текстом под ней
-- **THEN** поле purpose содержит этот текст без ведущих и завершающих пустых строк
+#### Scenario: Purpose section present
+- **WHEN** file contains `## Purpose` with text below it
+- **THEN** the purpose field contains this text without leading and trailing blank lines
 
-#### Scenario: Текст между заголовком и первым разделом игнорируется
-- **WHEN** между H1 и первым H2 находится абзац текста
-- **THEN** он нигде не сохраняется, а результат парсинга содержит только name, title, purpose и
-  требования
+#### Scenario: Text between heading and first section ignored
+- **WHEN** a paragraph of text exists between H1 and first H2
+- **THEN** it is not stored anywhere, and parse result contains only name, title, purpose, and requirements
 
 ## RENAMED Requirements
 
-- FROM: `### Requirement: Парсинг описания и назначения`
-- TO: `### Requirement: Парсинг назначения`
+- FROM: `### Requirement: Description and purpose parsing`
+- TO: `### Requirement: Purpose parsing`

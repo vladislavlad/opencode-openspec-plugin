@@ -1,50 +1,49 @@
-## 1. Начало preflight
+## 1. Preflight beginning
 
-- [x] 1.1 Разобраться, почему в живом прогоне агент выполнил `mkdir -p <project>/openspec`: проверить, с каким `markerWritten` собирается промпт, когда панель может писать файлы (`writeInitMarker` → `editable` → `writeLocal`), и не отдаёт ли `editable` `null` на чистом проекте. **Найдено:** скрин снят на релизной `0.2.1`, где механизма маркера ещё нет вообще – `markerStep`/`writeInitMarker` появились в неотправленном коммите `7ba53e1`. `mkdir` был инициативой агента поверх старого промпта
-- [x] 1.2 Починить найденную причину в `src/lib/config.ts` / `src/sidebar.tsx` – так, чтобы `markerWritten` был `true` везде, где маркер действительно записан. В промпт про это ничего не дописывать. **Правок не потребовалось:** в текущем дереве панель пишет config.yaml сама, `markerStep(true)` не содержит инструкций по созданию файлов, а путь «чистый проект → маркер записан» уже закрыт тестом `test/init-marker.test.ts` («creates the directory and file when the project has no openspec/ yet»)
-- [x] 1.3 Перечитать собранный промпт целиком (`buildInitPrompt(NO_STAGES_DONE, true)`) и убедиться, что начало не выросло ни на строку: текст промпта в этом пункте не меняется вообще
+- [x] 1.1 Figure out why the agent ran `mkdir -p <project>/openspec` in a live run: check what `markerWritten` the prompt is assembled with when the sidebar can write files (`writeInitMarker` → `editable` → `writeLocal`), and whether `editable` returns `null` on a clean project. **Found:** screenshot was taken on release `0.2.1`, where the marker mechanism doesn't exist at all – `markerStep`/`writeInitMarker` appeared in an uncommitted commit `7ba53e1`. The `mkdir` was agent initiative over an old prompt
+- [x] 1.2 Fix the found cause in `src/lib/config.ts` / `src/sidebar.tsx` so that `markerWritten` is `true` everywhere the marker is actually written. Don't add anything about this to the prompt. **No changes needed:** in the current tree, the sidebar writes config.yaml itself, `markerStep(true)` contains no file creation instructions, and the path "clean project → marker written" is already covered by test `test/init-marker.test.ts` ("creates the directory and file when the project has no openspec/ yet")
+- [x] 1.3 Re-read the assembled prompt in full (`buildInitPrompt(NO_STAGES_DONE, true)`) and confirm that the beginning didn't grow by a single line: the prompt text doesn't change at all for this point
 
-## 2. Гранулярность задач двумя вариантами
+## 2. Task granularity with two options
 
-- [x] 2.1 В `CONFIG_PROMPT` заменить вопрос «Tasks» на два варианта: «High-level» (a few high-level tasks) и «Detailed» (sub-tasks grouped under high-level sections)
-- [x] 2.2 Переписать шаг 5 под два варианта: High-level → несколько крупных задач верхнего уровня, Detailed → подзадачи, сгруппированные по крупным секциям. Убрать все упоминания «Coarse», «Medium», «Fine» и оценок в часах
-- [x] 2.3 Тест в `test/prompts.test.ts`: промпт содержит оба новых варианта. Проверку на отсутствие старых слов не заводим – она стережёт то, чего в коде уже нет
+- [x] 2.1 In `CONFIG_PROMPT`, replace the "Tasks" question with two options: "High-level" (a few high-level tasks) and "Detailed" (sub-tasks grouped under high-level sections)
+- [x] 2.2 Rewrite step 5 for two options: High-level → several large top-level tasks, Detailed → sub-tasks grouped by major sections. Remove all mentions of "Coarse", "Medium", "Fine" and time estimates
+- [x] 2.3 Test in `test/prompts.test.ts`: prompt contains both new options. Don't create a check for absence of old words – it guards something that's no longer in the code
 
-## 3. Глубина изучения на этапе деривации
+## 3. Exploration depth at the derivation stage
 
-- [x] 3.1 Вынести вопрос о глубине («Overview» / «Deep») из тела деривации к вызывающей стороне: `DEPTH_QUESTION` для `/opsx-baseline`, трёхвариантный гейт в `buildInitPrompt`. Тело деривации остаётся одно и не ветвится
-- [x] 3.2 Учесть глубину в фазе 1 (на «Deep» список способностей собирается по прочитанному коду, а не по раскладке папок) и передать её подагенту в фазе 3: Overview – точки входа и основные модули; Deep – весь код способности, включая обработку ошибок и краевые случаи, с отдельными сценариями на них
-- [x] 3.3 Тесты в `test/prompts.test.ts`: `/opsx-baseline` спрашивает глубину отдельной фазой 0, init – гейтом «Yes – Overview / Yes – Deep / No» без повторного вопроса; фаза 0 идёт раньше фазы 1. Плюс проверка, что «Deep» оговорено как не «каждый файл»
+- [x] 3.1 Move the depth question ("Overview" / "Deep") from the derivation body to the calling side: `DEPTH_QUESTION` for `/opsx-baseline`, three-option gate in `buildInitPrompt`. The derivation body remains single and doesn't branch
+- [x] 3.2 Account for depth in phase 1 (on "Deep", the capability list is assembled from read code, not folder layout) and pass it to the sub-agent in phase 3: Overview – entry points and main modules; Deep – all capability code including error handling and edge cases, with separate scenarios for them
+- [x] 3.3 Tests in `test/prompts.test.ts`: `/opsx-baseline` asks depth as a separate phase 0, init – gate "Yes – Overview / Yes – Deep / No" without a repeated question; phase 0 comes before phase 1. Plus check that "Deep" is stated as not "every file"
 
-## 4. Правки по ревью промптов
+## 4. Prompt review edits
 
-- [x] 4.1 `INIT_FINALLY`: связать снятие маркера с валидацией так, чтобы пустой проект её проходил, и не гонять `openspec validate --specs` повторно за фазой 4 деривации
-- [x] 4.2 Ограничения деривации: разрешить правку `openspec/config.yaml` там, где об этом просит шаг вне списка – иначе `recordStage` противоречит guardrail
-- [x] 4.3 Описание `/opsx-baseline` в `src/features/commands.ts` и `README.md` – убрать обещание настройки, которую промпт не выполняет
-- [x] 4.4 `CONFIG_PROMPT` шаг 6: заменить YAML-пример прозаическим описанием файла, сохранив требование не терять `rules.specs` / `rules.design` и блок `plugin:`
-- [x] 4.5 `buildUpdatePrompt`: создавать `openspec/config.yaml`, если его нет
-- [x] 4.6 Мелочи: единый вид `/opsx-propose` в финальной секции, заглавная буква в тексте про пустой проект, грамматика в вопросе про язык
-- [x] 4.7 В деривации назвать, что ищем: бизнес-фичи, интеграции и самостоятельные технические решения (свой движок, планировщик, парсер). Стек и архитектуру не пересказывать – они уже в config.yaml и AGENTS.md
-- [x] 4.8 Cancel-ветка: заменить непроверяемое «exist only for this setup» механическим правилом – снять `init:`, удалить config.yaml только если в нём остался один `schema`, удалить `openspec/` только если пуста
-- [x] 4.9 `INIT_FINALLY`: «always» заменить на «выполняй, когда сюда дошёл», назвав отменённую установку CLI единственным путём мимо секции
-- [x] 4.10 `configPrompt(standalone)`: заглушка «нет openspec/ – беги делать init» остаётся только в `/opsx-config`, в init-промпт не попадает
-- [x] 4.11 Проверить, поддерживает ли CLI корень `.openspec/`. **Не поддерживает:** в `@fission-ai/openspec@1.6.0` путь задан константой `OPENSPEC_DIR_NAME = 'openspec'`, альтернатив в коде нет
-- [x] 4.12 Убрать `.openspec` из плагина: `ROOT` в `src/lib/openspec.ts`, `CONFIG_PATH` в `src/lib/config.ts`, один путь в `src/lib/delete-change.ts`, поле `root` из `OpenSpecSummary`; снять соответствующие тесты и привести `openspec/specs/openspec-parsing` и `openspec/specs/plugin-lifecycle` к одному корню
-- [x] 4.13 Шаг маркера в `markerStep(false)`: разделить «файл есть» (добавить блок, больше ничего не трогать) и «файла нет» (создать вместе с директорией, записав `schema` и блок) вместо склейки «creating ... and keeping any content already there»
-- [x] 4.14 Финальная секция: назвать оба стопа (Cancel – маркер уже снят; упавший `openspec init` – маркер намеренно остаётся ради Resume) вместо «единственный путь – Cancel»; снятие маркера обусловить пройденной валидацией; при падающей валидации – сообщить что сломано и не приглашать к Explore/Propose
-- [x] 4.15 Вычитка под 9b-27b: инструкция о маркере перенесена в сам шаг 6 (стоп = инструкция на месте), приветствие при успехе, выход из деривации на пустом проекте, идиомы («shell out», «right-size», «off the folder layout») заменены прямым языком, `context` в шаге 6 настройки – нумерованным списком
-- [x] 4.16 `initFinally({install, specs})` вместо константы: фразы про стопы и про «No» только при соответствующих шагах; пункты финала линейны (провал валидации заканчивает ход, «skip step 3» не нужен); «confirm what you wrote» → «report», «custom on» → обычный язык
-- [x] 4.17 Добавить `SPEAK_THE_USER_LANGUAGE` в начало промптов, задающих вопросы (`/opsx-config`, `/opsx-baseline`, init, резервный init): диалог на языке пользователя, термины OpenSpec без транслитерации; в init – один раз, а не с каждым вложенным этапом
-- [x] 4.18 Тот же гард в `buildMigrationPrompt` – release notes пересказываются пользователю, риск транслитерации тот же
-- [x] 4.19 По итогам живого прогона на инфраструктурном репозитории: расширить фрейминг деривации на проекты, не являющиеся приложением (объявленная конфигурация – тоже поведение), и сузить условие выхода из фаз до «пусто или один README»
-- [x] 4.20 Убрать из фазы 3 жёстко заданный `subagent_type "general-purpose"`: тип берётся из списка инструмента Task, при отсутствии подходящего – последовательный разбор без повторов с угаданным типом
-- [x] 4.21 Множественный выбор – отдельным указанием в фазе подтверждения и в вопросах «Stack»/«Context»; вопрос фазы 2 переформулировать на «для каких из перечисленных способностей писать спеки»
-- [x] 4.22 В приветствие добавить упоминание `/opsx-baseline`: если спеки покрыли не весь проект, повторный запуск дополняет их, а не дублирует
-- [x] 4.23 Финальная секция: убрать ветвление «пустой проект / не пустой», рассказать про кнопки Explore и Propose и равносильные им команды
+- [x] 4.1 `INIT_FINALLY`: tie marker removal to validation so an empty project passes, and don't run `openspec validate --specs` again after derivation phase 4
+- [x] 4.2 Derivation constraints: allow editing `openspec/config.yaml` where a step outside the list asks for it – otherwise `recordStage` contradicts the guardrail
+- [x] 4.3 `/opsx-baseline` description in `src/features/commands.ts` and `README.md` – remove promise of setup that the prompt doesn't perform
+- [x] 4.4 `CONFIG_PROMPT` step 6: replace YAML example with a prose file description, keeping the requirement not to lose `rules.specs` / `rules.design` and the `plugin:` block
+- [x] 4.5 `buildUpdatePrompt`: create `openspec/config.yaml` if it doesn't exist
+- [x] 4.6 Minor things: consistent `/opsx-propose` in final section, capital letter in empty project text, grammar in language question
+- [x] 4.7 In derivation, name what we're looking for: business features, integrations, and standalone technical solutions (own engine, scheduler, parser). Don't restate stack and architecture – they're already in config.yaml and AGENTS.md
+- [x] 4.8 Cancel branch: replace uncheckable "exist only for this setup" with a mechanical rule – remove `init:`, delete config.yaml only if it contains nothing but `schema`, delete `openspec/` only if empty
+- [x] 4.9 `INIT_FINALLY`: replace "always" with "execute when you reach here", naming cancelled CLI installation as the only path past this section
+- [x] 4.10 `configPrompt(standalone)`: stub "no openspec/ – go run init" stays only in `/opsx-config`, doesn't enter init prompt
+- [x] 4.11 Check whether CLI supports `.openspec/` root. **Does not support:** in `@fission-ai/openspec@1.6.0`, the path is set by constant `OPENSPEC_DIR_NAME = 'openspec'`, no alternatives in code
+- [x] 4.12 Remove `.openspec` from plugin: `ROOT` in `src/lib/openspec.ts`, `CONFIG_PATH` in `src/lib/config.ts`, single path in `src/lib/delete-change.ts`, `root` field from `OpenSpecSummary`; remove corresponding tests and bring `openspec/specs/openspec-parsing` and `openspec/specs/plugin-lifecycle` to a single root
+- [x] 4.13 Marker step in `markerStep(false)`: separate "file exists" (add block, don't touch anything else) from "file doesn't exist" (create with directory, writing `schema` and block) instead of the merged "creating ... and keeping any content already there"
+- [x] 4.14 Final section: name both stops (Cancel – marker already removed; failed `openspec init` – marker intentionally left for Resume) instead of "only path is Cancel"; tie marker removal to passed validation; on failing validation – report what's broken and don't invite to Explore/Propose
+- [x] 4.15 Proofread for 9b-27b: marker instruction moved into step 6 itself (stop = instruction in place), success greeting, derivation exit on empty project, idioms ("shell out", "right-size", "off the folder layout") replaced with direct language, `context` in setup step 6 – numbered list
+- [x] 4.16 `initFinally({install, specs})` instead of constant: phrases about stops and "No" only for corresponding steps; final points are linear (validation failure ends turn, "skip step 3" not needed); "confirm what you wrote" → "report", "custom on" → plain language
+- [x] 4.17 Add `SPEAK_THE_USER_LANGUAGE` at the beginning of prompts that ask questions (`/opsx-config`, `/opsx-baseline`, init, fallback init): dialogue in user's language, OpenSpec terms without transliteration; in init – once, not with each nested stage
+- [x] 4.18 Same guard in `buildMigrationPrompt` – release notes are relayed to the user, same transliteration risk
+- [x] 4.19 Following a live run on an infrastructure repository: expand derivation framing to projects that aren't applications (declared configuration is also behavior), and narrow phase exit condition to "empty or single README"
+- [x] 4.20 Remove hardcoded `subagent_type "general-purpose"` from phase 3: type comes from the Task tool list, when no suitable agent – sequential breakdown without retries with a guessed type
+- [x] 4.21 Multi-select as a separate instruction in confirmation phase and "Stack"/"Context" questions; rephrase phase 2 question to "for which of the listed capabilities to write specs"
+- [x] 4.22 Add `/opsx-baseline` mention to greeting: if specs didn't cover the whole project, a re-run supplements them rather than duplicates
 
-## 5. Проверка и релиз
+## 5. Verification and release
 
-- [x] 5.1 Прогнать `bun run typecheck`, `bun run test`, `bun run build`
-- [x] 5.2 Пройти init вручную на чистом проекте. **Прогнано на dev-env (qwen3.6-27b):** `mkdir` в начале хода нет, вопрос про задачи бинарный, глубина спрашивается гейтом до сканирования. Найдено и починено по ходу: `subagent_type "general-purpose"` (opencode такого типа не знает), сворачивание деривации на инфраструктурном репозитории, множественный выбор в скобках вместо указания
-- [x] 5.3 Прогнать `/opsx-baseline` на проекте с уже настроенным конфигом и проверить, что вопрос о глубине задаётся и там
-- [x] 5.4 Добавить запись в `MIGRATIONS` (`src/lib/migrations.ts`) – меняются вопросы, которые пользователь видит в init и baseline
+- [x] 5.1 Run `bun run typecheck`, `bun run test`, `bun run build`
+- [x] 5.2 Walk through init manually on a clean project. **Ran on dev-env (qwen3.6-27b):** no `mkdir` at turn start, task question is binary, depth is asked by gate before scanning. Found and fixed along the way: `subagent_type "general-purpose"` (opencode doesn't know this type), derivation collapse on infrastructure repository, multi-select in parentheses instead of instruction
+- [x] 5.3 Run `/opsx-baseline` on a project with already configured config and verify that the depth question is asked there too
+- [x] 5.4 Add entry to `MIGRATIONS` (`src/lib/migrations.ts`) – questions change that the user sees in init and baseline

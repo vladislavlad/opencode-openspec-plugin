@@ -1,75 +1,75 @@
 ## Purpose
-Промпт деривации: обратная разработка спецификаций из существующего кода. Определяет, что считается способностью, как выбирается глубина изучения проекта, как работа раздаётся подагентам и что деривации разрешено править. Вызывается и командой `/opsx-baseline`, и шагом внутри промпта инициализации.
+Derivation prompt: reverse-engineering specifications from existing code. Defines what counts as a capability, how project exploration depth is chosen, how work is distributed to sub-agents, and what derivation is allowed to edit. Triggered by command `/opsx-baseline` and by a step within initialization prompt.
 
 ## Requirements
 
-### Requirement: Промпт деривации спрашивает глубину изучения проекта
-Промпт деривации SHALL спрашивать у пользователя глубину изучения кода – «Overview» или «Deep» – до того, как приступит к чтению проекта, предупреждая о цене глубокого режима. Вопрос SHALL задаваться вызывающей стороной, а тело деривации – лишь следовать выбранной глубине, без собственных ветвлений. Выбранная глубина SHALL определять и обзорный проход, на котором собирается список способностей, и работу подагента на этапе детализации.
+### Requirement: Derivation Prompt Asks Project Exploration Depth
+Derivation prompt SHALL ask user for code exploration depth — "Overview" or "Deep" — before starting to read project, warning about deep mode cost. The question SHALL be asked by the caller, while derivation body merely follows chosen depth without its own branching. Chosen depth SHALL determine both overview pass that assembles capability list and sub-agent work at detail stage.
 
-#### Scenario: Вопрос задаётся до чтения кода
-- **WHEN** деривация запускается командой `/opsx-baseline`
-- **THEN** первым делом задаётся отдельный вопрос о глубине с вариантами «Overview» и «Deep», и только после ответа начинается обзор проекта
+#### Scenario: Question Asked Before Reading Code
+- **WHEN** derivation is launched by command `/opsx-baseline`
+- **THEN** first a separate question about depth with options "Overview" and "Deep" is asked, and only after answer does project overview begin
 
-#### Scenario: В init глубина спрашивается вместе с согласием на деривацию
-- **WHEN** промпт инициализации доходит до шага деривации
-- **THEN** один вызов `question` предлагает «Yes – Overview», «Yes – Deep» и «No», и отдельного вопроса о глубине в промпте нет
+#### Scenario: In Init Depth Is Asked Along With Derivation Consent
+- **WHEN** initialization prompt reaches derivation step
+- **THEN** one `question` call offers "Yes – Overview", "Yes – Deep" and "No", and no separate depth question exists in prompt
 
-#### Scenario: Тело деривации не ветвится
-- **WHEN** собран любой из промптов, включающих деривацию
-- **THEN** общая часть деривации одна и та же и не содержит условных формулировок вида «уже отвечено выше» – различается только вопрос, который задаёт вызывающая сторона
+#### Scenario: Derivation Body Doesn't Branch
+- **WHEN** any prompt including derivation is assembled
+- **THEN** common derivation part is the same and contains no conditional wording like "already answered above" — only the question asked by caller differs
 
-#### Scenario: «Deep» не означает «открыть каждый файл»
-- **WHEN** пользователь выбрал «Deep»
-- **THEN** промпт оговаривает, что читаются реальные пути исполнения, а тесты, фикстуры, сгенерированный и вендорный код пропускаются при любой глубине
+#### Scenario: "Deep" Doesn't Mean "Open Every File"
+- **WHEN** user selected "Deep"
+- **THEN** prompt states that real execution paths are read, while tests, fixtures, generated and vendored code are skipped at any depth
 
-#### Scenario: Предупреждение о цене
-- **WHEN** пользователю показан вариант «Deep»
-- **THEN** его описание сообщает, что такой разбор может занять много времени и токенов
+#### Scenario: Cost Warning
+- **WHEN** user is shown "Deep" option
+- **THEN** its description states such analysis may take significant time and tokens
 
-#### Scenario: Верхнеуровневый разбор
-- **WHEN** выбрано «Overview»
-- **THEN** список способностей собирается по README, структуре папок, манифестам и точкам входа, а подагент читает точки входа и основные модули способности, не вычитывая все её файлы
+#### Scenario: High-Level Analysis
+- **WHEN** "Overview" is selected
+- **THEN** capability list is assembled from README, folder structure, manifests and entry points, and sub-agent reads entry points and main capability modules without reading all their files
 
-#### Scenario: Глубокий разбор
-- **WHEN** выбрано «Deep»
-- **THEN** список способностей собирается после чтения кода каждой области, а не по раскладке папок, и подагент проходит по путям исполнения способности от начала до конца, включая обработку ошибок и краевые случаи, фиксируя их как отдельные сценарии
+#### Scenario: Deep Analysis
+- **WHEN** "Deep" is selected
+- **THEN** capability list is assembled after reading code for each area, not by folder layout, and sub-agent walks through capability execution paths from start to finish, including error handling and edge cases, recording them as separate scenarios
 
-### Requirement: Деривация ищет способности в проекте любого рода
-Промпт деривации SHALL называть, что именно считается способностью: то, что проект даёт своему пользователю, интеграции и внешние системы, от которых он зависит, и поведение, которое он реализует сам, а не берёт из библиотеки. Промпт SHALL прямо оговаривать, что проект не обязан быть приложением: в инфраструктурном, конфигурационном или инструментальном репозитории описываемым поведением является сама объявленная конфигурация.
+### Requirement: Derivation Searches For Capabilities In Any Kind Of Project
+Derivation prompt SHALL name what exactly counts as a capability: what project provides its user, integrations and external systems it depends on, and behavior it implements itself rather than taking from a library. Prompt SHALL explicitly state that project doesn't have to be an application: in infrastructure, configuration or tooling repository, the described behavior is the declared configuration itself.
 
-#### Scenario: Что искать названо явно
-- **WHEN** промпт деривации собран
-- **THEN** он перечисляет все три вида способностей без иллюстрирующих примеров и не пересказывает стек и архитектуру – они уже описаны в `openspec/config.yaml` и AGENTS.md
+#### Scenario: What To Search Is Named Explicitly
+- **WHEN** derivation prompt is assembled
+- **THEN** it lists all three capability kinds without illustrative examples and doesn't restate stack and architecture — they're already described in `openspec/config.yaml` and AGENTS.md
 
-#### Scenario: Репозиторий без кода приложения
-- **WHEN** проект состоит из конфигураций, манифестов или скриптов и не содержит кода приложения
-- **THEN** промпт предписывает описать объявленную конфигурацию как поведение: что она разворачивает, как связаны части, что получает запускающий
+#### Scenario: Repository Without Application Code
+- **WHEN** project consists of configurations, manifests or scripts and contains no application code
+- **THEN** prompt instructs to describe declared configuration as behavior: what it deploys, how parts are connected, what the launcher gets
 
-### Requirement: Деривация не задаёт тип подагента сама
-Промпт деривации SHALL требовать брать тип подагента из списка, который предлагает сам инструмент Task, и SHALL запрещать придумывать имя типа. Если подходящего агента нет или инструмент недоступен, промпт SHALL предписывать разобрать способности последовательно самому, без повторных попыток с угаданным типом.
+### Requirement: Derivation Doesn't Set Sub-Agent Type Itself
+Derivation prompt SHALL require taking sub-agent type from list that Task tool itself offers, and SHALL prohibit inventing a type name. If suitable agent doesn't exist or tool is unavailable, prompt SHALL instruct to analyze capabilities sequentially on its own, without retry attempts with guessed type.
 
-#### Scenario: Тип агента берётся у инструмента
-- **WHEN** промпт деривации собран
-- **THEN** он не содержит конкретного имени типа агента и велит выбрать общий тип из списка самого инструмента
+#### Scenario: Agent Type Taken From Tool
+- **WHEN** derivation prompt is assembled
+- **THEN** it contains no specific agent type name and instructs to select a general type from the tool's own list
 
-#### Scenario: Подходящего агента нет
-- **WHEN** инструмент Task недоступен или не предлагает общего агента
-- **THEN** агент разбирает способности по одной сам и не пытается вызвать Task с угаданным типом
+#### Scenario: No Suitable Agent
+- **WHEN** Task tool is unavailable or doesn't offer a general agent
+- **THEN** agent analyzes capabilities one by one itself and doesn't attempt to call Task with guessed type
 
-### Requirement: Деривация выходит без вопросов только на действительно пустом проекте
-Промпт деривации SHALL предписывать на обзорном проходе выход из оставшихся фаз, только когда директория пуста или не содержит ничего, кроме README: подтверждать пустой список способностей незачем. Условие выхода SHALL быть сформулировано так, чтобы репозиторий из конфигураций, манифестов или скриптов под него не подпадал.
+### Requirement: Derivation Exits Without Questions Only On Truly Empty Project
+Derivation prompt SHALL instruct on overview pass to exit remaining phases only when directory is empty or contains nothing besides README: confirming an empty capability list isn't necessary. Exit condition SHALL be worded so that a repository of configurations, manifests or scripts doesn't fall under it.
 
-#### Scenario: Директория пуста
-- **WHEN** в проекте нет ничего, кроме README, или он пуст
-- **THEN** агент сообщает об этом и пропускает фазы подтверждения, детализации и валидации, не задавая вопросов по пустому списку
+#### Scenario: Directory Is Empty
+- **WHEN** project has nothing except README, or is empty
+- **THEN** agent reports this and skips confirmation, detail and validation phases without asking about empty list
 
-#### Scenario: Проект без кода приложения не считается пустым
-- **WHEN** проект состоит из конфигураций, манифестов или скриптов
-- **THEN** выход не срабатывает: агент собирает по ним список способностей и проходит все фазы
+#### Scenario: Project Without Application Code Isn't Considered Empty
+- **WHEN** project consists of configurations, manifests or scripts
+- **THEN** exit doesn't trigger: agent assembles capability list from them and goes through all phases
 
-### Requirement: Промпт деривации ограничивает правку config.yaml
-Ограничения промпта деривации SHALL разрешать правку `openspec/config.yaml` там, где об этом прямо просит сам промпт, – иначе чекпоинт `plugin.init.done` противоречит запрету на запись за пределы `openspec/specs/`.
+### Requirement: Derivation Prompt Limits config.yaml Editing
+Derivation prompt restrictions SHALL allow editing `openspec/config.yaml` where the prompt itself explicitly asks for it — otherwise checkpoint `plugin.init.done` contradicts write prohibition beyond `openspec/specs/`.
 
-#### Scenario: Чекпоинт этапа не нарушает ограничения
-- **WHEN** промпт инициализации просит записать `plugin.init.done` сразу после блока деривации
-- **THEN** ограничения деривации явно допускают такую правку, оставляя запрет на `openspec/changes/` и код
+#### Scenario: Stage Checkpoint Doesn't Violate Restrictions
+- **WHEN** initialization prompt asks to write `plugin.init.done` right after derivation block
+- **THEN** derivation restrictions explicitly allow such edit, keeping prohibition on `openspec/changes/` and code

@@ -1,147 +1,127 @@
 ## Purpose
-Эта возможность отвечает за регистрацию плагина в системе OpenCode, внедрение виджета боковой панели через TUI-слоты и за доступ к файловой системе: удаление изменений и ведение служебного блока `plugin:` в config.yaml – чтение и запись в одном месте, с откатом к агенту, когда файлы недостижимы.
+This capability handles plugin registration in OpenCode system, sidebar widget injection via TUI slots, and file system access: change deletion and managing the `plugin:` block in config.yaml — reading and writing in one place, with fallback to agent when files are inaccessible.
 
 ## Requirements
 
-### Requirement: Экспорт модуля плагина
-Система SHALL экспортировать объект по умолчанию, удовлетворяющий типу `TuiPluginModule`, содержащий поле `id` со значением `"openspec-tui"` и асинхронную функцию `tui`.
+### Requirement: Plugin Module Export
+The system SHALL export a default object satisfying type `TuiPluginModule`, containing field `id` with value `"openspec-tui"` and async function `tui`.
 
-#### Scenario: Стандартный экспорт
-- **WHEN** модуль `src/index.tsx` импортирован как default export
-- **THEN** результат содержит свойства `id` равное `"openspec-tui"` и вызываемое свойство `tui`
+#### Scenario: Standard Export
+- **WHEN** module `src/index.tsx` is imported as default export
+- **THEN** result contains property `id` equal to `"openspec-tui"` and callable property `tui`
 
-### Requirement: Регистрация TUI-слота боковой панели
-Система SHALL зарегистрировать слот `sidebar_content` с порядковым номером 600 через `api.slots.register`.
+### Requirement: TUI Sidebar Slot Registration
+The system SHALL register slot `sidebar_content` with order number 600 via `api.slots.register`.
 
-#### Scenario: Вызов функции tui
-- **WHEN** функция `tui` вызывается с объектом API
-- **THEN** метод `api.slots.register` вызван один раз с параметром `{ order: 600, slots: { sidebar_content } }`
+#### Scenario: Calling tui Function
+- **WHEN** function `tui` is called with API object
+- **THEN** method `api.slots.register` is called once with parameter `{ order: 600, slots: { sidebar_content } }`
 
-#### Scenario: Слот возвращает компонент боковой панели
-- **WHEN** зарегистрированный слот `sidebar_content` вызывается с контекстом слота
-- **THEN** возвращается JSX-компонент `<OpenSpecSidebar>` с пропсами `api`, `sessionId` (из `value.session_id`) и `baselineAvailable`
+#### Scenario: Slot Returns Sidebar Component
+- **WHEN** registered slot `sidebar_content` is called with slot context
+- **THEN** JSX component `<OpenSpecSidebar>` with props `api`, `sessionId` (from `value.session_id`) and `baselineAvailable` is returned
 
-### Requirement: Регистрация команд
-Система SHALL вызвать функцию `registerCommands(api)` при инициализации плагина для регистрации CLI-команд.
+### Requirement: Command Registration
+The system SHALL call function `registerCommands(api)` during plugin initialization to register CLI commands.
 
-#### Scenario: Инициализация плагина
-- **WHEN** функция `tui` вызывается с объектом API
-- **THEN** функция `registerCommands` вызвана с переданным `api`, а возвращаемое значение используется как пропс `baselineAvailable` для боковой панели
+#### Scenario: Plugin Initialization
+- **WHEN** function `tui` is called with API object
+- **THEN** function `registerCommands` is called with passed `api`, and return value is used as prop `baselineAvailable` for sidebar
 
-### Requirement: Запись в файловую систему только при достижимости файлов
-API opencode не предоставляет записи файлов, поэтому запись идёт напрямую через `node:fs`. Это работает лишь пока TUI и проект живут на одной машине: `api.state.path.directory` – строка, полученная от сервера, и против удалённого сервера она указывает на чужой диск. Система SHALL проверять достижимость рабочей директории перед любой записью и SHALL возвращать признак неуспеха вместо выброса исключения, чтобы вызывающий передал работу агенту.
+### Requirement: File System Write Only When Files Are Accessible
+The opencode API doesn't provide file writes, so writing goes directly through `node:fs`. This works only while TUI and project live on the same machine: `api.state.path.directory` — a string received from server, against remote server it points to someone else's disk. The system SHALL check working directory accessibility before any write and SHALL return failure indicator instead of throwing exception so caller can hand work to agent.
 
-#### Scenario: Рабочая директория достижима
-- **WHEN** запрашивается корень для записи, а `api.state.path.directory` указывает на существующую директорию на этой машине
-- **THEN** возвращается путь к ней
+#### Scenario: Working Directory Accessible
+- **WHEN** root for write is requested and `api.state.path.directory` points to existing directory on this machine
+- **THEN** path to it is returned
 
-#### Scenario: Рабочая директория недостижима
-- **WHEN** `api.state.path.directory` пуст либо не существует на этой машине
-- **THEN** возвращается `null`, запись не выполняется
+#### Scenario: Working Directory Inaccessible
+- **WHEN** `api.state.path.directory` is empty or doesn't exist on this machine
+- **THEN** `null` is returned, write not performed
 
-#### Scenario: Ошибка записи не выбрасывается
-- **WHEN** чтение, запись или удаление завершается ошибкой
-- **THEN** операция возвращает `null` или `false`, а исключение наружу не выходит
+#### Scenario: Write Error Not Thrown
+- **WHEN** read, write or delete ends with error
+- **THEN** operation returns `null` or `false`, and exception doesn't propagate out
 
-### Requirement: Удаление Change через файловую систему
-Система SHALL удалять папку Change `openspec/changes/{name}` рекурсивно, считая отсутствие пути успехом.
+### Requirement: Change Deletion Via File System
+The system SHALL recursively delete Change folder `openspec/changes/{name}`, treating path absence as success.
 
-#### Scenario: Успешное удаление
-- **WHEN** функция `deleteChange` вызывается при достижимой рабочей директории
-- **THEN** папка удаляется рекурсивно, а её отсутствие не считается ошибкой
+#### Scenario: Successful Deletion
+- **WHEN** function `deleteChange` is called with accessible working directory
+- **THEN** folder is deleted recursively, and its absence is not considered an error
 
-#### Scenario: Строка Change исчезает сама
-- **WHEN** папка Change удалена
-- **THEN** очередной опрос перестаёт видеть Change, и строка пропадает из списка без отдельного обновления панели
+#### Scenario: Change Row Disappears On Its Own
+- **WHEN** Change folder is deleted
+- **THEN** next poll stops seeing the Change, and row disappears from list without separate sidebar update
 
-### Requirement: Откат удаления к агенту
-Система SHALL передать запрос на удаление агенту через `sendPrompt`, если рабочая директория недостижима или удаление не выполнилось.
+### Requirement: Deletion Fallback To Agent
+The system SHALL pass deletion request to agent via `sendPrompt` if working directory is inaccessible or deletion didn't execute.
 
-#### Scenario: Файлы недостижимы
-- **WHEN** рабочая директория не определена или не существует на этой машине
-- **THEN** функция `sendPrompt` вызвана с `api` и строкой `"delete openspec change {name}"`
+#### Scenario: Files Inaccessible
+- **WHEN** working directory is undefined or doesn't exist on this machine
+- **THEN** function `sendPrompt` is called with `api` and string `"delete openspec change {name}"`
 
-#### Scenario: Удаление завершилось ошибкой
-- **WHEN** удаление папки завершилось ошибкой (нет прав, файл занят)
-- **THEN** функция `sendPrompt` вызвана с `api` и строкой `"delete openspec change {name}"` – ошибка не проглатывается молча
+#### Scenario: Deletion Failed
+- **WHEN** folder deletion ended with error (no permissions, file in use)
+- **THEN** function `sendPrompt` is called with `api` and string `"delete openspec change {name}"` — error is not swallowed silently
 
-### Requirement: Чтение служебного блока plugin из config.yaml
-Система SHALL читать `openspec/config.yaml` и возвращать за одно чтение оба служебных маркера: признак незавершённой настройки `plugin.init.in-progress` со списком пройденных этапов `plugin.init.done`, и флаг обновления `plugin.update-in-progress` с версиями `old`/`new`.
+### Requirement: Reading Plugin Block From config.yaml
+The system SHALL read `openspec/config.yaml` and return both service markers in one read: incomplete-setup indicator `plugin.init.in-progress` with completed stages list `plugin.init.done`, and update flag `plugin.update-in-progress` with versions `old`/`new`.
 
-#### Scenario: Оба маркера за одно чтение
-- **WHEN** панель опрашивает состояние
-- **THEN** config.yaml читается один раз, а не отдельно под каждый маркер – опрос повторяется каждые несколько секунд
+#### Scenario: Both Markers In One Read
+- **WHEN** sidebar polls state
+- **THEN** config.yaml is read once, not separately for each marker — polling repeats every few seconds
 
-#### Scenario: Флаг обновления присутствует
-- **WHEN** в config.yaml присутствует `plugin.update-in-progress` хотя бы с одним из полей `old`/`new`
-- **THEN** возвращается диапазон версий, недостающее поле даёт пустую строку
+#### Scenario: Update Flag Present
+- **WHEN** `plugin.update-in-progress` exists in config.yaml with at least one of fields `old`/`new`
+- **THEN** version range is returned, missing field gives empty string
 
-#### Scenario: Флаг обновления отсутствует
-- **WHEN** блока `plugin.update-in-progress` нет
-- **THEN** возвращается `null`
+#### Scenario: Update Flag Absent
+- **WHEN** block `plugin.update-in-progress` doesn't exist
+- **THEN** `null` is returned
 
-#### Scenario: Маркеры сосуществуют
-- **WHEN** в блоке `plugin:` присутствуют одновременно `init` и `update-in-progress`
-- **THEN** оба возвращаются, ни один не затирает другой
+#### Scenario: Markers Coexist
+- **WHEN** both `init` and `update-in-progress` are present in `plugin:` block
+- **THEN** both are returned, neither overwrites the other
 
-#### Scenario: Маркер выставлен до установки
-- **WHEN** в config.yaml присутствует `plugin.init.in-progress` со значением true и пустой список `done`
-- **THEN** возвращается признак незавершённой настройки и пустой список пройденных этапов
+#### Scenario: Marker Set Before Installation
+- **WHEN** config.yaml contains `plugin.init.in-progress` with value true and empty `done` list
+- **THEN** incomplete-setup indicator is returned with empty completed stages list
 
-#### Scenario: Этапы зачекпоинчены
-- **WHEN** в `plugin.init.done` перечислены этапы
-- **THEN** они возвращаются в порядке из файла
+#### Scenario: Stages Checkpointed
+- **WHEN** stages are listed in `plugin.init.done`
+- **THEN** they are returned in file order
 
-#### Scenario: Маркер снят
-- **WHEN** в config.yaml нет блока `plugin.init`
-- **THEN** признак незавершённой настройки равен false, список пройденных этапов пуст
+#### Scenario: Marker Removed
+- **WHEN** config.yaml has no `plugin.init` block
+- **THEN** incomplete-setup indicator equals false, completed stages list is empty
 
-#### Scenario: Неизвестные значения этапов
-- **WHEN** `plugin.init.done` содержит значения вне набора `tooling`, `config`, `specs` либо не является списком
-- **THEN** неизвестные значения отбрасываются, а не-список даёт пустой список
+#### Scenario: Unknown Stage Values
+- **WHEN** `plugin.init.done` contains values outside set `tooling`, `config`, `specs` or isn't a list
+- **THEN** unknown values are dropped, and non-list gives empty list
 
-#### Scenario: Конфигурация недоступна или повреждена
-- **WHEN** config.yaml отсутствует или не разбирается как YAML
-- **THEN** признак равен false, список пуст, ошибка не выбрасывается
+#### Scenario: Configuration Inaccessible Or Corrupted
+- **WHEN** config.yaml is absent or doesn't parse as YAML
+- **THEN** indicator equals false, list is empty, error not thrown
 
-### Requirement: Плагин ведёт маркер настройки в config.yaml
-Из служебного блока `plugin:` система SHALL записывать только `plugin.init.in-progress`. Чекпоинты этапов `plugin.init.done` и флаг `plugin.update-in-progress` остаются за агентом: только он знает, действительно ли этап завершился.
+### Requirement: Sidebar Writes Only Init Marker
+From service block `plugin:` the sidebar SHALL write only `plugin.init.in-progress`. Stage checkpoints `plugin.init.done` and flag `plugin.update-in-progress` remain with agent — only it knows whether a stage actually completed. When writing marker, system SHALL create directory and file if they don't exist (with `schema: spec-driven`), preserve all other content (`context`, `rules`, comments, `update-in-progress`), and remove empty `plugin:` block on marker removal.
 
-#### Scenario: Маркер выставляется до отправки хода
-- **WHEN** пользователь запускает настройку кнопкой Init или Resume
-- **THEN** `plugin.init.in-progress: true` записывается в config.yaml до отправки промпта – чтобы возобновление работало, даже если агент прервётся на первом же вызове инструмента
+#### Scenario: File Or Directory Doesn't Exist Yet
+- **WHEN** marker is set but `openspec/config.yaml` is absent
+- **THEN** directory and file are created, file receives `schema: spec-driven` along with marker
 
-#### Scenario: Init начинает с начала
-- **WHEN** маркер выставляется по кнопке Init
-- **THEN** список `plugin.init.done` обнуляется
+#### Scenario: Remaining Content Survives Edit
+- **WHEN** marker is set or removed in file with `context`, `rules`, comments and flag `plugin.update-in-progress`
+- **THEN** all this is preserved unchanged — only block `plugin.init` is edited
 
-#### Scenario: Resume сохраняет пройденное
-- **WHEN** маркер выставляется по кнопке Resume
-- **THEN** список `plugin.init.done` остаётся прежним
+### Requirement: Refusal To Write To Corrupted config.yaml
+Editing config.yaml SHALL go through YAML parsing and reverse serialization, not text assembly. If file doesn't parse, system SHALL refuse to write.
 
-#### Scenario: Файла или директории ещё нет
-- **WHEN** маркер выставляется, а `openspec/config.yaml` отсутствует
-- **THEN** директория и файл создаются, в файл записывается `schema: spec-driven` вместе с маркером
+#### Scenario: Corrupted YAML
+- **WHEN** config.yaml doesn't parse
+- **THEN** write is not performed, file remains byte-for-byte unchanged, work handed to agent
 
-#### Scenario: Остальное содержимое переживает правку
-- **WHEN** маркер выставляется или снимается в файле с `context`, `rules`, комментариями и флагом `plugin.update-in-progress`
-- **THEN** всё это сохраняется без изменений – правится только блок `plugin.init`
-
-#### Scenario: Снятие маркера
-- **WHEN** пользователь нажимает Dismiss на баннере незавершённой настройки
-- **THEN** блок `plugin.init` удаляется, а блок `plugin:` удаляется вместе с ним, если под ним ничего не осталось
-
-#### Scenario: Снимать нечего
-- **WHEN** снятие маркера запрашивается, а блока `plugin.init` или самого config.yaml нет
-- **THEN** операция считается успешной, файл не переписывается
-
-### Requirement: Отказ от записи в повреждённый config.yaml
-Правка config.yaml SHALL идти через разбор YAML и обратную сериализацию, а не через сборку текста. Если файл не разбирается, система SHALL отказаться от записи.
-
-#### Scenario: Повреждённый YAML
-- **WHEN** config.yaml не разбирается
-- **THEN** запись не выполняется, файл остаётся байт в байт прежним, а работа передаётся агенту
-
-#### Scenario: Правка идёт по документу, а не по тексту
-- **WHEN** нужно поменять поле в config.yaml
-- **THEN** файл читается, разбирается, правится нужный узел и сериализуется обратно – остальное содержимое и комментарии сохраняются самим разбором
+#### Scenario: Edit Goes Through Document, Not Text
+- **WHEN** a field needs changing in config.yaml
+- **THEN** file is read, parsed, needed node edited and serialized back — remaining content and comments are preserved by parser itself

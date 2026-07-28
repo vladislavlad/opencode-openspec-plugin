@@ -1,11 +1,11 @@
 ## Why
 
-Кнопка Delete в Active Change не блокируется когда агент busy, в то время как Apply и Update корректно дизейблятся через `gate`. Это создаёт несогласованный UX: пользователь может нажать Delete во время выполнения agent-операции.
+The Delete button in Active Change is not blocked when the agent is busy, while Apply and Update are correctly disabled through `gate`. This creates an inconsistent UX: the user can press Delete during an agent operation.
 
 ## What Changes
 
-- Добавить `{...props.gate}` на кнопку Delete в `ChangeActions`, чтобы она блокировалась вместе с Apply и Update
-- Убрать устаревший комментарий, который обосновывал отсутствие gate
+- Add `{...props.gate}` to the Delete button in `ChangeActions` so it blocks together with Apply and Update
+- Remove the outdated comment that justified the absence of gate
 
 ## Capabilities
 
@@ -13,13 +13,13 @@
 - None
 
 ### Modified Capabilities
-- `change-tracking-ui`: кнопка Delete SHALL блокироваться когда агент busy, как и остальные кнопки действий
+- `change-tracking-ui`: the Delete button SHALL be blocked when the agent is busy, like all other action buttons
 
 ## Impact
 
-- `src/components/changes.tsx` — один edit на строке с Delete button в `ChangeActions`
+- `src/components/changes.tsx` — one edit on the line with the Delete button in `ChangeActions`
 
 ## Non-goals
 
-- Не меняем поведение подтверждения удаления (confirm dialog)
-- Не затрагиваем Completed Change actions — там нет Delete
+- Not changing the deletion confirmation behavior (confirm dialog)
+- Not touching Completed Change actions — there is no Delete there

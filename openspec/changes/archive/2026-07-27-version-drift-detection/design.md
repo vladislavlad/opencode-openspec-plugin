@@ -1,110 +1,70 @@
 ## Context
 
-Механизм `MIGRATIONS` появился вместе с потоком обновления (`2026-07-25-version-tracking`) и завязан
-на ровно один триггер: кнопка Update просит агента записать `plugin.update-in-progress` в config.yaml,
-после перезапуска панель видит флаг и предлагает Complete Update. Флаг пишет только эта кнопка.
+The `MIGRATIONS` mechanism appeared alongside the update flow (`2026-07-25-version-tracking`) and is tied to exactly one trigger: the Update button asks the agent to write `plugin.update-in-progress` into config.yaml, after restart the sidebar sees the flag and offers Complete Update. Only this button writes the flag.
 
-Обновиться мимо неё можно как минимум тремя способами, и только один из них ручной: правка
-`tui.json` или `npm i -g`; спецификатор без версии, который opencode обновляет сам при следующем
-запуске; переустановка окружения. Во всех трёх флага нет – значит `instructions` не выполняются, а
-release notes пользователь не видит никогда, хотя плагин уже ведёт себя по-новому.
+You can update past it in at least three ways, only one of which is manual: editing `tui.json` or `npm i -g`; a version-less specifier that opencode updates itself on next launch; reinstalling an environment. In all three cases there's no flag – meaning `instructions` don't execute and release notes are never seen by the user even though the plugin already behaves differently.
 
-Плагин при этом всё знает: `VERSION` вшита в сборку на этапе `build.ts`, а `TuiPluginApi.kv`
-переживает перезапуски и до этого не использовался. Сравнения хватает, чтобы поймать любое
-обновление, каким бы способом оно ни произошло.
+The plugin knows everything anyway: `VERSION` is baked into the build at `build.ts` time, and `TuiPluginApi.kv` survives restarts and wasn't used before. A comparison is enough to catch any update regardless of how it happened.
 
 ## Goals / Non-Goals
 
 **Goals:**
-- Release notes и `instructions` доходят до пользователя независимо от способа обновления.
-- Ни одного ложного показа: на первом запуске, при откате назад и на релизе без записей – тишина.
-- Решение проверяемо без живого TUI.
+- Release notes and `instructions` reach the user regardless of update method.
+- No false positives: on first launch, rollback, and releases without entries – silence.
+- Decision testable without a live TUI.
 
 **Non-Goals:**
-- Показ release notes задним числом тем, у кого записи в `kv` ещё нет.
-- Dismiss рядом с Complete Update.
-- Изменения в проверке версий на npm и в кнопках обновления – меняется только то, что происходит
-  **после** того, как новая сборка загрузилась.
-- Хранение версии CLI в `kv`: она читается из `generatedBy` на диске и в миграциях плагина не участвует.
+- Showing release notes retroactively to those who don't yet have entries in `kv`.
+- Dismiss alongside Complete Update.
+- Changes to npm version checks and update buttons – only what happens **after** a new build has loaded is changed.
+- Storing CLI version in `kv`: it's read from `generatedBy` on disk and doesn't participate in plugin migrations.
 
 ## Decisions
 
-### Источник – `kv`, а не `meta.state`, и это осознанно
+### Source is `kv`, not `meta.state`, and that's intentional
 
-Функция `tui` получает третьим аргументом `meta` с полем `state: "first" | "updated" | "same"` –
-opencode сам сообщает, что плагин обновился. Мы это выяснили **после** того, как реализовали `kv`,
-и всё равно оставили `kv`.
+The `tui` function receives as its third argument `meta` with field `state: "first" | "updated" | "same"` – opencode itself reports that the plugin updated. We found this out **after** implementing `kv`, and still kept `kv`.
 
-Причина: `meta` не несёт **предыдущую** версию. Без неё не собрать диапазон `(old, new]`, а без
-диапазона нечего проигрывать – какие именно release notes показывать, неизвестно. То есть `meta.state`
-не заменяет `kv`, а в лучшем случае дополняет его как второй сигнал «обновление было».
+Reason: `meta` doesn't carry the **previous** version. Without it, you can't assemble a range `(old, new]`, and without a range there's nothing to play – which exact release notes to show is unknown. That is, `meta.state` doesn't replace `kv`, but at best complements it as a second signal "an update happened".
 
-Проверено на живом плагине: пересборка dist → `state: "updated"`, перезапуск без изменений → `"same"`,
-`source: "file"` для dev-чекаута. Работает как заявлено, но для файлового источника `"updated"`
-срабатывает на каждую пересборку (в `fingerprint` входит mtime), так что без фильтра по `source` это
-шум. Записано в TODO как возможное усиление, не как замена.
+Verified on a live plugin: rebuild dist → `state: "updated"`, restart without changes → `"same"`, `source: "file"` for dev checkout. Works as stated, but for file source `"updated"` fires on every rebuild (mtime is in the `fingerprint`), so without filtering by `source` it's noise. Recorded in TODO as a possible enhancement, not a replacement.
 
-**Рассмотренные альтернативы:** хранить `old` в config.yaml вместо `kv` – но тогда обновление в
-проекте без openspec не отследить, а версия плагина глобальна, не про проект.
+**Considered alternatives:** storing `old` in config.yaml instead of `kv` – but then updates in projects without openspec can't be tracked, and plugin version is global, not per-project.
 
-### `kv` проверен на персистентность отдельно
+### `kv` persistence verified separately
 
-Единственное, что нельзя закрыть юнит-тестом: переживает ли `kv` перезапуск. Проверено временным
-отладочным логом – два запуска подряд, второй прочитал версию, записанную первым. Лежит в
-`~/.local/state/opencode/kv.json` обычным JSON, глобально (не по проектам), ключи не неймспейсятся
-автоматически – рядом настройки самого opencode, поэтому префикс `openspec.` обязателен.
+The only thing you can't close with a unit test: does `kv` survive restarts. Verified with a temporary debug log – two consecutive launches, the second read the version written by the first. Lives in `~/.local/state/opencode/kv.json` as plain JSON, globally (not per-project), keys aren't auto-namespaced – opencode's own settings are nearby, so the `openspec.` prefix is mandatory.
 
-### Два источника, флаг приоритетнее
+### Two sources, flag takes priority
 
-Флаг и дрейф версии сводятся в один «ожидающий диапазон», UI один. Приоритет у флага: он
-единственный знает точную версию, с которой уходили, тогда как `kv` знает лишь последнюю
-запущенную. Ветка «Reopen opencode to finish updating» остаётся только за флагом – `kv` такого
-состояния не порождает по построению, дрейф виден лишь когда новая сборка уже загружена.
+Flag and version drift fold into one "pending range", single UI. Priority goes to the flag: it alone knows the exact version you left from, while `kv` only knows the last launched. The "Reopen opencode to finish updating" branch stays with the flag only – `kv` doesn't produce such a state by construction; drift is visible only when a new build has already loaded.
 
-### Пока обновление в полёте – версия не фиксируется
+### While an update is in flight, version isn't recorded
 
-Если флаг присутствует, решение никогда не возвращает «зафиксировать версию». Иначе штамп в `kv`
-затёр бы `old` раньше, чем миграция отработает, и диапазон был бы потерян безвозвратно. Фиксация
-происходит по завершении хода Complete Update, тем же переходом busy→idle, которым уже отслеживаются
-конец настройки и приглашение к перезапуску.
+If the flag is present, the decision never returns "record version". Otherwise the stamp in `kv` would overwrite `old` before migration runs, and the range would be lost irretrievably. Recording happens on Complete Update turn completion, by the same busy→idle transition that already tracks setup end and restart invitation.
 
-### Нет записи в `kv` → молчим
+### No entry in `kv` → stay silent
 
-Первый запуск сборки с этим механизмом не знает, откуда пользователь пришёл. Любой диапазон здесь
-был бы выдуман, а вывалить все release notes подряд – худший первый опыт. Записываем версию молча.
+First launch of a build with this mechanism doesn't know where the user came from. Any range here would be made up, and dumping all release notes is the worst first experience. Record version silently.
 
-То же для отката назад (миграции применяются только вперёд) и для диапазона без записей `MIGRATIONS`:
-на патч-релизе без нот показывать нечего. Для флагового пути это правило не действует – там
-пользователь сам нажал Update и ждёт подтверждения.
+Same for rollback (migrations apply forward only) and ranges without `MIGRATIONS` entries: on a patch release without notes there's nothing to show. For the flag path this rule doesn't apply – there the user pressed Update themselves and expects confirmation.
 
-### Решение – чистая функция, а не логика внутри компонента
+### Decision is a pure function, not logic inside a component
 
-Изначально решение жило в сигналах сайдбара, и проверить его можно было только живым TUI. Подложить
-значение в `kv` руками для стенда тоже нельзя – на момент решения мы не знали, где он лежит.
+Initially the decision lived in sidebar signals, and could only be tested with a live TUI. You also can't manually inject a value into `kv` for a test stand – at the time of the decision we didn't know where it lives.
 
-Вынесли в `decideMigration({ flag, last, current, hasEntries })` вне Solid. Табличный тест закрывает
-всю матрицу: два источника × (первый запуск / совпадение / рост / откат / диапазон без записей).
-Путь через кнопку Update стал строкой той же таблицы, а не отдельной ручной проверкой.
+Moved to `decideMigration({ flag, last, current, hasEntries })` outside Solid. A table test covers the entire matrix: two sources × (first launch / match / growth / rollback / range without entries). The path through the Update button became a row of the same table rather than a separate manual check.
 
-`current` передаётся параметром, а не берётся из `VERSION`: в dev-чекауте `VERSION` равна `"dev"`,
-и без параметра ветку роста версии не проверить вовсе.
+`current` is passed as a parameter rather than taken from `VERSION`: in a dev checkout, `VERSION` equals `"dev"`, and without a parameter you can't test the version growth branch at all.
 
-`hasEntries` тоже передаётся параметром, а не импортируется внутрь. Иначе тест ездит на содержимом
-`MIGRATIONS`, которое меняется каждый релиз, и ломался бы от переименования ключа.
+`hasEntries` is also passed as a parameter rather than imported inside. Otherwise the test rides on `MIGRATIONS` content that changes every release and would break from key renaming.
 
-### Dismiss не добавляем
+### Dismiss isn't added
 
-Второй путь выхода – это своё состояние и ветка «а если флаг ещё и в config.yaml, его тоже снимать?».
-Цена нажатия Complete Update – один дешёвый ход агента. Если баннер окажется навязчивым, добавим
-отдельно.
+A second exit path means its own state and a branch "what if there's also a flag in config.yaml, should we remove it too?". The cost of pressing Complete Update is one cheap agent turn. If the banner turns out intrusive, we'll add it separately.
 
 ## Risks / Trade-offs
 
-- **`instructions` по-прежнему ни разу не выполнялись.** Поле есть с самого введения `MIGRATIONS`, но
-  во всех записях пустая строка. Этот change расширяет охват механизма, но не проверяет его ветку с
-  инструкциями – первая настоящая миграция будет и первой её проверкой.
-- **Баннер по `kv` показывается до тех пор, пока Complete Update не нажат.** Без Dismiss выйти из
-  него иначе нельзя. Считаем приемлемым: он появляется раз на смену версии, и накопление диапазона
-  при этом корректно – пропущенные ноты не теряются.
-- **dev-чекаут молчит по построению** (`VERSION === "dev"`), поэтому ветка `kv` в разработке не
-  проверяется вживую – только тестами и на настоящем релизе.
+- **`instructions` still haven't executed once.** The field has existed since `MIGRATIONS` was introduced, but all entries have an empty string. This change expands mechanism coverage but doesn't test its instruction branch – the first real migration will be the first test of it.
+- **The `kv` banner shows until Complete Update is pressed.** Without Dismiss there's no other way out. Considered acceptable: it appears once per version change, and range accumulation is correct – missed notes aren't lost.
+- **dev checkout stays silent by construction** (`VERSION === "dev"`), so the `kv` branch isn't tested live during development – only by tests and on a real release.

@@ -1,42 +1,42 @@
 ## Context
 
-Заголовок sidebar в `src/sidebar.tsx` (строки 193-196) – это простой `<text>` с жирным «OpenSpec». Версия плагина хранится в `package.json` (`"version": "0.2.0"`). Навигация между views управляется SolidJS сигналами (`selected`, `selectedSpec`, `selectedReq`) и вложенными `<Show>` блоками.
+The sidebar header in `src/sidebar.tsx` (lines 193-196) is a simple `<text>` with bold "OpenSpec". The plugin version is stored in `package.json` (`"version": "0.2.0"`). Navigation between views is managed by SolidJS signals (`selected`, `selectedSpec`, `selectedReq`) and nested `<Show>` blocks.
 
 ## Goals / Non-Goals
 
 **Goals:**
-- Показать версию плагина при наведении на заголовок «OpenSpec»
-- Добавить кнопку Settings справа в заголовке
-- Реализовать Settings view с версией и кнопкой назад
+- Show the plugin version on hover over the "OpenSpec" header
+- Add a Settings button on the right in the header
+- Implement a Settings view with version display and back button
 
 **Non-Goals:**
-- Дополнительные настройки – только версия как заглушка
-- Изменение навигации существующих views
+- Additional settings – only version as a placeholder
+- Changes to existing view navigation
 
 ## Decisions
 
-### Версия из build-time define
-Версия вшивается на этапе сборки через `define` опцию Bun.build: `__PLUGIN_VERSION__: JSON.stringify(pkg.version)`. В коде константа с fallback: `const VERSION = typeof __PLUGIN_VERSION__ !== 'undefined' ? __PLUGIN_VERSION__ : 'dev'`.
+### Version from build-time define
+The version is baked at build time via the `define` option of Bun.build: `__PLUGIN_VERSION__: JSON.stringify(pkg.version)`. In code, a constant with fallback: `const VERSION = typeof __PLUGIN_VERSION__ !== 'undefined' ? __PLUGIN_VERSION__ : 'dev'`.
 
-**Рассмотренные альтернативы:** Runtime-импорт package.json – избыточно, версия статична. Хардкод в файле – требует ручного обновления при каждом релизе.
+**Alternatives considered:** Runtime import of package.json – excessive, the version is static. Hardcoding in file – requires manual update on every release.
 
-### Hover-подсказка версии на всю строку
-Вся строка заголовка (`<box flexDirection="row">`) получает `onMouseOver`/`onMouseOut`. При hover версия показывается inline рядом с «OpenSpec» (цвет `textMuted`). Кнопка Settings меняет цвет: по умолчанию `textMuted`, при hover строки – `warn`.
+### Version hover hint across entire row
+The entire header row (`<box flexDirection="row">`) receives `onMouseOver`/`onMouseOut`. On hover, the version is shown inline next to "OpenSpec" (color `textMuted`). The Settings button changes color: default `textMuted`, on row hover – `warn`.
 
-**Рассмотренные альтернативы:** Hover только на тексте «OpenSpec» – менее удобен, так как зона клика узкая.
+**Alternatives considered:** Hover only on the "OpenSpec" text – less convenient because the clickable area is narrow.
 
-### Settings view как сигнал
-Добавляется signal `showSettings` в sidebar.tsx. `<Show when={showSettings()}>` вставляется в цепочку fallback до основного контента, чтобы Settings перекрывал все views.
+### Settings view as a signal
+A `showSettings` signal is added in sidebar.tsx. `<Show when={showSettings()}>` is inserted into the fallback chain before main content so that Settings overlays all views.
 
-**Рассмотренные альтернативы:** Отдельный route – избыточно для одного экрана. Signal-based подход соответствует существующей архитектуре.
+**Alternatives considered:** A separate route – excessive for a single screen. Signal-based approach matches existing architecture.
 
-### Кнопка Settings
-Используется существующий компонент `Button` из primitives.tsx. Цвет привязан к hover-сигналу строки: по умолчанию `textMuted`, при hover всей строки заголовка – `warn`.
+### Settings button
+Uses the existing `Button` component from primitives.tsx. Color is tied to the row hover signal: default `textMuted`, on header row hover – `warn`.
 
-### Layout экрана Settings
-Заголовок «Settings» – цвет `warn`, без divider (отступ вместо разделителя). Строка версии: «Plugin version» слева, значение (`0.2.0`) справа на одной строке.
+### Settings screen layout
+Header "Settings" – color `warn`, no divider (spacing instead of separator). Version line: "Plugin version" on the left, value (`0.2.0`) on the right on one line.
 
 ## Risks / Trade-offs
 
-[Hover может конфликтовать с кликом по заголовку] → Заголовок не кликабелен, конфликта нет.
-[TUI mouse events могут быть ограничены] → Использовать те же обработчики, что в `Button` (primitives.tsx:34-46).
+[Hover may conflict with header click] → The header is not clickable, no conflict.
+[TUI mouse events may be limited] → Use the same handlers as in `Button` (primitives.tsx:34-46).

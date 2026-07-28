@@ -1,53 +1,53 @@
 ## ADDED Requirements
 
-### Requirement: Markdown рендерит текст артефактов
-Система SHALL предоставлять примитив рендера markdown, отображающий заголовки, буллеты, блоки кода в ограждении и обычные абзацы. Строки, не подпадающие ни под одну из этих форм, SHALL рендериться абзацем через `Paragraph`. Таблицы, ссылки, вложенные списки и инлайн-форматирование SHALL не поддерживаться – их разметка проходит как обычный текст.
+### Requirement: Markdown renders artifact text
+The system SHALL provide a markdown render primitive displaying headings, bullets, fenced code blocks, and regular paragraphs. Lines that do not match any of these forms SHALL be rendered as paragraphs via `Paragraph`. Tables, links, nested lists, and inline formatting SHALL not be supported – their markup passes through as plain text.
 
-#### Scenario: Заголовок
-- **WHEN** строка начинается с одного или нескольких `#`
-- **THEN** она отображается без символов `#`, выделенным цветом заголовка
+#### Scenario: Heading
+- **WHEN** a line begins with one or more `#`
+- **THEN** it is displayed without `#` characters, in heading color
 
-#### Scenario: Буллет
-- **WHEN** строка начинается с маркера списка `-` или `*`
-- **THEN** она отображается с маркером и переносом по словам
+#### Scenario: Bullet
+- **WHEN** a line begins with list marker `-` or `*`
+- **THEN** it is displayed with the marker and word-wrapped
 
-#### Scenario: Блок кода
-- **WHEN** текст содержит участок между строками ограждения (``` или ~~~)
-- **THEN** содержимое участка отображается как есть, а строки внутри него не интерпретируются как заголовки или буллеты
+#### Scenario: Code block
+- **WHEN** text contains a section between fence lines (``` or ~~~)
+- **THEN** the section content is displayed as-is, and lines within it are not interpreted as headings or bullets
 
-#### Scenario: Обычный текст
-- **WHEN** строка не является заголовком, буллетом или частью блока кода
-- **THEN** она рендерится абзацем через `Paragraph` с переносом по словам
+#### Scenario: Plain text
+- **WHEN** a line is not a heading, bullet, or part of a code block
+- **THEN** it is rendered as a paragraph via `Paragraph` with word-wrapping
 
-#### Scenario: Пустые строки по краям текста
-- **WHEN** текст начинается или заканчивается пустыми строками – например, файл заканчивается переводом строки
-- **THEN** они не дают собственных строк на экране, и содержимое не отделяется лишним пустым рядом от того, что нарисовано вокруг
+#### Scenario: Blank lines at text edges
+- **WHEN** text begins or ends with blank lines – for example, file ends with a newline
+- **THEN** they do not produce their own screen lines, and content is not separated by an extra empty row from what is drawn around it
 
-#### Scenario: Пустые строки внутри текста
-- **WHEN** внутри текста идут подряд несколько пустых строк
-- **THEN** на экране между абзацами остаётся ровно один пустой ряд
+#### Scenario: Blank lines within text
+- **WHEN** several blank lines appear consecutively within text
+- **THEN** exactly one empty row remains between paragraphs on screen
 
 ## MODIFIED Requirements
 
-### Requirement: CollapsibleSection раскрывает и сворачивает содержимое
-Компонент SHALL показывать индикатор ▼ при открытом состоянии и ▶ при закрытом, отображать label в заголовке, а дочерние элементы вместе с Divider – только когда open возвращает true. Счётчик `count` SHALL быть опциональным: при объекте `{ done, total }` заголовок показывает «Label: done/total», при числе – «Label: N». Без счётчика – только label. В свёрнутом состоянии компонент SHALL отображать переданный `collapsedSummary`, если он есть.
+### Requirement: CollapsibleSection expands and collapses content
+The component SHALL show a ▼ indicator when open and ▶ when closed, display label in the heading, and children along with Divider – only when open returns true. Counter `count` SHALL be optional: with object `{ done, total }` the heading shows "Label: done/total", with a number – "Label: N". Without counter – only label. In collapsed state the component SHALL display the passed `collapsedSummary`, if present.
 
-#### Scenario: Секция раскрыта
-- **WHEN** open() возвращает true
-- **THEN** виден индикатор «▼», текст «Label: 3», разделитель Divider и дочерний контент
+#### Scenario: Section expanded
+- **WHEN** open() returns true
+- **THEN** indicator "▼" is visible, text "Label: 3", Divider separator, and child content
 
-#### Scenario: Секция свёрнута
-- **WHEN** open() возвращает false
-- **THEN** виден индикатор «▶» и заголовок, но Divider и children скрыты
+#### Scenario: Section collapsed
+- **WHEN** open() returns false
+- **THEN** indicator "▶" and heading are visible, but Divider and children are hidden
 
-#### Scenario: Заголовок без счётчика
-- **WHEN** `count` не передан
-- **THEN** заголовок показывает только label, без двоеточия и числа
+#### Scenario: Heading without counter
+- **WHEN** `count` is not passed
+- **THEN** heading shows only label, without colon and number
 
-#### Scenario: Превью в свёрнутом состоянии
-- **WHEN** секция свёрнута и передан `collapsedSummary`
-- **THEN** он отображается под заголовком вместо дочернего контента
+#### Scenario: Preview in collapsed state
+- **WHEN** section is collapsed and `collapsedSummary` is passed
+- **THEN** it is displayed below the heading instead of child content
 
-#### Scenario: Клик по заголовку вызывает onToggle
-- **WHEN** пользователь нажимает мышью на строку заголовка секции
-- **THEN** вызывается функция onToggle
+#### Scenario: Click on heading triggers onToggle
+- **WHEN** user clicks with mouse on the section heading line
+- **THEN** the onToggle function is called

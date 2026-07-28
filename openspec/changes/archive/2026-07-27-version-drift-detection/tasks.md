@@ -1,40 +1,38 @@
-## 1. Запоминание версии между запусками
+## 1. Remembering version between launches
 
-- [x] 1.1 Создать `src/lib/version-history.ts`: ключ `openspec.lastVersion`, `readLastVersion(api)` с отбрасыванием нестроковых значений, `recordVersion(api)` – записывает `VERSION` из сборки
-- [x] 1.2 Добавить `pendingVersionRange(last, current = VERSION)`: возвращает `{ old, new }`, только если `last` – валидная строка и `current` строго выше; иначе `null` (первый запуск, совпадение, откат назад). Текущая версия параметром – иначе не проверить: в dev-сборке `VERSION` равна `"dev"`
-- [x] 1.3 Тесты `test/version-history.test.ts` на заглушке `kv`: нет записи → `null` и версия записана; версия ниже → диапазон; совпадение → `null`; версия выше (откат) → `null`; dev-сборка ничего не порождает
+- [x] 1.1 Create `src/lib/version-history.ts`: key `openspec.lastVersion`, `readLastVersion(api)` dropping non-string values, `recordVersion(api)` – writes `VERSION` from the build
+- [x] 1.2 Add `pendingVersionRange(last, current = VERSION)`: returns `{ old, new }` only if `last` is a valid string and `current` is strictly higher; otherwise `null` (first launch, match, rollback). Current version as parameter – otherwise untestable: in dev build `VERSION` equals `"dev"`
+- [x] 1.3 Tests `test/version-history.test.ts` on a stub `kv`: no entry → `null` and version recorded; version lower → range; match → `null`; version higher (rollback) → `null`; dev build produces nothing
 
-## 2. Промпт миграции без флага
+## 2. Migration prompt without flag
 
-- [x] 2.1 В `src/lib/migrations.ts` добавить `hasMigrations(old, next)` поверх `collectMigrations` – нужен, чтобы не показывать баннер на релизе без записей
-- [x] 2.2 Заменить сигнатуру на `buildMigrationPrompt(range, opts?: { clearFlag?: boolean })`: строка о снятии `plugin.update-in-progress` добавляется только при `clearFlag`
-- [x] 2.3 Тесты `test/migrations.test.ts`: диапазон `(old, new]` и порядок записей; строка о снятии флага есть при `clearFlag: true` и отсутствует по умолчанию
+- [x] 2.1 In `src/lib/migrations.ts`, add `hasMigrations(old, next)` on top of `collectMigrations` – needed so the banner doesn't show on a release without entries
+- [x] 2.2 Replace signature with `buildMigrationPrompt(range, opts?: { clearFlag?: boolean })`: flag removal line for `plugin.update-in-progress` is added only when `clearFlag`
+- [x] 2.3 Tests `test/migrations.test.ts`: range `(old, new]` and entry order; flag removal line present with `clearFlag: true` and absent by default
 
-## 3. Панель сводит два источника
+## 3. Sidebar folds two sources
 
-- [x] 3.1 В `src/sidebar.tsx` завести сигнал последней версии из `kv`, читаемый один раз на старте
-- [x] 3.2 Добавить memo ожидающего диапазона: флаг `update-in-progress` приоритетнее; иначе диапазон из `kv`, но только когда `hasMigrations` для него истинно
-- [x] 3.3 Молча зафиксировать версию в `kv`, когда показывать нечего (нет записи, совпадение, откат, пустой диапазон)
-- [x] 3.4 Перевести баннер post-update на ожидающий диапазон вместо `updateFlag` напрямую; ветку «Reopen opencode to finish updating to X» оставить только за флагом – `kv` такого состояния не порождает
-- [x] 3.5 Complete Update передаёт `clearFlag` в зависимости от источника диапазона
-- [x] 3.6 По завершении хода миграции (busy→idle, рядом с `pendingReload`) записать `VERSION` в `kv`
+- [x] 3.1 In `src/sidebar.tsx`, create a signal for last version from `kv`, read once on startup
+- [x] 3.2 Add memo for pending range: flag `update-in-progress` takes priority; otherwise range from `kv`, but only when `hasMigrations` is true for it
+- [x] 3.3 Silently record version in `kv` when there's nothing to show (no entry, match, rollback, empty range)
+- [x] 3.4 Switch post-update banner to pending range instead of `updateFlag` directly; keep the "Reopen opencode to finish updating to X" branch only for the flag – `kv` doesn't produce such a state
+- [x] 3.5 Complete Update passes `clearFlag` depending on the source of the range
+- [x] 3.6 On migration turn completion (busy→idle, alongside `pendingReload`), write `VERSION` to `kv`
 
-## 4. Решение – чистой функцией, а не внутри компонента
+## 4. Decision as a pure function, not inside a component
 
-Логика решения сидела в сигналах сайдбара, из-за чего проверить её можно было только живым TUI.
-Записать значение в `kv` руками для стенда тоже нельзя: он не лежит ни отдельным файлом, ни таблицей
-ни в одной из `opencode*.db`.
+Decision logic sat in sidebar signals, so it could only be tested with a live TUI. You also can't manually write a value into `kv` for a test stand: it doesn't live as a separate file or a table in any of the `opencode*.db`.
 
-- [x] 4.1 Вынести решение в `decideMigration({ flag, last, current, hasEntries })` → `{ show: "migrate", range, fromFlag } | { show: "reopen", range } | { show: "none", record }`
-- [x] 4.2 `hasEntries` передавать параметром, а не импортировать `hasMigrations` внутрь – иначе тест зависит от содержимого `MIGRATIONS`, которое меняется каждый релиз
-- [x] 4.3 Сайдбар: memo поверх `decideMigration`, отдельные memo под две ветки баннера вместо вложенного `Show`; `syncVersionHistory` и Complete Update читают то же решение
-- [x] 4.4 Табличный тест на всю матрицу: два источника × (первый запуск / совпадение / рост / откат / диапазон без записей), плюс «во время обновления ничего не записывается»
+- [x] 4.1 Move decision to `decideMigration({ flag, last, current, hasEntries })` → `{ show: "migrate", range, fromFlag } | { show: "reopen", range } | { show: "none", record }`
+- [x] 4.2 Pass `hasEntries` as a parameter rather than importing `hasMigrations` inside – otherwise the test depends on `MIGRATIONS` content that changes every release
+- [x] 4.3 Sidebar: memo over `decideMigration`, separate memos for two banner branches instead of nested `Show`; `syncVersionHistory` and Complete Update read the same decision
+- [x] 4.4 Table test on entire matrix: two sources × (first launch / match / growth / rollback / range without entries), plus "nothing recorded during update"
 
-## 5. Проверка и документация
+## 5. Verification and documentation
 
-- [x] 5.1 Прогнать `bun run typecheck`, `bun run test`, `bun run build`
-- [x] 5.2 Добавить запись в `MIGRATIONS` о релизе
-- [x] 5.3 Обновить `AGENTS.md`: `kv` – источник «последней запущенной версии», и что запись в `MIGRATIONS` теперь доходит до всех, а не только до нажавших кнопку
-- [x] 5.4 Проверить, переживает ли `kv` перезапуск – единственное, что тестом не закрыть. **Подтверждено 2026-07-26** отладочным логом: два запуска подряд, второй прочитал версию, записанную первым. Лежит в `~/.local/state/opencode/kv.json`, глобально, обычным JSON
-- [x] 5.5 Смоук на первом настоящем релизе (0.3.0): обновиться, убедиться что баннер появился, Complete Update отработал и повторно баннер не всплывает. В dev-чекауте не проверить – там `VERSION` равна `"dev"` и ветка `kv` неактивна по построению
-- [x] 5.6 Там же проверить путь через кнопку Update: флаг в config.yaml → Complete Update → агент снял флаг
+- [x] 5.1 Run `bun run typecheck`, `bun run test`, `bun run build`
+- [x] 5.2 Add entry to `MIGRATIONS` about the release
+- [x] 5.3 Update `AGENTS.md`: `kv` as source of "last launched version", and that `MIGRATIONS` entries now reach everyone, not just button pressers
+- [x] 5.4 Verify that `kv` survives restart – the only thing a test can't close. **Confirmed 2026-07-26** with debug log: two consecutive launches, second read version written by first. Lives in `~/.local/state/opencode/kv.json`, globally, plain JSON
+- [x] 5.5 Smoke on first real release (0.3.0): update, verify banner appeared, Complete Update ran and banner doesn't reappear. Can't test in dev checkout – there `VERSION` equals `"dev"` and the `kv` branch is inactive by construction
+- [x] 5.6 Also check path through Update button: flag in config.yaml → Complete Update → agent removed flag

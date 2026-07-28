@@ -1,18 +1,18 @@
 ## Purpose
-Экран настроек плагина OpenSpec: открытие поверх контента боковой панели и возврат к предыдущему view. Содержимое секции версий и обновлений принадлежит `update-flow`.
+OpenSpec plugin settings screen: opening over sidebar content and returning to previous view. The versions and updates section belongs to `update-flow`.
 
 ## Requirements
 
-### Requirement: Экран настроек открывается поверх контента
-Панель SHALL открывать экран Settings по кнопке в заголовке, перекрывая текущий контент sidebar.
+### Requirement: Settings Screen Opens Over Content
+Sidebar SHALL open the Settings screen via header button, overlaying current sidebar content.
 
-#### Scenario: Открытие экрана Settings
-- **WHEN** пользователь нажимает кнопку Settings в заголовке
-- **THEN** отображается view Settings, перекрывающий текущий контент sidebar
+#### Scenario: Opening Settings Screen
+- **WHEN** user presses Settings button in header
+- **THEN** Settings view is displayed, overlaying current sidebar content
 
-### Requirement: Экран настроек поддерживает навигацию назад
-Панель SHALL предоставлять кнопку возврата из экрана Settings к предыдущему view.
+### Requirement: Settings Screen Supports Back Navigation
+Sidebar SHALL provide a back button from Settings screen to previous view.
 
-#### Scenario: Нажатие кнопки назад
-- **WHEN** пользователь нажимает «← back» в экране Settings
-- **THEN** экран Settings закрывается и восстанавливается предыдущий контент sidebar
+#### Scenario: Pressing Back Button
+- **WHEN** user presses "← back" in Settings screen
+- **THEN** Settings screen closes and previous sidebar content is restored

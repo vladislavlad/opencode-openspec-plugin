@@ -1,72 +1,62 @@
 ## MODIFIED Requirements
 
-### Requirement: Отображение строки спецификации
-Система SHALL отображать строку спецификации с именем, акцентным маркером и количеством требований –
-общим или, при активном поиске с совпадением внутри требований, количеством совпавших.
+### Requirement: Spec row display
+The system SHALL display a spec row with name, accent marker, and requirement count – total or, during active search with internal matches, the matched count.
 
-#### Scenario: Строка спецификации отображает имя и счётчик требований
-- **WHEN** компонент SpecRow получает объект спецификации без счётчика совпадений
-- **THEN** на экране появляется имя спецификации с акцентным маркером «▪» справа от имени и текстом
-  `N requirements` приглушённым цветом
+#### Scenario: Spec row displays name and requirement counter
+- **WHEN** the SpecRow component receives a spec object without match count
+- **THEN** the screen shows spec name with an accent marker "▪" to the right of the name and text `N requirements` in muted color
 
-#### Scenario: Строка показывает количество совпавших требований
-- **WHEN** SpecRow получает счётчик совпавших требований больше нуля
-- **THEN** вместо общего количества отображается текст `N matching requirements`
+#### Scenario: Row shows matched requirement count
+- **WHEN** SpecRow receives a matched requirement counter greater than zero
+- **THEN** instead of total count, text `N matching requirements` is displayed
 
-#### Scenario: Совпадение вне требований не меняет счётчик
-- **WHEN** SpecRow получает счётчик совпавших требований, равный нулю
-- **THEN** отображается обычный текст `N requirements`
+#### Scenario: Match outside requirements doesn't change counter
+- **WHEN** SpecRow receives a matched requirement counter equal to zero
+- **THEN** regular text `N requirements` is displayed
 
-#### Scenario: Подсветка строки при наведении
-- **WHEN** курсор мыши находится над строкой спецификации
-- **THEN** фон строки меняется на цвет `textMuted`, а счётчик требований отображается обычным цветом
-  текста
+#### Scenario: Row highlight on hover
+- **WHEN** the mouse cursor is over the spec row
+- **THEN** row background changes to `textMuted` color, and requirement counter displays in normal text color
 
-#### Scenario: Выбор спецификации по клику
-- **WHEN** пользователь нажимает кнопку мыши на строке спецификации
-- **THEN** вызывается обработчик onSelect с именем спецификации
+#### Scenario: Spec selection by click
+- **WHEN** the user clicks the mouse on a spec row
+- **THEN** onSelect handler is called with the spec name
 
-### Requirement: Детальный просмотр спецификации
-Система SHALL отображать имя спецификации и раздел Purpose, если он присутствует. Заголовок (title) и
-текст между H1 и первым разделом не отображаются: они дублируют имя capability и не входят в схему
-OpenSpec.
+### Requirement: Specification detail view
+The system SHALL display the specification name and Purpose section if present. Title (title) and text between H1 and the first section are not displayed: they duplicate capability name and are not part of the OpenSpec schema.
 
-#### Scenario: Имя спецификации всегда видно
-- **WHEN** открывается SpecDetail для любой спецификации
-- **THEN** отображаются DetailHeader с кнопкой «назад» и имя спецификации с маркером «▪», без строки
-  заголовка и без описания
+#### Scenario: Spec name always visible
+- **WHEN** SpecDetail opens for any specification
+- **THEN** DetailHeader with back button and spec name with "▪" marker appear, without title line and without description
 
-#### Scenario: Раздел Purpose отображается при наличии
-- **WHEN** у спецификации задано поле purpose
-- **THEN** под именем спецификации появляется раздел с меткой «Purpose» акцентным цветом и текстом
-  цели
+#### Scenario: Purpose section displayed when present
+- **WHEN** the specification has a purpose field set
+- **THEN** below the spec name appears a section labeled "Purpose" in accent color with purpose text
 
-### Requirement: Список требований в детальной спецификации
-Система SHALL отображать под заголовком `Requirements` поле поиска и список требований
-спецификации, отфильтрованный по запросу, с возможностью перехода к каждому требованию.
+### Requirement: Requirements list in detail spec
+The system SHALL display under the `Requirements` heading a search field and a requirements list filtered by query, with navigation to each requirement.
 
-#### Scenario: Требования перечисляются со счётчиком сценариев
-- **WHEN** у спецификации есть требования, а запрос поиска пуст
-- **THEN** под разделом Purpose отображается заголовок `Requirements: N`, разделитель, поле поиска и
-  строки требований, каждая из которых содержит имя и количество сценариев
+#### Scenario: Requirements listed with scenario counter
+- **WHEN** the specification has requirements and search query is empty
+- **THEN** below the Purpose section appears heading `Requirements: N`, divider, search field, and requirement rows, each containing name and scenario count
 
-#### Scenario: Пустой список требований
-- **WHEN** у спецификации нет требований (requirements.length === 0)
-- **THEN** вместо списка отображается приглушённый текст «No requirements»
+#### Scenario: Empty requirements list
+- **WHEN** the specification has no requirements (requirements.length === 0)
+- **THEN** muted text "No requirements" is displayed instead of a list
 
-#### Scenario: Фильтрация требований по запросу
-- **WHEN** запрос не пуст
-- **THEN** список показывает только требования, удовлетворяющие запросу, а счётчик в заголовке
-  `Requirements` отражает их количество
+#### Scenario: Requirement filtering by query
+- **WHEN** the query is non-empty
+- **THEN** the list shows only requirements satisfying the query, and counter in `Requirements` heading reflects their count
 
-#### Scenario: Запрос не нашёл требований
-- **WHEN** у спецификации есть требования, но ни одно не удовлетворяет запросу
-- **THEN** вместо списка отображается приглушённый текст «No matches»
+#### Scenario: Query finds no requirements
+- **WHEN** the specification has requirements but none satisfy the query
+- **THEN** muted text "No matches" is displayed instead of a list
 
-#### Scenario: Строка требования показывает количество совпавших сценариев
-- **WHEN** строка требования получает счётчик совпавших сценариев больше нуля
-- **THEN** вместо общего количества отображается текст `N matching scenarios`
+#### Scenario: Requirement row shows matched scenario count
+- **WHEN** requirement row receives a matched scenario counter greater than zero
+- **THEN** instead of total count, text `N matching scenarios` is displayed
 
-#### Scenario: Переход к требованию по клику
-- **WHEN** пользователь нажимает на строку требования в списке
-- **THEN** вызывается обработчик onOpenReq с именем требования
+#### Scenario: Navigate to requirement by click
+- **WHEN** the user clicks on a requirement row in the list
+- **THEN** onOpenReq handler is called with the requirement name

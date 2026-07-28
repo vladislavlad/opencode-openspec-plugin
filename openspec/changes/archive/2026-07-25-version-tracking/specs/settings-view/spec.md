@@ -1,40 +1,40 @@
 ## MODIFIED Requirements
 
-### Requirement: Экран настроек отображает версии и обновления
-Панель SHALL показывать в экране Settings секцию версий с текущими версиями плагина и openspec CLI, доступными обновлениями и кнопками управления.
+### Requirement: Settings screen displays versions and updates
+The panel SHALL display in the Settings screen a versions section with current plugin and openspec CLI versions, available updates, and control buttons.
 
-#### Scenario: Отображение версии плагина
-- **WHEN** открыт экран Settings
-- **THEN** показывается строка «Plugin version» слева и значение текущей версии (например `0.2.0`) справа на той же строке
+#### Scenario: Display plugin version
+- **WHEN** Settings screen is open
+- **THEN** "Plugin version" line is shown on the left and current version value (e.g., `0.2.0`) on the right on the same line
 
-#### Scenario: Доступно обновление плагина
-- **WHEN** `pluginUpdate` не равно `null`
-- **THEN** под строкой версии отображается текст «x.y.z version available» и кнопка Update в следующей строке
+#### Scenario: Plugin update available
+- **WHEN** `pluginUpdate` is not `null`
+- **THEN** below the version line, text "x.y.z version available" and an Update button in the next line are displayed
 
-#### Scenario: Отображение версии openspec CLI
-- **WHEN** открыт экран Settings
-- **THEN** показывается строка «OpenSpec CLI» слева и значение текущей версии (`generatedBy`) справа; если версия не определена – «unknown»
+#### Scenario: Display openspec CLI version
+- **WHEN** Settings screen is open
+- **THEN** "OpenSpec CLI" line is shown on the left and current version value (`generatedBy`) on the right; if version not determined – "unknown"
 
-#### Scenario: Доступно обновление CLI
-- **WHEN** `cliUpdate` не равно `null`
-- **THEN** под строкой версии отображается текст «x.y.z version available» и кнопка Update в следующей строке
+#### Scenario: CLI update available
+- **WHEN** `cliUpdate` is not `null`
+- **THEN** below the version line, text "x.y.z version available" and an Update button in the next line are displayed
 
-#### Scenario: Кнопка Check Versions
-- **WHEN** открыт экран Settings
-- **THEN** внизу секции версий отображается кнопка Check Versions, которая вызывает плагинную функцию `checkVersions` (без хода агента) для перезапуска проверки обновлений
+#### Scenario: Check Versions button
+- **WHEN** Settings screen is open
+- **THEN** at the bottom of the versions section a Check Versions button is displayed, which calls the plugin function `checkVersions` (without agent turn) to restart update checking
 
-#### Scenario: Нажатие Update для компонента
-- **WHEN** пользователь нажимает Update у строки плагина или CLI при простое агента
-- **THEN** плагин отправляет `buildUpdatePrompt` с этим компонентом через `sendPrompt`, кнопки блокируются до завершения хода агента; после обновления отображается сообщение «Reload opencode to update plugin» и кнопка Reload (`error`), закрывающая opencode
+#### Scenario: Click Update for component
+- **WHEN** the user clicks Update on the plugin or CLI line while agent is idle
+- **THEN** plugin sends `buildUpdatePrompt` with that component via `sendPrompt`, buttons are locked until agent turn completes; after update, "Reload opencode to update plugin" message and Reload button (`error`) closing opencode are displayed
 
-#### Scenario: Update заблокирован во время работы агента
-- **WHEN** агент занят и пользователь нажимает Update или Update All
-- **THEN** промпт не отправляется, показывается тост «Wait until the agent finishes working»
+#### Scenario: Update blocked while agent is working
+- **WHEN** agent is busy and user clicks Update or Update All
+- **THEN** prompt is not sent, toast "Wait until the agent finishes working" is shown
 
-#### Scenario: Кнопка Update All
-- **WHEN** доступно хотя бы одно обновление (плагина или CLI)
-- **THEN** внизу секции версий отображается кнопка Update All, которая отправляет `buildUpdatePrompt` только с реально устаревшими компонентами
+#### Scenario: Update All button
+- **WHEN** at least one update is available (plugin or CLI)
+- **THEN** at the bottom of the versions section an Update All button is displayed, which sends `buildUpdatePrompt` only with actually outdated components
 
-#### Scenario: Обновления недоступны – Update All скрыта
-- **WHEN** обновления недоступны или проверка ещё не выполнена
-- **THEN** кнопка Update All не отображается, видна только Check Versions
+#### Scenario: No updates – Update All hidden
+- **WHEN** no updates available or check hasn't run yet
+- **THEN** Update All button is not displayed, only Check Versions is visible
