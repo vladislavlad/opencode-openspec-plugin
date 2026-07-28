@@ -13,3 +13,8 @@ rules:
   tasks:
     - Break tasks into ~half-day chunks
     - When a change adds or changes user-facing behavior, include a task to add a MIGRATIONS entry in src/lib/migrations.ts (releaseNotes describing what's new for the user, plus any post-update instructions for the agent). Skip only for internal-only changes with nothing to tell the user or migrate.
+
+plugin:
+  update-in-progress:
+    old: 0.3.0
+    new: 0.3.1
