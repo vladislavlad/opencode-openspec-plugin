@@ -81,7 +81,7 @@ export function SettingsView(props: {
       />
 
       <box flexDirection="row" gap={2} justifyContent="flex-end" paddingTop={1}>
-        <Button theme={t} label="Check Versions" color={t().secondary} onClick={props.onCheck} />
+        <Button theme={t} label="Check Versions" color={t().secondary} {...props.gate} onClick={props.onCheck} />
         <Show when={anyUpdate()}>
           <Button theme={t} label="Update All" color={t().success} {...props.gate} onClick={updateAll} />
         </Show>
@@ -94,7 +94,7 @@ export function SettingsView(props: {
             Reload opencode to update plugin
           </text>
           <box flexDirection="row" paddingTop={1}>
-            <Button theme={t} label="Reload" color={t().error} onClick={props.onReload} />
+            <Button theme={t} label="Reload OpenCode" color={t().error} {...props.gate} onClick={props.onReload} />
           </box>
         </box>
       </Show>

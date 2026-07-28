@@ -39,6 +39,7 @@ export function PostUpdateBanner(props: {
   theme: Theme
   decision: () => MigrationDecision
   onComplete: () => void
+  onReopen: () => void
   gate: Gate
 }) {
   const t = props.theme
@@ -53,6 +54,9 @@ export function PostUpdateBanner(props: {
         {(target) => (
           <box paddingBottom={1}>
             <text fg={t().warning} wrapMode="word">{`Reopen opencode to finish updating to ${target()}`}</text>
+            <box flexDirection="row" paddingTop={1}>
+              <Button theme={t} label="Reopen OpenCode" color={t().error} {...props.gate} onClick={props.onReopen} />
+            </box>
           </box>
         )}
       </Show>

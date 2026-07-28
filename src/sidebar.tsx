@@ -330,7 +330,7 @@ export function OpenSpecSidebar(props: { api: TuiPluginApi; sessionId: string; b
         />
       </Show>
 
-      <PostUpdateBanner theme={theme} decision={migration} onComplete={completeUpdate} gate={gate} />
+      <PostUpdateBanner theme={theme} decision={migration} onComplete={completeUpdate} onReopen={() => quitOpencode(props.api)} gate={gate} />
 
       <Show when={banner() !== "none"}>
         <EphemeralReloadBanner theme={theme} onReload={() => quitOpencode(props.api)} gate={gate} />

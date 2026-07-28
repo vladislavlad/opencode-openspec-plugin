@@ -1,7 +1,7 @@
 import { expect, test } from "bun:test"
 import { MIGRATIONS, buildMigrationPrompt, collectMigrations, hasMigrations } from "../src/lib/migrations"
 
-const CLEAR_FLAG = "remove the `plugin.update-in-progress` block"
+const CLEAR_FLAG = "Remove the `plugin.update-in-progress` block"
 const versions = Object.keys(MIGRATIONS).sort()
 const oldest = versions[0]
 
@@ -27,12 +27,12 @@ test("the flag instruction is opt-in, because a kv-detected range has no flag to
 test("the prompt names the range and asks for the notes to be relayed", () => {
   const p = buildMigrationPrompt({ old: "0.0.0", new: "999.0.0" })
   expect(p).toContain("updated from 0.0.0 to 999.0.0")
-  expect(p).toContain("tell me what's new")
+  expect(p).toContain("Write for the user these release notes grouped by version in language of the user in pretty format")
 })
 
 test("an empty range still produces a usable prompt", () => {
   const p = buildMigrationPrompt({ old: "999.0.0", new: "999.9.9" }, { clearFlag: true })
-  expect(p).toContain("no migration steps")
+  expect(p).not.toContain("Execute these migration steps")
   expect(p).toContain(CLEAR_FLAG)
 })
 
