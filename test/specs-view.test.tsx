@@ -3,7 +3,7 @@ import { createSignal } from "solid-js"
 import { testRender } from "@opentui/solid"
 import { ChangeDetail } from "../src/components/changes"
 import { Divider } from "../src/components/primitives"
-import { RequirementDetail, SpecDetail, SpecRow } from "../src/components/specs"
+import { RequirementDetail, SpecDetail, SpecNodeView, SpecRow, buildTree, findNode, parentArea } from "../src/components/specs"
 import type { OpenSpecSpec } from "../src/lib/openspec"
 import type { CliRenderer, TuiThemeCurrent } from "@opencode-ai/plugin/tui"
 
@@ -174,4 +174,136 @@ test("a spec row reports matching requirements when the search hit is inside the
   expect(await frame(row(), 40, 4)).toContain("  2 requirements")
   expect(await frame(row(0), 40, 4)).toContain("  2 requirements")
   expect(await frame(row(1), 40, 4)).toContain("  1 matching requirements")
+})
+
+// ---- the specs tree -------------------------------------------------------
+
+const named = (name: string, requirements = 1): OpenSpecSpec => ({
+  name,
+  title: name,
+  purpose: "",
+  requirements: Array.from({ length: requirements }, (_, i) => ({ name: `R${i}`, description: "", scenarios: [] })),
+})
+
+test("buildTree groups by path segment and counts specs at any depth", () => {
+  const root = buildTree([
+    named("project-config"),
+    named("backend/auth"),
+    named("backend/api"),
+    named("area-1/area-1-a/deep"),
+  ])
+  expect(root.areas.map((a) => a.name)).toEqual(["area-1", "backend"]) // alphabetical
+  expect(root.specs.map((s) => s.name)).toEqual(["project-config"])
+
+  const backend = root.areas.find((a) => a.name === "backend")!
+  expect(backend.path).toBe("backend")
+  expect(backend.total).toBe(2)
+  expect(backend.specs.map((s) => s.name)).toEqual(["backend/api", "backend/auth"])
+
+  const areaOne = root.areas.find((a) => a.name === "area-1")!
+  expect(areaOne.total).toBe(1) // counted through the sub-area
+  expect(areaOne.specs).toEqual([])
+  expect(areaOne.areas[0].path).toBe("area-1/area-1-a")
+})
+
+test("a flat list yields a root with no areas", () => {
+  const root = buildTree([named("a"), named("b")])
+  expect(root.areas).toEqual([])
+  expect(root.specs).toHaveLength(2)
+})
+
+test("findNode walks a path and reports a missing area", () => {
+  const root = buildTree([named("area-1/area-1-a/deep")])
+  expect(findNode(root, "")).toBe(root)
+  expect(findNode(root, "area-1/area-1-a")?.specs.map((s) => s.name)).toEqual(["area-1/area-1-a/deep"])
+  expect(findNode(root, "gone")).toBeNull()
+})
+
+test("parentArea goes one level up, root only from the top level", () => {
+  expect(parentArea("area-1/area-1-a")).toBe("area-1")
+  expect(parentArea("area-1")).toBe("")
+})
+
+// The headings label groups. A flat project has no groups, so it stays the plain list it always was;
+// once an area is in play – beside this level or around it – the labels appear with their counts.
+test("groups are labelled once an area is in play, and not before", async () => {
+  const [hovered, setHovered] = createSignal<string | null>(null)
+  const view = (specs: OpenSpecSpec[], path = "") => () => (
+    <SpecNodeView
+      theme={theme}
+      node={findNode(buildTree(specs), path)!}
+      hovered={hovered}
+      setHovered={setHovered}
+      onSelectArea={() => {}}
+      onSelectSpec={() => {}}
+      onBack={() => {}}
+    />
+  )
+
+  const divided = await frame(view([named("project-config"), named("backend/auth"), named("backend/api")]), 40, 12)
+  expect(divided).toContain("Areas: 1")
+  expect(divided).toContain("Capabilities: 1")
+  expect(divided).toContain("▪ backend")
+  expect(divided).toContain("  2 capabilities")
+  expect(divided).toContain("▪ project-config")
+
+  // Inside `backend`: no sub-areas, so no Areas heading – but its capabilities are still labelled,
+  // and they read by leaf name because the area header above already named the area.
+  const inside = await frame(view([named("backend/auth"), named("backend/api")], "backend"), 40, 12)
+  expect(inside).not.toContain("Areas:")
+  expect(inside).toContain("Capabilities: 2")
+  expect(inside).toContain("▪ auth")
+  expect(inside).toContain("▪ api")
+
+  // A project with no areas at all: nothing to label, so it looks as it always did.
+  const flat = await frame(view([named("a"), named("b")]), 40, 8)
+  expect(flat).not.toContain("Areas:")
+  expect(flat).not.toContain("Capabilities:")
+})
+
+// The header is drawn from the node, never from the path its caller asked for, so it can only name
+// the area actually on screen. Files move between polls: an area that disappears mid-derive leaves
+// its caller falling back to the root, and the root carries no header to announce a gone area.
+test("the area header names the node rendered, so a vanished area leaves none behind", async () => {
+  const [hovered, setHovered] = createSignal<string | null>(null)
+  const tree = buildTree([named("backend/auth"), named("project-config")])
+  // `?? tree` is the fallback the sidebar makes when the area it was showing is gone.
+  const view = (path: string) => () => (
+    <SpecNodeView
+      theme={theme}
+      node={findNode(tree, path) ?? tree}
+      hovered={hovered}
+      setHovered={setHovered}
+      onSelectArea={() => {}}
+      onSelectSpec={() => {}}
+      onBack={() => {}}
+    />
+  )
+
+  const inside = (await frame(view("backend"), 40, 12)).join("\n")
+  expect(inside).toContain("← back")
+  expect(inside).toContain("▪ backend") // the path, on its own row under the label
+  expect(inside).toContain("Capabilities: 1")
+
+  const vanished = (await frame(view("frontend"), 40, 12)).join("\n")
+  expect(vanished).not.toContain("← back") // no area is open, so there is nothing to leave
+  expect(vanished).toContain("Areas: 1") // the root's own content, drawn as usual
+  expect(vanished).toContain("▪ project-config")
+})
+
+// Two areas can each hold an `auth`; a list drawn without a node around it has to say which is which.
+test("a spec row shows its leaf in a node and its full path in a flat list", async () => {
+  const [hovered, setHovered] = createSignal<string | null>(null)
+  const row = (showPath?: boolean) => () => (
+    <SpecRow
+      theme={theme}
+      spec={named("backend/auth")}
+      hovered={hovered}
+      setHovered={setHovered}
+      onSelect={() => {}}
+      showPath={showPath}
+    />
+  )
+  expect(await frame(row(), 40, 4)).toContain("▪ auth")
+  expect(await frame(row(true), 40, 4)).toContain("▪ backend/auth")
 })

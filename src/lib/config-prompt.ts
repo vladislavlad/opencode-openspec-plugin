@@ -1,7 +1,22 @@
 // `/opsx-config`: infer stack/language/context into openspec/config.yaml, so every OpenSpec artifact
 // is generated with that context and in the chosen language. Multi-line prompts are arrays joined
 // with "\n" so the ``` fences inside them don't end a template literal.
-import { MULTI_SELECT_RULE, SPEAK_THE_USER_LANGUAGE } from "./prompt-style"
+import { MULTI_SELECT_RULE, SPEAK_THE_USER_LANGUAGE, SPEC_LANGUAGE_RULE } from "./prompt-style"
+
+// The three styles on one axis – technical precision ↔ user-oriented clarity, Balanced in the middle.
+// One constant serves both the question and the `context` line, because the style survives the setup
+// turn as a single word: whoever generates artifacts later reads `context` and nothing else, and
+// "Balanced" alone says nothing about between what.
+const STYLE_OPTIONS =
+  '"Technical" (precise, implementation-focused), "Product" (outcome-focused, user-oriented), or "Balanced" (technical precision where it matters, readable by non-engineers)'
+
+// Named by the directory layout each one produces, because that is the whole difference. Two options,
+// not three: an "auto" that means "look at the files" is what derive does anyway when the setting and
+// the files disagree, and offering it only asked the user to pick between a preference and a
+// non-answer. Only derive reads the value – the sidebar takes the structure from the files
+// themselves, so the two can't drift apart.
+const STRUCTURE_OPTIONS =
+  '"Flat" (every capability at one level, `specs/<capability>/spec.md`) or "Hierarchical" (capabilities grouped into areas, `specs/<area>/<capability>/spec.md`)'
 
 // The "is openspec set up?" guard is for the standalone `/opsx-config` only – inside the init prompt,
 // the install step right above just set it up.
@@ -16,7 +31,8 @@ export const configPrompt = (standalone: boolean) => [
   '   - "Stack" (multi-select): the tech stack. Offer the stack you detected as one option.',
   '   - "Language" (single): the natural (human) language the specs are written in. NEVER propose programming or markup languages. Offer the language detected from the docs and "English".',
   '   - "Context" (multi-select): a 2-4 sentence project summary. Offer your summary as one option.',
-  '   - "Style" (single): "Technical", "Product", or "Balanced".',
+  `   - "Style" (single): ${STYLE_OPTIONS}.`,
+  `   - "Structure" (single): how specs are organized – ${STRUCTURE_OPTIONS}.`,
   `   "Stack" and "Context" must have multiple selection turned ON – ${MULTI_SELECT_RULE}.`,
   '   On those two, the user may tick your option, tick it and add more via "Type your own answer", or type their own. Merge what they pick and type.',
   '4. Ask "Configure detailed rules?" (single: "Yes" / "No").',
@@ -30,9 +46,13 @@ export const configPrompt = (standalone: boolean) => [
   "   - `context` is one multi-line block. Its content, in order:",
   "     1. the tech stack",
   "     2. the spec language",
-  "     3. this line, copied verbatim: \"Write requirement statements, scenarios and task text in the language above. Keep unchanged: OpenSpec keywords (Purpose, Requirements, Requirement, Scenario, SHALL, WHEN, THEN) and code identifiers (class/function/file names, API terms).\"",
-  "     4. the writing style",
-  "     5. the 2-4 sentence summary",
+  "     3. the lines between the two markers below, copied verbatim and without the markers themselves – they are what makes the language above stick in every artifact generated later, so don't paraphrase or shorten them:",
+  "--- copy from here ---",
+  SPEC_LANGUAGE_RULE,
+  "--- to here ---",
+  "     4. the writing style with its meaning in parentheses, copied from the option you offered – e.g. `Writing style: Balanced (technical precision where it matters, readable by non-engineers)`",
+  "     5. the spec structure, as `specStructure: flat` or `specStructure: hierarchical`",
+  "     6. the 2-4 sentence summary",
   "   - `rules.proposal` and `rules.tasks` are lists of short rules; omit the `rules:` block entirely if the user set none. Leave any existing `rules.specs` / `rules.design` exactly as they are.",
 ]
 

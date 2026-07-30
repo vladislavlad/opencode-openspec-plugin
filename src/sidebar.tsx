@@ -13,7 +13,7 @@ import { quitOpencode, sendPrompt, submitPrompt } from "./lib/send-prompt"
 import { registerOpsxFsCommands } from "./features/commands"
 import { BackButton, Button, CollapsibleSection, Divider, ProgressBar, type Gate } from "./components/primitives"
 import { ChangeDetail, ChangeRow } from "./components/changes"
-import { RequirementDetail, SpecDetail, SpecRow } from "./components/specs"
+import { RequirementDetail, SpecDetail, SpecNodeView, SpecRow, buildTree, findNode, parentArea } from "./components/specs"
 import { SearchField } from "./components/search"
 import { SettingsView } from "./components/settings"
 import {
@@ -47,6 +47,9 @@ export function OpenSpecSidebar(props: { api: TuiPluginApi; sessionId: string; b
   const [selected, setSelected] = createSignal<string | null>(null)
   const [selectedSpec, setSelectedSpec] = createSignal<string | null>(null)
   const [selectedReq, setSelectedReq] = createSignal<string | null>(null)
+  // The area the Specifications list is showing, as a path ("" = the root). Opening a spec keeps it,
+  // so coming back from the detail view lands where the user was.
+  const [currentArea, setCurrentArea] = createSignal("")
   // proposal.md / design.md of the open change; null while they're being read.
   const [changeDocs, setChangeDocs] = createSignal<ChangeDocs | null>(null)
   const [hovered, setHovered] = createSignal<string | null>(null)
@@ -84,6 +87,14 @@ export function OpenSpecSidebar(props: { api: TuiPluginApi; sessionId: string; b
   const activeList = createMemo(() => summary()?.changes.filter((c) => !isComplete(c)) ?? [])
   const completedList = createMemo(() => summary()?.changes.filter(isComplete) ?? [])
   const specMatches = createMemo(() => searchSpecs(summary()?.specs ?? [], specQuery()))
+  // A query searches the whole tree, so while one is active the grouping goes away and the results
+  // are one flat list – otherwise a match would sit behind a click, and the header would count specs
+  // the user can't see.
+  const filtering = () => specQuery().trim() !== ""
+  const specTree = createMemo(() => buildTree(summary()?.specs ?? []))
+  // Fall back to the root when the area disappears – files can move between polls. The node is what
+  // the section renders, header included, so a stale path can't outlive the area it names.
+  const areaNode = createMemo(() => findNode(specTree(), currentArea()) ?? specTree())
   const activeTotal = createMemo(() => activeList().reduce((sum, c) => sum + c.totalTasks, 0))
   const activeDone = createMemo(() => activeList().reduce((sum, c) => sum + c.completedTasks, 0))
 
@@ -161,6 +172,13 @@ export function OpenSpecSidebar(props: { api: TuiPluginApi; sessionId: string; b
 
   const openChange = (change: string) => show({ change })
   const openSpec = (spec: string) => show({ spec })
+  // Entering an area is a selection like any other, so it clears the detail views; leaving goes one
+  // level up, not all the way to the root.
+  const openArea = (path: string) => {
+    show({})
+    setCurrentArea(path)
+  }
+  const leaveArea = () => setCurrentArea((path) => parentArea(path))
   const openRequirement = (req: string) => show({ spec: selectedSpec() ?? undefined, req })
   const backToList = () => show({})
   const backToSpec = () => show({ spec: selectedSpec() ?? undefined })
@@ -402,18 +420,34 @@ export function OpenSpecSidebar(props: { api: TuiPluginApi; sessionId: string; b
       >
         <SearchField theme={theme} renderer={props.api.renderer} value={specQuery} onInput={setSpecQuery} placeholder="Search specs" />
         <Show when={specMatches().length > 0} fallback={<text fg={theme().textMuted}>{"  No matches"}</text>}>
-          <For each={specMatches()}>
-            {(match) => (
-              <SpecRow
-                theme={theme}
-                spec={match.spec}
-                hovered={hovered}
-                setHovered={setHovered}
-                onSelect={openSpec}
-                matchedRequirements={match.matchedRequirements}
-              />
-            )}
-          </For>
+          <Show
+            when={!filtering()}
+            fallback={
+              <For each={specMatches()}>
+                {(match) => (
+                  <SpecRow
+                    theme={theme}
+                    spec={match.spec}
+                    hovered={hovered}
+                    setHovered={setHovered}
+                    onSelect={openSpec}
+                    matchedRequirements={match.matchedRequirements}
+                    showPath
+                  />
+                )}
+              </For>
+            }
+          >
+            <SpecNodeView
+              theme={theme}
+              node={areaNode()}
+              hovered={hovered}
+              setHovered={setHovered}
+              onSelectArea={openArea}
+              onSelectSpec={openSpec}
+              onBack={leaveArea}
+            />
+          </Show>
         </Show>
       </CollapsibleSection>
 

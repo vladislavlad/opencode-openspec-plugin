@@ -1,7 +1,7 @@
 // `/opsx-baseline`: reverse-engineer specs from existing code. The init prompt embeds the same body,
 // asking the depth question its own way. Multi-line prompts are arrays joined with "\n" so the ```
 // fences inside them don't end a template literal.
-import { MULTI_SELECT_RULE, SPEAK_THE_USER_LANGUAGE } from "./prompt-style"
+import { MULTI_SELECT_RULE, SPEAK_THE_USER_LANGUAGE, SPEC_LANGUAGE_RULE } from "./prompt-style"
 
 // The depth of the pass, asked before any code is read: settling the capability list is already
 // studying the project. Each caller asks in its own way – the derive body below just follows the
@@ -13,9 +13,19 @@ const DEPTH_QUESTION = [
   "That answer is the depth for everything below.",
 ].join("\n")
 
-// The spec-derivation stage: reverse-engineer specs from existing code, phased with subagents so a
+// The spec-derivation stage: reverse-engineer specs from existing code, staged with subagents so a
 // small model never has to hold the whole codebase at once. The depth is already chosen by the time
 // this runs.
+//
+// Stage order is load-bearing. Orient is deliberately cheap and Scan deliberately is not, with the
+// structure question between them: grouping decides how Scan and Detail are organised, so paying for
+// a Deep read before that answer would buy the wrong shape. Every stage states its flat path and its
+// areas path in place – trailing "in areas mode" lines read as afterthoughts and got skipped.
+//
+// Subagents fan out inside an area but never across two, so the area stays the unit of progress and
+// of checking. They can't see each other, which costs two things and each has its own answer: the
+// confirmed capability list goes to all of them up front as a map of boundaries, and the parent reads
+// the specs back afterwards to check the map was honoured – per area, then once across the run.
 export const SPEC_DERIVE_PROMPT = [
   "Reverse-engineer OpenSpec specs from the existing code – describe what the project does today. Write specs only: no changes, no code edits.",
   "",
@@ -23,14 +33,12 @@ export const SPEC_DERIVE_PROMPT = [
   "",
   "Not every project is an application. In an infrastructure, configuration or tooling repository the declared setup is the behavior: what it provisions, how the parts are wired, what it guarantees to the person running it. Describe that the same way.",
   "",
-  "First read `openspec/config.yaml` and follow its `context` (especially the spec language).",
-  "",
   "A spec = ONE cohesive capability (e.g. `authentication`, `billing`, `change-list`). Sizing rules:",
   "- Several focused specs beat one big spec.",
   "- Aim for ~4-8 requirements per spec. If one would exceed ~10, split it.",
   "- But not one spec per file or function.",
   "",
-  "Each capability is `openspec/specs/<capability>/spec.md` (kebab-case name), in this shape:",
+  "A capability lives at `openspec/specs/<capability>/spec.md` in flat mode and `openspec/specs/<area>/<capability>/spec.md` in areas mode (kebab-case throughout), in this shape:",
   "",
   "```",
   "## Purpose",
@@ -47,22 +55,96 @@ export const SPEC_DERIVE_PROMPT = [
   "```",
   "",
   "Every requirement uses SHALL and has at least one WHEN/THEN scenario. Keep them atomic.",
-  "Write ALL prose in the config language – the requirement statement (e.g. `Система SHALL …`), scenario text, everything. Keep unchanged only: the structural tokens `## Purpose`, `## Requirements`, `### Requirement:`, `#### Scenario:`, SHALL, WHEN, THEN, and code identifiers (class/function/file names). Don't leave `The system SHALL …` in English.",
+  SPEC_LANGUAGE_RULE,
+  "So a Russian project reads `Система SHALL …` under a Russian requirement name – never `The system SHALL …`, and never a Russian body under an English heading.",
   "",
-  "Work in phases so you never hold the whole codebase at once:",
+  "Stages. Each says what to do in flat mode and in areas mode, so you never hold more of the codebase than the stage in front of you needs.",
   "",
-  'Phase 1 – Orient. Skim README, top-level folders, manifests, entry points, routes; on "Deep", also read through each area\'s code instead of guessing capabilities from folder names. Output a capability list: name, one-line purpose, main paths. Skip Phases 2-4 only when the directory is empty or holds nothing but a README – config files, manifests and scripts are capabilities, so a repository made of them does not qualify.',
-  `Phase 2 – Confirm. Ask with the \`question\` tool which of the capabilities you just listed should get specs. One option per capability, named as in your list. Turn multiple selection ON: ${MULTI_SELECT_RULE}. Let them type capabilities of their own as well. Keep only what they pick.`,
-  'Phase 3 – Detail, one capability at a time. For each, spawn a subagent with the Task tool that reads only that capability\'s code and writes or merges its `spec.md`. Take the agent type from the list that tool itself offers and pick a general one – do not invent a type name. Pass it the name, purpose, paths, language, chosen depth, and guardrails. On "Overview" it reads entry points and main modules; on "Deep" it follows that capability\'s code paths end to end and captures error handling and edge cases as their own scenarios. If the Task tool is missing or offers no general agent, do the capabilities one at a time yourself – do not retry with a guessed type.',
-  "Phase 4 – Validate. Run `openspec validate --specs`, fix failures, then summarize what you created vs updated and flag anything unsure.",
+  "**1. Ground yourself** – before anything is read for content, and before anything at all is written.",
+  "   a. Run `openspec context` and take the OpenSpec root from it. Every `openspec/…` path below hangs off that root, not off whatever directory you happen to be standing in. If that command isn't available or its output names no root, fall back to the `openspec/` directory of the project you are in and say you did – don't stop over it.",
+  "   b. Run `openspec list --specs --json`. That is your inventory: the capabilities that already exist, by id, where an id containing `/` is `<area>/<capability>`. Three different answers, don't conflate them: a non-empty list is the inventory; an empty list means nothing exists yet, which is normal; a command that fails or returns something you can't parse means you have no inventory, and then – only then – read `openspec/specs/` yourself, where a directory holding `spec.md` is a capability and a nested one is `<area>/<capability>`. Say which of the two you used. Never invent it from memory of an earlier run.",
+  "   c. Read `openspec/config.yaml` and follow its `context` – especially the spec language. Note `specStructure`: `hierarchical` means capabilities grouped into areas, `flat` or no such line means one level.",
+  "   d. Read `rules.specs` from that same file, once, now. It constrains the content and form of the specs you write and nothing else – not these stages, not the root, not the commands – and its text never appears inside a spec or in your summary. Absent or empty means no extra constraints, not a problem.",
+  "   e. Say in one line what you resolved: the root, the spec language, the structure and the depth you were given.",
+  "",
+  "**2. Orient** – cheap on purpose. Skim README, top-level folders, manifests, entry points, routes. Do NOT read at Deep here, whatever depth was chosen: this pass exists to size the project and to see what its natural areas would be, and the expensive read happens once, in stage 4, under the structure that is settled by then. Output candidate areas with the capabilities each would likely hold, plus a rough sense of how many capabilities there are. Skip the remaining stages only when the directory is empty or holds nothing but a README – config files, manifests and scripts are capabilities, so a repository made of them does not qualify.",
+  "",
+  "**3. Structure** – settle it before spending the depth.",
+  "   a. Already grouped – `specStructure: hierarchical`, or an inventory that already holds `<area>/<capability>` ids: stay in areas mode and ask nothing. Never offer a project its own current layout.",
+  "   b. Otherwise: judge the picture in hand – the inventory from 1b plus the scale from stage 2. If one flat list would be tiresome to browse and to derive, offer the switch with the `question` tool (single, header \"Structure\"): \"Flat\" or \"Split by Areas\". Say what areas buy – a shorter list to browse, one domain at a time to derive. Judge it from what is in front of you; no capability count decides it.",
+  "   c. One direction only. Offer flat → areas and never the reverse: don't propose flattening specs that are already grouped.",
+  "   d. Declined, or not worth asking: stay flat and leave `specStructure` as it is, so a later run may ask again.",
+  "   e. Accepted: write `specStructure: hierarchical` into the `context` block of `openspec/config.yaml`, then continue in areas mode.",
+  "",
+  "**4. Scan** – now spend the depth, once, under the structure just settled.",
+  '   a. On "Overview" read entry points and main modules. On "Deep" follow the real code paths end to end, including error handling and edge cases, instead of guessing capabilities from folder names.',
+  "   b. Output the capability list: name, one-line purpose, main paths. In areas mode, group it under the candidate areas from stage 2.",
+  "   c. Hold it against the inventory from 1b. A capability that already exists is one to extend, not to reinvent under a second name; an area that already covers the ground is one to reuse, not to duplicate beside.",
+  "",
+  "**5. Confirm** – nothing is written or moved before this stage ends.",
+  `   a. Flat mode: ask with the \`question\` tool which of the capabilities you just listed should get specs. One option per capability, named as in your list. Turn multiple selection ON: ${MULTI_SELECT_RULE}. Let them type capabilities of their own. Keep only what they pick.`,
+  `   b. Areas mode, first question – the area set, before any capability is chosen. One option per area, each naming the capabilities it would hold; include areas that already exist in the inventory. Turn multiple selection ON: ${MULTI_SELECT_RULE}. Let them type areas of their own.`,
+  "   c. If the confirmed set differs from what you proposed – an area dropped, an area typed in – redo the mapping under the confirmed set before you ask anything else. An area they typed gets its capabilities by looking at the code again, not by redistributing your old grouping.",
+  `   d. Then one question per confirmed area, multiple selection ON again – ${MULTI_SELECT_RULE} – over that area's capabilities, own answers allowed. Offer capabilities already sitting at the root of the specs as options too: a project with areas and leftovers at the root is not settled business. An area whose question ends with nothing selected is dropped.`,
+  "   e. Show the whole picture – every confirmed area with the capabilities chosen under it, plus anything staying flat. Where a capability's spec already lives somewhere other than where the picture puts it, spell that out as a move: `frontend/auth-ui → backend-shared/auth-ui`. Then ask for one final confirmation. The picture names destinations; the moves are what actually happens to files, so they have to be on screen before anyone agrees to them.",
+  "   f. If nothing is confirmed anywhere, say there is nothing to derive and stop. Do not quietly fall back to a flat run.",
+  "",
+  "**6. Place** – only in areas mode, and only once 5e is confirmed.",
+  "   a. Wherever a capability's spec sits now – at the root or inside another area – if the confirmed picture puts it somewhere else, move it there. Move it: its content is what an earlier pass established about the code, so don't rewrite it from scratch, and leave nothing at the old path. A copy leaves two capabilities where the user asked for one.",
+  "   b. A capability's path is its identity – the id the CLI reports *is* that path – so putting one in a different area renames it, and renaming means carrying the file across, never writing a second spec at the new path. That is what lets the picture rearrange things without a step per operation: all of an area's capabilities confirmed under a new name renames that area, spread across two names splits it, two areas' capabilities confirmed under one name merges them.",
+  "   c. Before moving anything, look for deltas under `openspec/changes/*/specs/` carrying the ids you are about to move. A delta's path is what maps it to its main spec, so moving the main spec alone would have a later sync recreate the old path as a duplicate.",
+  "   d. A blocked capability at the root simply stays at the root and the others still move – the root is not something that can be left half-empty. A blocked capability leaving an area stops that entire area: move none of its capabilities and leave the area as it is, because half a rename – some capabilities under the new name, the rest stranded under the old, both areas alive – is worse than never starting. Either way, name what was blocked and which change holds its delta, then carry on with the rest of the picture.",
+  "   e. A capability that did not move keeps its current path for the rest of this run: stage 7 writes its spec where the file actually is, not where the picture wanted it. Otherwise the subagent would create at the new path exactly the duplicate the skip was protecting against.",
+  "   f. An area left with no capabilities and no sub-areas: remove the empty directory.",
+  "   g. A capability the confirmed picture leaves out of every area stays where it is.",
+  "",
+  "**7. Detail** – capability by capability, and in areas mode one area at a time.",
+  "   a. Spawn a subagent with the Task tool per capability, and let them run alongside each other. In areas mode the group is the area: fan out the capabilities of the area you are on, and never have capabilities from two areas in flight at once. Wait for the whole group to finish before moving on.",
+  '   b. Each subagent reads only its capability\'s code and writes that capability\'s `spec.md`. If the file already exists it reads it first and extends it: a requirement that is still true stays as it is, one the code has outgrown gets corrected, and what is missing gets added. Take the agent type from the list that tool itself offers and pick a general one – do not invent a type name. Pass it the name, purpose, paths, its area if it has one, the chosen depth, the specs rules from 1d and the guardrails. And pass the spec language together with the language rule above, copied out in full – naming the language alone is not enough, because the subagent is the one writing the headings and it never sees this prompt. On "Overview" it reads entry points and main modules; on "Deep" it follows that capability\'s code paths end to end and captures error handling and edge cases as their own scenarios. If the Task tool is missing or offers no general agent, do the capabilities one at a time yourself – do not retry with a guessed type.',
+  "   c. Give every subagent the whole confirmed list – each capability's name and one-line purpose, not their specs – and not only its own entry. Subagents can't see each other, so that list is what tells one where its capability ends and its neighbour begins, and keeps behavior sitting on a boundary out of two specs at once.",
+  "   d. Areas mode: before an area's subagents, announce it on a line of its own, exactly as `Area: **<name>** (<n> capabilities)`. The name is bold and nothing else on the line is: that is what makes it the same colour as the area headings of the final report, while the count stays plain. Don't wrap the line in a heading – a heading recolours everything inside it and the name stops standing out. Only that area is ever in play.",
+  "   e. A subagent that failed or wrote nothing leaves an underived capability: say so, with whatever you know about why, and carry it to the summary. Never pass over one silently, and never let one failure abandon the rest of the group or the areas still to come.",
+  "   f. Areas mode: when the group is done, check that area – 8b, and the overlap pass of 8c over that area's specs – and report it before you name the next one. Catching an overlap here, while the area is still the only thing in front of you, is cheaper than finding it at the end.",
+  "",
+  "**8. Verify.**",
+  "   a. Run `openspec validate --specs` and fix what it reports.",
+  "   b. Then open each confirmed capability's spec and count its requirements and its scenarios. Each needs at least one of both – a clean validate is not evidence that a capability was written, it says nothing about a file that never appeared. Every number that reaches your summary comes from this count. Never report what a subagent told you or what you remember: a subagent's message predates its last edit, and counts you carry in your head drift.",
+  "   c. Overlap. The subagents wrote at the same time and never saw each other, so read back the requirement names and SHALL statements of the specs this run touched, together with the specs already beside them in the inventory, and look for one behavior specified in two places. Judge behavior, not subject: two capabilities may both mention tokens while only one says who refreshes them, and that is correct. Where a behavior really is specified twice, keep it in the capability whose purpose owns it, drop it from the other, and name both the overlap and the call you made. Where ownership is genuinely unclear, leave both alone and report it as unsure – never delete a requirement you cannot confirm is a duplicate.",
+  "   d. Anything moved in stage 6: confirm it is at its new path and gone from the old one.",
+  "",
+  "Output On Success – report in this shape. One area block per area, dropped entirely in flat mode; the Warnings block only when there is something to warn about; every count taken from 8b, not from memory; and nothing outside the shape below travels into your report.",
+  "",
+  "```",
+  "## Specs Derived",
+  "",
+  "**Root:** <the root you resolved>",
+  "**Structure:** flat | areas",
+  "**Depth:** Overview | Deep",
+  "",
+  "**<area>**",
+  "- Created: `<capability>` – <n> requirements, <n> scenarios",
+  "- Updated: `<capability>` – <what changed>",
+  "- Moved in: `<capability>` – was at `<old path>`",
+  "",
+  "**Warnings**",
+  "- Underived: `<capability>` – <why>",
+  "- Corrected: `<capability>` – <what no longer matched the code>",
+  "- Overlap resolved: <behavior> – kept in `<capability>`, dropped from `<other>`",
+  "- Overlap unresolved: <behavior> – in both `<capability>` and `<other>`, ownership unclear",
+  "- Not moved: `<capability>` – its delta lives in change `<name>`; sync or archive that first",
+  "- Area left as it was: `<area>` – `<capability>` is blocked by change `<name>`, so none of its capabilities moved",
+  "- Unsure: <anything you could not settle>",
+  "```",
   "",
   "Guardrails:",
   "- Several cohesive specs, not one giant one, and not one per file.",
   "- Follow the language and context from `openspec/config.yaml`.",
-  "- Merge, don't duplicate: extend existing specs, never delete correct content.",
+  "- Don't duplicate existing capabilities and areas: extend what the inventory already has instead of adding a second one beside it. Correcting a spec that no longer matches the code is fine – say so in the summary.",
+  "- Exactly one area level: `openspec/specs/<area>/<capability>/spec.md`, never an area inside an area, however deep the source tree runs.",
+  "- A capability's path is its id. A capability that already has a spec somewhere gets that file moved, never a second spec written at another path – one behavior under two ids is the same capability twice.",
   "- Only real, implemented behavior – note gaps, don't invent.",
   '- "Deep" is not "open every file": whatever the depth, skip tests, fixtures, generated and vendored code.',
-  "- Write only under `openspec/specs/`. Never touch `openspec/changes/` or code. Edit `openspec/config.yaml` only where this prompt explicitly says to.",
+  "- Write only under `openspec/specs/`. Never move, rewrite or delete anything under `openspec/changes/`, and never touch code. Edit `openspec/config.yaml` only where this prompt explicitly says to.",
   "- Idempotent: re-running refines, never duplicates.",
 ].join("\n")
 

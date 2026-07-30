@@ -63,20 +63,42 @@ const TOOLED: Fs["dirs"] = {
   ),
 }
 
+// A mounted sidebar to drive: `settle` lets the async load and every later click land, `rows` is the
+// frame line by line so a row can be found and clicked by its text.
+async function mount(fs: Fs, opts?: { busy?: boolean; kv?: Record<string, unknown> }) {
+  const { renderOnce, captureCharFrame, renderer, mockMouse } = await testRender(
+    () => <OpenSpecSidebar api={stubApi(fs, opts)} sessionId="s1" baselineAvailable={true} />,
+    { width: 46, height: 26 },
+  )
+  const settle = async () => {
+    for (let i = 0; i < 6; i++) {
+      await new Promise((r) => setTimeout(r, 10))
+      await renderOnce()
+    }
+  }
+  const rows = () => captureCharFrame().split("\n")
+  await settle()
+  return {
+    rows,
+    destroy: () => renderer.destroy(),
+    // Clicks `text` where it is drawn. On the text itself, not somewhere on its row: a row can hold
+    // a label and a control side by side, and only one of them is clickable.
+    click: async (text: string) => {
+      const y = rows().findIndex((line) => line.includes(text))
+      if (y < 0) throw new Error(`no row containing "${text}"`)
+      await mockMouse.click(rows()[y].indexOf(text) + 1, y)
+      await settle()
+    },
+  }
+}
+
 // The sidebar loads asynchronously, so let the poll settle before capturing. The frame comes back
 // as one whitespace-collapsed line: the panel wraps by word, and asserting on wrapped text would
 // pin the tests to a terminal width nobody chose.
 async function frame(fs: Fs, opts?: { busy?: boolean; kv?: Record<string, unknown> }): Promise<string> {
-  const { renderOnce, captureCharFrame, renderer } = await testRender(
-    () => <OpenSpecSidebar api={stubApi(fs, opts)} sessionId="s1" baselineAvailable={true} />,
-    { width: 46, height: 26 },
-  )
-  for (let i = 0; i < 6; i++) {
-    await new Promise((r) => setTimeout(r, 10))
-    await renderOnce()
-  }
-  const out = captureCharFrame()
-  renderer.destroy()
+  const view = await mount(fs, opts)
+  const out = view.rows().join("\n")
+  view.destroy()
   return out.replace(/\s+/g, " ").trim()
 }
 
@@ -148,4 +170,84 @@ test("an update flag for another build asks for a reopen", async () => {
   })
   expect(out).toContain("Reopen opencode to finish updating to 9.9.9")
   expect(out).not.toContain("Complete Update")
+})
+
+// Grouping only shows up when the files are grouped: a flat project must look exactly as before.
+test("a grouped project shows an Areas list beside the loose capabilities", async () => {
+  const spec = (name: string) =>
+    `## Purpose\n${name}\n\n## Requirements\n\n### Requirement: R\nСистема SHALL работать.\n\n#### Scenario: S\n- **WHEN** a\n- **THEN** b\n`
+  const out = await frame({
+    dirs: {
+      ...TOOLED,
+      openspec: dir("specs"),
+      "openspec/specs": dir("backend", "project-config"),
+      "openspec/specs/backend": dir("api", "auth"),
+    },
+    files: {
+      "openspec/specs/project-config/spec.md": spec("Конфиг"),
+      "openspec/specs/backend/auth/spec.md": spec("Вход"),
+      "openspec/specs/backend/api/spec.md": spec("API"),
+    },
+  })
+  expect(out).toContain("Specifications: 3") // every level counted
+  expect(out).toContain("Areas: 1")
+  expect(out).toContain("backend")
+  expect(out).toContain("2 capabilities")
+  expect(out).toContain("Capabilities: 1")
+  expect(out).toContain("project-config")
+})
+
+// Walking the tree is the sidebar's own wiring: entering holds the full path, and leaving goes one
+// level up rather than home. The header count stays the whole project at every level.
+test("clicking an area opens it, and back returns to the area above", async () => {
+  const spec = (name: string) =>
+    `## Purpose\n${name}\n\n## Requirements\n\n### Requirement: R\nSHALL.\n\n#### Scenario: S\n- **WHEN** a\n- **THEN** b\n`
+  const view = await mount({
+    dirs: {
+      ...TOOLED,
+      openspec: dir("specs"),
+      "openspec/specs": dir("backend"),
+      "openspec/specs/backend": dir("auth", "inner"),
+      "openspec/specs/backend/inner": dir("queue"),
+    },
+    files: {
+      "openspec/specs/backend/auth/spec.md": spec("Вход"),
+      "openspec/specs/backend/inner/queue/spec.md": spec("Очередь"),
+    },
+  })
+  const text = () => view.rows().join("\n").replace(/\s+/g, " ")
+
+  expect(text()).not.toContain("← back") // the root is not an area
+
+  await view.click("▪ backend")
+  expect(text()).toContain("▪ backend") // the header names where we are
+  expect(text()).toContain("← back")
+  expect(text()).toContain("▪ auth") // by leaf name, inside the node
+  expect(text()).toContain("Specifications: 2") // still the whole project
+
+  await view.click("▪ inner")
+  expect(text()).toContain("▪ backend/inner") // the full path, not just the leaf
+  expect(text()).toContain("▪ queue")
+
+  await view.click("← back")
+  expect(text()).toContain("▪ backend")
+  expect(text()).not.toContain("▪ backend/inner") // one level up, not home
+
+  await view.click("← back")
+  expect(text()).not.toContain("← back")
+  expect(text()).toContain("Areas: 1")
+  view.destroy()
+})
+
+test("a flat project shows neither heading", async () => {
+  const out = await frame({
+    dirs: { ...TOOLED, openspec: dir("specs"), "openspec/specs": dir("sidebar-ui") },
+    files: {
+      "openspec/specs/sidebar-ui/spec.md": "## Purpose\nПанель\n\n## Requirements\n\n### Requirement: R\nSHALL.\n\n#### Scenario: S\n- **WHEN** a\n- **THEN** b\n",
+    },
+  })
+  expect(out).toContain("Specifications: 1")
+  expect(out).toContain("sidebar-ui")
+  expect(out).not.toContain("Areas:")
+  expect(out).not.toContain("Capabilities:")
 })

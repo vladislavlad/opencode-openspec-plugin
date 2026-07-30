@@ -143,3 +143,36 @@ describe("searchRequirements", () => {
     expect(reqNames("настроек")).toEqual([])
   })
 })
+
+// A spec's name is its path from `specs/`, and `specText` already covers the name – so grouping
+// needs nothing from the search module. `stripSyntax` leaves `/` alone on both sides of the match.
+describe("area names", () => {
+  const grouped: OpenSpecSpec[] = [
+    spec({ name: "backend/auth", purpose: "Вход и сессии" }),
+    spec({ name: "backend/api", purpose: "Публичные эндпоинты" }),
+    spec({ name: "web/auth", purpose: "Форма входа" }),
+    spec({ name: "project-config", purpose: "Настройка проекта" }),
+  ]
+  const found = (query: string) => searchSpecs(grouped, query).map((m) => m.spec.name)
+
+  test("an area name returns everything under it", () => {
+    expect(found("backend")).toEqual(["backend/auth", "backend/api"])
+  })
+
+  test("a leaf name still matches, across areas", () => {
+    expect(found("auth")).toEqual(["backend/auth", "web/auth"])
+  })
+
+  test("a full path narrows to one spec", () => {
+    expect(found("backend/auth")).toEqual(["backend/auth"])
+    expect(found("web/auth")).toEqual(["web/auth"])
+  })
+
+  test("ungrouped specs are matched the same way", () => {
+    expect(found("project-config")).toEqual(["project-config"])
+  })
+
+  test("an empty query returns every spec at any depth", () => {
+    expect(found("")).toHaveLength(4)
+  })
+})

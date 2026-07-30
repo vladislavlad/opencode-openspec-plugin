@@ -6,7 +6,7 @@ OpenCode TUI plugin that embeds OpenSpec in the terminal sidebar: browse specs, 
 - `bun run typecheck` – types; run before finishing
 - `bun run build` – bundle to `dist/index.js`; run before finishing
 - `bun run test` – unit tests (needs `--preload @opentui/solid/preload` for the `.tsx` render tests)
-fdну 
+
 ## Layout
 - `src/index.tsx` – entry; registers the palette commands and the `sidebar_content` slot
 - `src/features/commands.ts` – the plugin's own `/opsx-config` and `/opsx-baseline` palette commands; reports back whether baseline registered
@@ -15,7 +15,7 @@ fdну
 - `src/lib/` – logic:
   - `spec-driven` – the spec.md model + parser for that schema
   - `change-docs` – the markdown a change carries next to tasks.md (proposal.md, design.md): `##` sections and the collapsed teaser
-  - `openspec` – reads the openspec dir (tasks, specs, tooling) into the polled summary
+  - `openspec` – reads the openspec dir (tasks, specs, tooling) into the polled summary; `specs/` is walked recursively, so a spec's name is its path from `specs/` and the summary stays one flat list
   - `config` – the plugin's `plugin:` block in `openspec/config.yaml` (init marker, update flag), read and written in one place
   - `prompt-style` – rules every prompt obeys · `config-prompt` · `derive-prompt` · `init-prompts` · `update-prompt`
   - `updates` – npm version checks · `migrations` – the MIGRATIONS table and the post-update prompt
@@ -25,8 +25,10 @@ fdну
 
 ## Capability ↔ module
 Specs live in `openspec/specs/`, one directory per capability, cut vertically: a feature owns its
-behavior, its prompts and its own widgets. Keep this table true – requirements drifted into the
-wrong specs last time precisely because nothing wrote the mapping down.
+behavior, its prompts and its own widgets. A project may group them one level deep – `specs/<area>/<capability>/`
+– and a capability's id is its path from `specs/`, so moving it between areas renames it. Keep this
+table true – requirements drifted into the wrong specs last time precisely because nothing wrote the
+mapping down.
 
 | Capability | Modules |
 | --- | --- |

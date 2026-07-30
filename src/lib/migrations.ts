@@ -3,16 +3,19 @@ import { semverGt } from "./updates"
 
 export interface Migration {
   instructions: string // post-update steps for the agent; empty when a release needs nothing done
-  releaseNotes: string // what changed, for the agent to relay to the user
+  releaseNotes: string[] // what changed, for the agent to relay to the user
 }
 
 // Keyed by the plugin version that introduces them. After the update and a restart, Complete Update
 // replays every entry in the crossed range as one prompt.
 //
 // Writing releaseNotes: highlights only – what the user can now DO that they couldn't before, one
-// short sentence each, 3-5 per release. Name the thing and where it is ("a search field above the
-// Specifications list"), not how it was built. Leave out refactors, internal moves, cosmetic fixes
-// and anything invisible from the sidebar; if a bug fix isn't one the user hit, it isn't a highlight.
+// short sentence each, no subordinate clause explaining it – a note that needs one is two notes or
+// none. As many as the release earned: a handful is typical, a release carrying a whole feature can
+// run to six or seven. Don't merge two real highlights to hit a number, and don't pad to reach one.
+// Name the thing and where it is ("a search field above the Specifications list"), not how it was
+// built. Leave out refactors, internal moves, cosmetic fixes and anything invisible
+// from the sidebar; if a bug fix isn't one the user hit, it isn't a highlight.
 // One entry per released version – collapse the work of several changes into it, don't list them.
 export const MIGRATIONS: Record<string, Migration> = {
   "0.3.0": {
@@ -23,7 +26,7 @@ export const MIGRATIONS: Record<string, Migration> = {
       "Init process shows its progress – specs appear in the sidebar as they are derived.",
       "Interrupted setup offers Resume and continues from where it stopped.",
       "Setup asks its questions in your language, and asks up front how deeply to study the project.",
-    ].join(" "),
+    ],
   },
   "0.3.1": {
     instructions: "",
@@ -33,7 +36,7 @@ export const MIGRATIONS: Record<string, Migration> = {
       "Design shows design.md for changes that have one.",
       "Tasks carries the task count in its header, and group titles now hang to the left of their tasks.",
       "The Delete button in Active Change is now blocked while the agent is busy.",
-    ].join(" "),
+    ],
   },
   "0.3.2": {
     instructions: "",
@@ -42,8 +45,20 @@ export const MIGRATIONS: Record<string, Migration> = {
       "Update prompts no longer leak internal cleanup instructions into release notes shown to you.",
       "The post-update banner now has a clickable Reopen OpenCode button when the new build hasn't loaded yet.",
       "The Settings reload button is now labeled Reload OpenCode to match other restart buttons in the sidebar.",
-    ].join(" "),
-  }
+    ],
+  },
+  "0.4.0": {
+    instructions: "",
+    releaseNotes: [
+      "Specs grouped into areas show up in the sidebar as an Areas list.",
+      "Click an area to open it; back returns one level up.",
+      "Search spans every area at once.",
+      "Setup asks how specs are organized: one flat list or areas.",
+      "Deriving specs offers to group a flat project, and moves the specs for you.",
+      "Deriving specs fills one area at a time, naming each as it starts.",
+      "Derived specs are fully in your language – requirement and scenario names included.",
+    ],
+  },
 }
 
 // Migrations whose version is in (old, new], ordered oldest → newest, tagged with their version.
@@ -85,10 +100,14 @@ export function buildMigrationPrompt(range: { old: string; new: string }, opts: 
   }
 
   // Stage 4: Release notes — relayable content, summarize for the user
-  const notes = migrations.filter((m) => m.releaseNotes.trim())
+  const notes = migrations.filter((m) => m.releaseNotes.length > 0)
   if (notes.length) {
-    lines.push("---", "", "Write for the user these release notes grouped by version in language of the user in pretty format:", "")
-    for (const m of notes) lines.push(`### ${m.version}`, m.releaseNotes, "")
+    lines.push("---", "", "## Release Notes", "", "Write for the user these release notes grouped by version in language of the user in pretty format:", "")
+    for (const m of notes) {
+      lines.push(`### ${m.version}`)
+      for (const note of m.releaseNotes) lines.push(`- ${note}`)
+      lines.push("")
+    }
   }
 
   return lines.join("\n")

@@ -155,7 +155,7 @@ describe("the derive gate inside init", () => {
     expect(p).toContain('"Yes – Overview", "Yes – Deep" and "No"')
     expect(p).toContain("much slower and far more tokens")
     expect(p).not.toContain('header "Depth"')
-    expect(p.indexOf('"Yes – Deep"')).toBeLessThan(p.indexOf("Phase 1 – Orient"))
+    expect(p.indexOf('"Yes – Deep"')).toBeLessThan(p.indexOf("**2. Orient**"))
   })
 
   test("a resume that skips the specs stage asks nothing about depth", () => {

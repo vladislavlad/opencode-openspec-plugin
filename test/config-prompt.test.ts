@@ -17,6 +17,25 @@ describe("task breakdown granularity", () => {
   })
 })
 
+describe("writing style", () => {
+  // Three points on one axis, so "Balanced" says between what and what.
+  test("describes every option", () => {
+    for (const p of [CONFIG_PROMPT, buildInitPrompt()]) {
+      expect(p).toContain('"Technical" (precise, implementation-focused)')
+      expect(p).toContain('"Product" (outcome-focused, user-oriented)')
+      expect(p).toContain('"Balanced" (technical precision where it matters, readable by non-engineers)')
+    }
+  })
+
+  // The style survives the setup turn as one line of `context`; the agent generating artifacts later
+  // reads that line and nothing else, so the meaning has to travel with the name.
+  test("persists the style with its meaning", () => {
+    expect(CONFIG_PROMPT).toContain(
+      "Writing style: Balanced (technical precision where it matters, readable by non-engineers)",
+    )
+  })
+})
+
 describe("the config step", () => {
   const GUARD = "tell me to run OpenSpec init first and stop"
 
@@ -29,5 +48,23 @@ describe("the config step", () => {
 
   test("keeps the plugin block when rewriting the file", () => {
     expect(CONFIG_PROMPT).toContain("keep any existing `plugin:` block byte-for-byte")
+  })
+})
+
+describe("spec structure", () => {
+  // Named by the layout each one writes, because that is the whole difference between them.
+  // Two options, named by the layout each writes. No "Auto": it asked the user to choose between a
+  // preference and a non-answer, and derive looks at the files anyway when the two disagree.
+  test("offers Flat and Hierarchical by their directory layout, and nothing else", () => {
+    for (const p of [CONFIG_PROMPT, buildInitPrompt()]) {
+      expect(p).toContain("`specs/<capability>/spec.md`")
+      expect(p).toContain("`specs/<area>/<capability>/spec.md`")
+      expect(p).not.toContain('"Auto"')
+    }
+  })
+
+  test("persists the answer as a specStructure line in context", () => {
+    expect(CONFIG_PROMPT).toContain("`specStructure: hierarchical`")
+    expect(CONFIG_PROMPT).not.toContain("specStructure: auto")
   })
 })

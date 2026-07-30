@@ -297,6 +297,53 @@ describe("readOpenSpec", () => {
   })
 
 
+  // Grouped specs live at `specs/<area>/<capability>/spec.md`; the CLI names them by that path, so
+  // the plugin does too. The list stays flat at any depth, which is what keeps the counters, the
+  // search and `summaryEquals` working untouched.
+  test("reads grouped specs and names them by their path", async () => {
+    const spec = (name: string) => `# ${name}\n\n## Requirements\n\n### Requirement: R\nThe system SHALL work.`
+    const client = mockClient({
+      list: {
+        openspec: dir("specs"),
+        "openspec/specs": dir("backend", "project-config"),
+        "openspec/specs/backend": dir("api", "auth"),
+      },
+      read: {
+        "openspec/specs/project-config/spec.md": spec("Config"),
+        "openspec/specs/backend/auth/spec.md": spec("Auth"),
+        "openspec/specs/backend/api/spec.md": spec("Api"),
+      },
+    })
+    const summary = await readOpenSpec(client)
+    expect(summary?.specs.map((s) => s.name)).toEqual(["backend/api", "backend/auth", "project-config"])
+    expect(summary?.specCount).toBe(3)
+    expect(summary?.requirementCount).toBe(3)
+  })
+
+  test("the same capability name in two areas stays two specs", async () => {
+    const spec = "## Requirements\n\n### Requirement: R\nThe system SHALL work."
+    const client = mockClient({
+      list: {
+        openspec: dir("specs"),
+        "openspec/specs": dir("backend", "web"),
+        "openspec/specs/backend": dir("auth"),
+        "openspec/specs/web": dir("auth"),
+      },
+      read: { "openspec/specs/backend/auth/spec.md": spec, "openspec/specs/web/auth/spec.md": spec },
+    })
+    const summary = await readOpenSpec(client)
+    expect(summary?.specs.map((s) => s.name)).toEqual(["backend/auth", "web/auth"])
+  })
+
+  test("a grouping level is not a spec of its own", async () => {
+    const client = mockClient({
+      list: { openspec: dir("specs"), "openspec/specs": dir("backend"), "openspec/specs/backend": dir("auth") },
+      read: { "openspec/specs/backend/auth/spec.md": "## Requirements\n\n### Requirement: R\nSHALL." },
+    })
+    const summary = await readOpenSpec(client)
+    expect(summary?.specs.map((s) => s.name)).toEqual(["backend/auth"]) // no bare "backend"
+  })
+
   test("skips a spec whose spec.md is empty", async () => {
     const client = mockClient({
       list: { openspec: dir("specs"), "openspec/specs": dir("ghost") },

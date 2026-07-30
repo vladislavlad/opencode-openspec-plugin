@@ -144,6 +144,20 @@ export function summaryEquals(a: OpenSpecSummary | null, b: OpenSpecSummary | nu
   )
 }
 
+// Specs nest: `specs/<capability>/spec.md`, or `specs/<area>/<capability>/spec.md` when they're
+// grouped. The CLI walks the same way and names a spec by its path from `specs/`, so `name` here is
+// that same id – a directory holding spec.md is a capability, one holding only directories is an
+// area. spec.md is read before the directory is listed, so a flat project costs what it always did;
+// a missing file reads as "" (and a failing read is treated the same, since an area legitimately has
+// none, and letting it throw would drop the whole summary on every poll).
+async function readSpecsUnder(client: FileClient, path: string, name: string): Promise<OpenSpecSpec[]> {
+  const content = await client.read(`${path}/spec.md`).catch(() => "")
+  if (content) return [parseSpec(name, content)]
+  const subdirs = await listSubdirs(client, path)
+  const nested = await Promise.all(subdirs.map((sub) => readSpecsUnder(client, `${path}/${sub}`, `${name}/${sub}`)))
+  return nested.flat()
+}
+
 export async function readOpenSpec(client: FileClient): Promise<OpenSpecSummary | null> {
   if (!(await isRoot(client, ROOT))) return null
 
@@ -163,13 +177,7 @@ export async function readOpenSpec(client: FileClient): Promise<OpenSpecSummary 
   )
   changes.sort((a, b) => a.name.localeCompare(b.name))
 
-  const parsed = await Promise.all(
-    specDirs.map(async (name) => {
-      const content = await client.read(`${ROOT}/specs/${name}/spec.md`)
-      return content ? parseSpec(name, content) : null // openspec counts a spec only when its spec.md exists
-    }),
-  )
-  const specs = parsed.filter((s): s is OpenSpecSpec => s !== null)
+  const specs = (await Promise.all(specDirs.map((name) => readSpecsUnder(client, `${ROOT}/specs/${name}`, name)))).flat()
   specs.sort((a, b) => a.name.localeCompare(b.name))
 
   return {
