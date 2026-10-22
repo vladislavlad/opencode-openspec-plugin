@@ -71,7 +71,7 @@ function CompletedChangeActions(props: { theme: Theme; name: string; onCommand: 
 }
 
 // Shown in place of the button row before a change is deleted.
-function ChangeDeletionConfirm(props: { theme: Theme; onConfirm: () => void; onCancel: () => void }) {
+function ChangeDeletionConfirm(props: { theme: Theme; onConfirm: () => void; onCancel: () => void; gate: Gate }) {
   const theme = props.theme
   return (
     <box paddingTop={1} paddingLeft={2}>
@@ -86,15 +86,15 @@ function ChangeDeletionConfirm(props: { theme: Theme; onConfirm: () => void; onC
         </text>
       </box>
       <box flexDirection="row" gap={1} paddingTop={1}>
-        <Button theme={theme} label="Delete" color={theme().error} onClick={props.onConfirm} />
+        <Button theme={theme} label="Delete" color={theme().error} {...props.gate} onClick={props.onConfirm} />
         <Button theme={theme} label="Cancel" color={theme().warning} onClick={props.onCancel} />
       </box>
     </box>
   )
 }
 
-// The task groups – the body of the Tasks section. A group title hangs at column zero and its tasks
-// sit in the marker column, so the two levels read apart without any extra glyph.
+// Task rows retain source nesting and numbering. Cap indentation so deep trees still have room
+// for descriptions in a narrow sidebar; the fixed marker column keeps wrapped text aligned.
 function TaskGroups(props: { theme: Theme; change: OpenSpecChange }) {
   const theme = props.theme
   return (
@@ -114,9 +114,13 @@ function TaskGroups(props: { theme: Theme; change: OpenSpecChange }) {
           </Show>
           <For each={group.tasks}>
             {(t) => (
-              <box flexDirection="row" gap={0}>
-                <text flexShrink={0} style={{ fg: t.done ? theme().success : theme().textMuted }}>{t.done ? "✓ " : "  "}</text>
-                <text flexGrow={1} wrapMode="word" style={{ fg: t.done ? theme().textMuted : theme().text }}>{t.text}</text>
+              <box flexDirection="row" gap={0} paddingLeft={Math.min(t.depth, 3) * 2}>
+                <text width={4} flexShrink={0} style={{ fg: t.done ? theme().success : t.marker ? theme().warning : theme().text }}>
+                  {t.done ? "✓" : t.marker ? `[${t.marker}]` : "○"}
+                </text>
+                <text flexGrow={1} wrapMode="word" style={{ fg: t.done ? theme().textMuted : theme().text }}>
+                  {`${t.number ? `${t.number} ` : ""}${t.text || "Untitled task"}`}
+                </text>
               </box>
             )}
           </For>
@@ -205,6 +209,7 @@ export function ChangeDetail(props: {
           >
             <ChangeDeletionConfirm
               theme={theme}
+              gate={props.gate}
               onCancel={() => setConfirming(false)}
               onConfirm={() => {
                 props.onDelete(change().name)
@@ -215,6 +220,9 @@ export function ChangeDetail(props: {
         }
       >
         <CompletedChangeActions theme={theme} name={change().name} onCommand={props.onCommand} gate={props.gate} />
+        <box paddingLeft={2} paddingTop={1}>
+          <Paragraph theme={theme} text="All tasks done. Review before archiving." fg={theme().textMuted} />
+        </box>
       </Show>
 
       <CollapsibleSection
@@ -257,7 +265,14 @@ export function ChangeDetail(props: {
         label="Tasks"
         labelColor={accent()}
       >
-        <TaskGroups theme={theme} change={change()} />
+        <Show when={change().totalTasks > 0} fallback={<text fg={theme().textMuted}>No tasks yet</text>}>
+          <TaskGroups theme={theme} change={change()} />
+          <Show when={change().groups.some((g) => g.tasks.some((t) => !t.done && t.marker))}>
+            <box paddingTop={1}>
+              <Paragraph theme={theme} text="Only ✓ tasks count as done." fg={theme().textMuted} />
+            </box>
+          </Show>
+        </Show>
       </CollapsibleSection>
     </box>
   )

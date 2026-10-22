@@ -1,10 +1,11 @@
 import { expect, test } from "bun:test"
 import { testRender } from "@opentui/solid"
+import { createSignal } from "solid-js"
 import type { TuiThemeCurrent } from "@opencode-ai/plugin/tui"
 import { ChangeDetail } from "../src/components/changes"
 import { Markdown, Paragraph } from "../src/components/primitives"
 import type { ChangeDocs } from "../src/lib/change-docs"
-import type { OpenSpecChange } from "../src/lib/openspec"
+import { parseTasks, type OpenSpecChange } from "../src/lib/openspec"
 
 const theme = () =>
   ({
@@ -56,11 +57,11 @@ const change: OpenSpecChange = {
     {
       title: "1. Implementation",
       tasks: [
-        { done: true, text: "1.1 Write the parser" },
-        { done: false, text: "1.2 Wire the sections" },
+        { done: true, text: "1.1 Write the parser", depth: 0, marker: "x", number: "" },
+        { done: false, text: "1.2 Wire the sections", depth: 0, marker: "", number: "" },
       ],
     },
-    { title: "2. Tests", tasks: [{ done: false, text: "2.1 Cover the teaser" }] },
+    { title: "2. Tests", tasks: [{ done: false, text: "2.1 Cover the teaser", depth: 0, marker: "", number: "" }] },
   ],
 }
 
@@ -148,11 +149,94 @@ test("an expanded Design keeps one blank row between its body and the next heade
 
 // ---- task groups ----------------------------------------------------------
 
+test.each(["busy", "retry"])("final Delete follows an idle → %s → idle transition", async (state) => {
+  const [status, setStatus] = createSignal("idle")
+  const deleted: string[] = []
+  let back = 0
+  let blocked = 0
+  const view = await testRender(() => (
+    <ChangeDetail theme={theme} change={change} docs={docs()} onCommand={() => {}}
+      onBack={() => { back++ }} onDelete={(name) => { deleted.push(name) }}
+      gate={{ disabled: () => status() === "busy" || status() === "retry", onDisabledClick: () => { blocked++ } }} />
+  ), { width: 60, height: 40 })
+  const click = async (label: string) => {
+    await view.flush()
+    const rows = view.captureCharFrame().split("\n")
+    const y = rows.findIndex((row) => row.includes(label))
+    expect(y).toBeGreaterThanOrEqual(0)
+    await view.mockMouse.click(rows[y].indexOf(label) + 1, y)
+    await view.flush()
+  }
+  try {
+    await click("Delete")
+    expect(view.captureCharFrame()).toContain("Cancel")
+    setStatus(state)
+    await click("Delete")
+    expect(blocked).toBe(1)
+    expect(deleted).toEqual([])
+    expect(back).toBe(0)
+    expect(view.captureCharFrame()).toContain("Cancel")
+    await click("Cancel")
+    expect(view.captureCharFrame()).not.toContain("Cancel")
+    expect(blocked).toBe(1)
+
+    setStatus("idle")
+    await click("Delete")
+    setStatus(state)
+    await click("Delete")
+    setStatus("idle")
+    await click("Delete")
+    expect(deleted).toEqual(["my-change"])
+    expect(back).toBe(1)
+  } finally { view.renderer.destroy() }
+})
+
 test("a group title hangs at column zero while its tasks keep the marker column", async () => {
   const out = await lines(detail(docs()))
   expect(out).toContain("1. Implementation")
-  expect(out).toContain("✓ 1.1 Write the parser")
-  expect(out).toContain("  1.2 Wire the sections")
+  expect(out).toContain("✓   1.1 Write the parser")
+  expect(out).toContain("○   1.2 Wire the sections")
+})
+
+const taskDetail = (content: string) => () => {
+  const parsed = parseTasks(content)
+  return <ChangeDetail theme={theme} change={{ name: "task-fixture", totalTasks: parsed.total, completedTasks: parsed.completed, groups: parsed.groups }} docs={null} onBack={() => {}} onCommand={() => {}} onDelete={() => {}} gate={{}} />
+}
+
+test("nested unfinished tasks retain markers and keep Archive unavailable", async () => {
+  const out = await lines(taskDetail("## Work\n1. [ x ] Parent\n  + [~] Child\n  - []\n2) [ ] Sibling"))
+  expect(out).toContain("✓   1. Parent")
+  expect(out).toContain("  [~] Child")
+  expect(out).toContain("  ○   Untitled task")
+  expect(out).toContain("○   2) Sibling")
+  expect(out.join("\n")).toContain("1/4 tasks done")
+  expect(out.join("\n")).toContain("Only ✓ tasks count as done.")
+  expect(out.join("\n")).toContain("Apply")
+  expect(out.join("\n")).not.toContain("Archive")
+})
+
+test("empty task lists are explicit and never offer Archive", async () => {
+  const out = (await lines(taskDetail("## Planned work\nNo checkboxes yet."))).join("\n")
+  expect(out).toContain("No tasks yet")
+  expect(out).toContain("Active Change")
+  expect(out).not.toContain("Archive")
+})
+
+test("completed lists offer Archive and remind the user to review", async () => {
+  const out = (await lines(taskDetail("- [ x ] Done\n  1. [X] Also done"))).join("\n")
+  expect(out).toContain("2/2 tasks done")
+  expect(out).toContain("Archive")
+  expect(out.replace(/\s+/g, " ")).toContain("Review before archiving.")
+  expect(out).not.toContain("Apply")
+})
+
+test("deep task descriptions wrap within a narrow sidebar with bounded indentation", async () => {
+  const out = await lines(taskDetail("- [ ] Parent\n  - [ ] Child\n    - [ ] Grandchild\n      - [ ] Third\n        - [~] A long description that stays readable"), 28)
+  const row = out.findIndex((line) => line.includes("[~] A long"))
+  expect(row).toBeGreaterThan(0)
+  expect(out[row]).toStartWith("      [~] A long")
+  expect(out[row + 1]).toStartWith("          ")
+  expect(out.join("\n")).toContain("readable")
 })
 
 // ---- Markdown -------------------------------------------------------------
@@ -194,7 +278,7 @@ test("paragraph strips ** from inline text", async () => {
 // ---- teaser click ---------------------------------------------------------
 
 test("clicking the teaser expands the Proposal section", async () => {
-  const { flush, captureCharFrame, renderer, mockMouse } = await testRender(detail(docs()), { width: 44, height: 40 })
+  const { flush, captureCharFrame, mockMouse } = await testRender(detail(docs()), { width: 44, height: 40 })
   await flush()
   // Find the teaser line (contains "Карточка")
   const rows = () => captureCharFrame().split("\n").map((l) => l.trimEnd())

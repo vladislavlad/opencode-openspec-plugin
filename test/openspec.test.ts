@@ -68,9 +68,9 @@ describe("parseTasks", () => {
   test("tasks before the first heading land in an untitled group", () => {
     const r = parseTasks("- [ ] loose\n## Group A\n- [x] inside")
     expect(r.groups.length).toBe(2)
-    expect(r.groups[0]).toEqual({ title: "", tasks: [{ done: false, text: "loose" }] })
+    expect(r.groups[0]).toEqual({ title: "", tasks: [{ done: false, text: "loose", depth: 0, marker: "", number: "" }] })
     expect(r.groups[1].title).toBe("Group A")
-    expect(r.groups[1].tasks).toEqual([{ done: true, text: "inside" }])
+    expect(r.groups[1].tasks).toEqual([{ done: true, text: "inside", depth: 0, marker: "x", number: "" }])
   })
 
   test("headings without tasks still open a group", () => {
@@ -107,8 +107,8 @@ describe("completion predicates", () => {
   })
 
   test("isGroupComplete requires a non-empty, all-done group", () => {
-    expect(isGroupComplete({ title: "", tasks: [{ done: true, text: "a" }] })).toBe(true)
-    expect(isGroupComplete({ title: "", tasks: [{ done: true, text: "a" }, { done: false, text: "b" }] })).toBe(false)
+    expect(isGroupComplete(parseTasks("- [x] a").groups[0])).toBe(true)
+    expect(isGroupComplete(parseTasks("- [x] a\n- [ ] b").groups[0])).toBe(false)
     expect(isGroupComplete({ title: "", tasks: [] })).toBe(false)
   })
 })

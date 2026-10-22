@@ -23,6 +23,10 @@ filters its requirements there too.
 with a task-progress bar per change and a rolled-up bar on the collapsed header.
 Open a change to see its tasks grouped and ticked off as the agent works – the
 sidebar re-reads the files every few seconds, so it keeps up on its own.
+Nested tasks keep their hierarchy, ordered lists keep their numbers, and markers
+such as `[~]` remain visible as unfinished work. Only `x`/`X` checkboxes count as
+done, matching OpenSpec. Empty descriptions show as **Untitled task**. Once all
+tasks are checked, the card reminds you to review before archiving.
 
 **Buttons that write the prompt for you.** Explore, Propose, Apply, Update,
 Archive and Delete are all there. Apply and Update drop the command into the
@@ -37,10 +41,16 @@ apply the update for you.
 
 ## Requirements
 
-- [opencode](https://opencode.ai) `>= 1.18.0`
+- [opencode](https://opencode.ai) `>= 1.18.0 < 2.0.0` (OpenCode 1)
 - The [OpenSpec CLI](https://github.com/Fission-AI/OpenSpec), installed globally –
   the `/opsx-*` commands shell out to the `openspec` binary. Either install it
   yourself (`npm install -g @fission-ai/openspec`) or let the **Init** button do it.
+
+Plugin **1.0.0** targets OpenCode V1; its compatibility baseline is
+**OpenCode 1.19.4** with **OpenSpec 1.14.3**.
+OpenCode 2 uses a different plugin API and is not supported by this release.
+Its port is planned as plugin **2.0.0**; see the official
+[V1 plugin migration guide](https://opencode.ai/v2/docs/build/plugins/migrate-v1/).
 
 ## Install
 
@@ -117,11 +127,15 @@ still offers **Complete Update** on the next launch.
 
 Built with [Bun](https://bun.sh). Sources in `src/` are bundled into a single
 `dist/index.js` using `@opentui/solid`'s Solid transform (universal codegen).
+Development pins OpenTUI to 0.4.5, the version used by the OpenCode 1.19.4 host,
+and OpenSpec to 1.14.3 for CLI compatibility tests. These checks exercise real
+OpenSpec initialization and compare task progress with its parser, including
+nested and ordered tasks and unfinished checkbox markers.
 `@opentui/*` and `solid-js` stay external, so the plugin shares opencode's single
 Solid runtime at load time.
 
 ```bash
-bun install
+bun install --frozen-lockfile
 ```
 
 ```bash

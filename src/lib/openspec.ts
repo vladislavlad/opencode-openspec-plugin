@@ -8,6 +8,9 @@ import type { OpenSpecSpec } from "./spec-driven"
 export interface Task {
   done: boolean
   text: string
+  depth: number
+  marker: string // original checkbox marker; only x/X means done
+  number: string // ordered-list label (e.g. "1."); empty for unordered tasks
 }
 
 export interface TaskGroup {
@@ -34,8 +37,10 @@ export interface FileClient {
   read(path: string): Promise<string>
 }
 
-// Checkbox anchor mirrors @fission-ai/openspec countTasksFromContent (`/^[-*]\s+\[[\sx]\]/i`).
-const TASK_LINE = /^[-*]\s+\[([\sxX])\]\s?(.*)$/
+// Mirrors OpenSpec 1.14.3 parseTaskLines: nested/ordered list items and a padded single-character
+// marker. Only x/X is done; links are excluded except for whitespace-only unfinished checkboxes.
+// Keep the task matcher aligned with the CLI; line endings are normalized before matching.
+const TASK_LINE = /^(\s*)([-*+]|\d{1,9}[.)])\s*\[(?:\s*([^\]\s]?)\s*\](?![([])|\s+\])\s*(.*)/
 const HEADING_LINE = /^#{1,6}\s+(.*)$/
 
 export function parseTasks(content: string): { total: number; completed: number; groups: TaskGroup[] } {
@@ -43,18 +48,28 @@ export function parseTasks(content: string): { total: number; completed: number;
   let completed = 0
   const groups: TaskGroup[] = []
   let current: TaskGroup | null = null
-  for (const raw of content.split("\n")) {
+  const indents: number[] = []
+  for (const raw of content.split(/\r?\n/)) {
     const task = TASK_LINE.exec(raw)
     if (task) {
-      const done = task[1].toLowerCase() === "x"
+      const marker = task[3] ?? ""
+      const done = marker.toLowerCase() === "x"
+      // Normalize each group's source indentation to levels; tabs advance to a four-column stop.
+      let indent = 0
+      for (const ch of task[1]) indent += ch === "\t" ? 4 - (indent % 4) : 1
+      while (indents.length && indent < indents[indents.length - 1]) indents.pop()
+      if (!indents.length || indent > indents[indents.length - 1]) indents.push(indent)
       total++
       if (done) completed++
       if (!current) groups.push((current = { title: "", tasks: [] }))
-      current.tasks.push({ done, text: task[2].trim() })
+      current.tasks.push({ done, text: task[4].trim(), depth: indents.length - 1, marker, number: /^\d/.test(task[2]) ? task[2] : "" })
       continue
     }
     const heading = HEADING_LINE.exec(raw)
-    if (heading) groups.push((current = { title: heading[1].trim(), tasks: [] }))
+    if (heading) {
+      groups.push((current = { title: heading[1].trim(), tasks: [] }))
+      indents.length = 0
+    }
   }
   return { total, completed, groups }
 }
@@ -135,7 +150,10 @@ export function summaryEquals(a: OpenSpecSummary | null, b: OpenSpecSummary | nu
           return (
             g.title === og.title &&
             g.tasks.length === og.tasks.length &&
-            g.tasks.every((t, k) => t.done === og.tasks[k].done && t.text === og.tasks[k].text)
+            g.tasks.every((t, k) => {
+              const other = og.tasks[k]
+              return t.done === other.done && t.text === other.text && t.depth === other.depth && t.marker === other.marker && t.number === other.number
+            })
           )
         })
       )

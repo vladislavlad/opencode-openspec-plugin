@@ -3,6 +3,7 @@
 OpenCode TUI plugin that embeds OpenSpec in the terminal sidebar: browse specs, track change proposals, drive the OpenSpec flow, and self-update. SolidJS JSX (compiled by `@opentui/solid`), bundled with Bun.
 
 ## Commands
+- `bun run lint` – oxlint (`.oxlintrc.json`: correctness = error, suspicious = warn); `bun run lint:fix` autofixes. Run before finishing
 - `bun run typecheck` – types; run before finishing
 - `bun run build` – bundle to `dist/index.js`; run before finishing
 - `bun run test` – unit tests (needs `--preload @opentui/solid/preload` for the `.tsx` render tests)

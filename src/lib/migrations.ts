@@ -59,6 +59,18 @@ export const MIGRATIONS: Record<string, Migration> = {
       "Derived specs are fully in your language – requirement and scenario names included.",
     ],
   },
+  "1.0.0": {
+    instructions: "",
+    releaseNotes: [
+      "Change progress now counts every checkbox recognized by OpenSpec 1.14.3.",
+      "The Tasks section shows nested tasks, list numbers and unfinished markers.",
+      "Tasks without descriptions remain visible as Untitled task.",
+      "Completed task lists remind you to review before archiving.",
+      "Task groups stay intact in Windows CRLF files.",
+      "Delete confirmation and OpenSpec palette commands now wait for the agent to finish.",
+      "OpenSpec commands preserve arguments supplied by the command dispatcher.",
+    ],
+  },
 }
 
 // Migrations whose version is in (old, new], ordered oldest → newest, tagged with their version.

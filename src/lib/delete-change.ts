@@ -4,8 +4,11 @@ import { ROOT } from "./openspec"
 import { sendPrompt } from "./send-prompt"
 
 // Removes a change's folder directly, falling back to the agent when we can't reach the files.
-export async function deleteChange(api: TuiPluginApi, name: string) {
+export async function deleteChange(api: TuiPluginApi, name: string, allowAction: () => boolean) {
+  if (!allowAction()) return
   const dir = await localRoot(api)
+  // Resolving the directory yields to the host; the session may have started a turn meanwhile.
+  if (!allowAction()) return
   const removed = dir && (await removeLocal(dir, `${ROOT}/changes/${name}`))
-  if (!removed) void sendPrompt(api, `delete openspec change ${name}`)
+  if (!removed && allowAction()) await sendPrompt(api, `delete openspec change ${name}`)
 }

@@ -1,7 +1,19 @@
-import { expect, test } from "bun:test"
+import { afterAll, beforeAll, expect, test } from "bun:test"
 import { testRender } from "@opentui/solid"
 import type { TuiPluginApi, TuiThemeCurrent } from "@opencode-ai/plugin/tui"
 import { OpenSpecSidebar } from "../src/sidebar"
+
+// The poll asks npm for the latest versions. Left to the real network, an update banner appears
+// wherever the registry answers and not where it doesn't, so the frame differs between a laptop and
+// CI — and everything below the banner shifts down out of a 26-row capture. `fetchLatest` turns any
+// failure into null, which is the "nothing to report" path these tests want.
+const realFetch = globalThis.fetch
+beforeAll(() => {
+  globalThis.fetch = (() => Promise.reject(new Error("no registry in tests"))) as typeof fetch
+})
+afterAll(() => {
+  globalThis.fetch = realFetch
+})
 
 const theme = {
   text: "#ffffff",
@@ -65,10 +77,12 @@ const TOOLED: Fs["dirs"] = {
 
 // A mounted sidebar to drive: `settle` lets the async load and every later click land, `rows` is the
 // frame line by line so a row can be found and clicked by its text.
-async function mount(fs: Fs, opts?: { busy?: boolean; kv?: Record<string, unknown> }) {
+async function mount(fs: Fs, opts?: { busy?: boolean; kv?: Record<string, unknown>; height?: number }) {
   const { renderOnce, captureCharFrame, renderer, mockMouse } = await testRender(
     () => <OpenSpecSidebar api={stubApi(fs, opts)} sessionId="s1" baselineAvailable={true} />,
-    { width: 46, height: 26 },
+    // A test that walks into a tree needs room for the rows it clicks; a row pushed past the last
+    // line is invisible to the frame and so to the assertions.
+    { width: 46, height: opts?.height ?? 26 },
   )
   const settle = async () => {
     for (let i = 0; i < 6; i++) {
@@ -214,7 +228,7 @@ test("clicking an area opens it, and back returns to the area above", async () =
       "openspec/specs/backend/auth/spec.md": spec("Вход"),
       "openspec/specs/backend/inner/queue/spec.md": spec("Очередь"),
     },
-  })
+  }, { height: 40 })
   const text = () => view.rows().join("\n").replace(/\s+/g, " ")
 
   expect(text()).not.toContain("← back") // the root is not an area

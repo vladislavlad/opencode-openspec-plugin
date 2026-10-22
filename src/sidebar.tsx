@@ -105,8 +105,13 @@ export function OpenSpecSidebar(props: { api: TuiPluginApi; sessionId: string; b
   })
   const toastBusy = () => props.api.ui.toast({ variant: "info", message: "Wait until the agent finishes working" })
   const gate: Gate = { disabled: busy, onDisabledClick: toastBusy }
+  const allowAction = () => {
+    if (!busy()) return true
+    toastBusy()
+    return false
+  }
   // Runs `action` as an agent turn, unless one is already going.
-  const whenIdle = (action: () => void) => (busy() ? void toastBusy() : action())
+  const whenIdle = (action: () => void) => { if (allowAction()) action() }
 
   const initState = () => pluginState().init
   const stage = createMemo(() => setupStage(initState()))
@@ -522,7 +527,7 @@ export function OpenSpecSidebar(props: { api: TuiPluginApi; sessionId: string; b
                 onBack={backToList}
                 // Apply/Update fill the prompt; Archive submits.
                 onCommand={(text, submit) => void (submit ? submitPrompt(props.api, text) : sendPrompt(props.api, text))}
-                onDelete={(name) => void deleteChange(props.api, name)}
+                onDelete={(name) => void deleteChange(props.api, name, allowAction)}
                 gate={gate}
               />
             )}

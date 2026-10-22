@@ -19,10 +19,17 @@ function registerPromptCommand(
           desc: cmd.desc,
           category: "OpenSpec",
           slashName: cmd.slashName,
-          // Submitting clears first, so palette-filter text isn't prepended; any text typed after
-          // the slash is forwarded as arguments.
-          run: (...args: unknown[]) => {
-            const typed = typeof args[0] === "string" ? args[0].trim() : ""
+          // V1 passes a CommandContext, with optional caller-supplied arguments in payload.
+          // Native palette selection has no payload; its filter text is not an argument.
+          run: (context) => {
+            const route = api.route.current
+            const sessionId = route.name === "session" ? route.params?.sessionID : undefined
+            const status = typeof sessionId === "string" ? api.state.session.status(sessionId) : undefined
+            if (status?.type === "busy" || status?.type === "retry") {
+              api.ui.toast({ variant: "info", message: "Wait until the agent finishes working" })
+              return
+            }
+            const typed = typeof context.payload === "string" ? context.payload.trim() : ""
             void submitPrompt(api, typed ? `${cmd.prompt}\n\nArguments: ${typed}` : cmd.prompt)
           },
         },
