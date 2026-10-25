@@ -5,7 +5,8 @@ import { ChangeDetail } from "../src/components/changes"
 import { Divider } from "../src/components/primitives"
 import { RequirementDetail, SpecDetail, SpecNodeView, SpecRow, buildTree, findNode, parentArea } from "../src/components/specs"
 import type { OpenSpecSpec } from "../src/lib/openspec"
-import type { CliRenderer, TuiThemeCurrent } from "@opencode-ai/plugin/tui"
+import type { CliRenderer } from "@opentui/core"
+import type { ThemeColors } from "../src/lib/theme"
 
 const theme = () =>
   ({
@@ -18,7 +19,7 @@ const theme = () =>
     error: "#ff0000",
     background: "#000000",
     borderSubtle: "#444444",
-  }) as unknown as TuiThemeCurrent
+  }) as unknown as ThemeColors
 
 // SearchField subscribes to the renderer; the component under test doesn't need real focus here.
 const stubRenderer = { on: () => {}, off: () => {}, currentFocusedRenderable: null } as unknown as CliRenderer

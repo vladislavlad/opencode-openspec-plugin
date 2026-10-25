@@ -1,19 +1,84 @@
-import type { TuiPluginApi } from "@opencode-ai/plugin/tui"
+import type { Context } from "@opencode/plugin/tui/context"
+import { currentSession, projectLocation, sessionRunning } from "./location"
+import { commandText } from "./command-template"
 
-// Push text into the TUI prompt. `clear` wipes the input first; `submit` sends it.
-export async function sendPrompt(api: TuiPluginApi, text: string, opts: { clear?: boolean; submit?: boolean } = {}) {
-  const dir = api.state.path.directory
+const pending = new WeakSet<Context>()
+const wait = (api: Context) => api.ui.toast.show({ variant: "info", message: "Wait until the agent finishes working" })
+const commandIn = (text: string) => /^\/(opsx-[\w-]+)(?:\s+([\s\S]*))?$/.exec(text.trim())
+const agentFor = (text: string) => commandIn(text)?.[1] === "opsx-explore" ? "plan" : "build"
+
+// V2 exposes session submission and native dialogs. The main composer is never changed.
+export async function sendPrompt(api: Context, text: string, opts: { submit?: boolean } = {}): Promise<boolean> {
+  const sessionID = currentSession(api)
+  const route = JSON.stringify(api.ui.router.current())
+  const location = projectLocation(api, sessionID)
+  const changed = () => JSON.stringify(api.ui.router.current()) !== route || JSON.stringify(projectLocation(api)) !== JSON.stringify(location)
+  if (pending.has(api) || sessionRunning(api, sessionID)) { wait(api); return false }
+  pending.add(api)
   try {
-    if (opts.clear) await api.client.tui.clearPrompt({ directory: dir })
-    await api.client.tui.appendPrompt({ text, directory: dir })
-    if (opts.submit) await api.client.tui.submitPrompt({ directory: dir })
-  } catch {
-    /* ignore if the TUI rejects the prompt */
+    const selected = api.ui.model.current()
+    if (!selected) {
+      api.ui.toast.show({ variant: "warning", message: "Select a model in OpenCode before running an OpenSpec action." })
+      return false
+    }
+    // Capture before the dialog or switchAgent: the host may change its model selection when
+    // the session agent changes. Always submit with the model/variant the user actually saw.
+    const model = { id: selected.modelID, providerID: selected.providerID, variant: selected.variant }
+    const ready = () => {
+      if (changed()) {
+        api.ui.toast.show({ variant: "warning", message: "Active session changed. Run the OpenSpec action again." })
+        return false
+      }
+      if (sessionRunning(api, sessionID)) { wait(api); return false }
+      return true
+    }
+    let body: string | undefined = text
+    if (!opts.submit) {
+      while (true) {
+        const agent = agentFor(body)
+        body = await api.ui.dialog.prompt({
+          title: "Run OpenSpec command",
+          description: `Agent: ${agent === "plan" ? "Plan" : "Build"}\nModel: ${model.providerID}/${model.id}\nVariant: ${model.variant ?? "default"}\nEdit the command, then Enter to run. Esc cancels. Your main draft is preserved.`,
+          value: body,
+        })
+        if (!body?.trim() || !ready()) return false
+        // A changed command can require Build instead of Plan (or vice versa). Show the new
+        // execution settings before accepting it, rather than running under an unseen agent.
+        if (agentFor(body) === agent) break
+      }
+    }
+    if (!body?.trim()) return false
+    if (!ready()) return false
+    const agent = agentFor(body)
+    const command = commandIn(body)
+    const prompt = command ? await commandText(api, location, command[1]!, command[2] ?? "") : body
+    if (!ready()) return false
+    let target = sessionID
+    if (!target) {
+      const created = await api.client.session.create({ location, agent, model })
+      if (!ready()) return false
+      target = created.id
+      api.ui.router.navigate({ type: "session", sessionID: target })
+    } else {
+      await api.client.session.switchAgent({ sessionID: target, agent })
+      if (!ready()) return false
+      await api.client.session.switchModel({ sessionID: target, model })
+      if (!ready()) return false
+    }
+    await api.client.session.prompt({ sessionID: target, text: prompt })
+    return true
+  } catch (error) {
+    api.ui.toast.show({ variant: "error", message: `OpenSpec request failed: ${String(error)}` })
+    return false
+  } finally {
+    pending.delete(api)
   }
 }
 
-// Submit text as a real agent turn. Clearing first keeps half-typed input from corrupting it.
-export const submitPrompt = (api: TuiPluginApi, text: string) => sendPrompt(api, text, { clear: true, submit: true })
+export const submitPrompt = (api: Context, text: string) => sendPrompt(api, text, { submit: true })
 
-// opencode quits on a bare "exit" in the prompt, and rescans commands + skills on the next launch.
-export const quitOpencode = (api: TuiPluginApi) => void submitPrompt(api, "exit")
+// Let the current input event finish before the host tears down its renderer.
+export function quitOpencode(api: Context) {
+  if (pending.has(api) || sessionRunning(api)) { wait(api); return }
+  setTimeout(() => api.keymap.dispatch("app.exit"), 0)
+}

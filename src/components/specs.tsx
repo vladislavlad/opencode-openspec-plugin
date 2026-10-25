@@ -1,5 +1,5 @@
 import { createMemo, createSignal, For, Show } from "solid-js"
-import type { CliRenderer } from "@opencode-ai/plugin/tui"
+import type { CliRenderer } from "@opentui/core"
 import type { OpenSpecSpec, Requirement, Scenario } from "../lib/openspec"
 import { searchRequirements } from "../lib/search"
 import type { Theme } from "../lib/theme"

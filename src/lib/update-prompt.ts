@@ -9,7 +9,7 @@ export interface UpdateTargets {
   cli?: { next: string }
 }
 
-// The plugin is bumped by editing its `tui.json` specifier (opencode reinstalls on restart), the CLI
+// The plugin is bumped by editing its `cli.json` specifier (opencode reinstalls on restart), the CLI
 // by a global install + `openspec update`. Only the plugin block writes the migration flag.
 export function buildUpdatePrompt(t: UpdateTargets): string {
   const parts = ["Update the OpenSpec tooling as described below. Do ONLY the steps listed – do not touch anything else."]
@@ -17,9 +17,9 @@ export function buildUpdatePrompt(t: UpdateTargets): string {
     parts.push(
       "",
       "## Update the plugin",
-      `1. Find the \`tui.json\` that registers this plugin – check \`<project>/.opencode/tui.json\` first, then \`~/.config/opencode/tui.json\`. Its \`"plugin"\` array contains \`"${PLUGIN_PKG}"\` (optionally with a \`@version\` suffix). The entry may be a plain string or a \`["${PLUGIN_PKG}", { …options }]\` tuple – edit the string part.`,
-      `   - If that entry is a local filesystem path (e.g. it ends in \`dist/index.js\`), this is a dev checkout: SKIP the plugin update and tell me so.`,
-      `2. Set the specifier to \`"${PLUGIN_PKG}@${t.plugin.next}"\`.`,
+      `1. Find the global OpenCode V2 \`cli.json\`: use \`OPENCODE_CONFIG_DIR/cli.json\` when overridden, otherwise \`$XDG_CONFIG_HOME/opencode/cli.json\` or \`~/.config/opencode/cli.json\`. There is no project-local CLI config. Check \`OPENCODE_CLI_CONFIG_CONTENT\` too: if its plugins override owns this entry, explain that override and stop instead of editing an ineffective file. The \`"plugins"\` array contains "${PLUGIN_PKG}" (optionally with a \`@version\` suffix). Entries are strings or objects with \`package\` and \`options\`; edit only the package specifier and preserve options, comments and other entries. Do not edit V1 \`tui.json\` or the server \`opencode.json\`.`,
+      `   - If that entry is a local filesystem path or file URL, this is a dev checkout: SKIP the plugin update and tell me so. V2 loads local CLI plugins by package directory, using a physical tui entrypoint.`,
+      `2. Confirm OpenCode is >=2.1.3 and <3.0.0; stop and explain if it is not. Set the specifier to \`"${PLUGIN_PKG}@${t.plugin.next}"\`.`,
       "3. In `openspec/config.yaml`, add this block (keep `schema`, `context`, `rules` intact; create the file with `schema: spec-driven` if it doesn't exist yet):",
       "```yaml",
       "plugin:",

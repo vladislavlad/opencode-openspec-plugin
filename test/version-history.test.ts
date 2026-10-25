@@ -1,15 +1,15 @@
 import { describe, expect, test } from "bun:test"
-import type { TuiPluginApi } from "@opencode-ai/plugin/tui"
+import type { Context } from "@opencode/plugin/tui/context"
 import { decideMigration, pendingVersionRange, readLastVersion, recordVersion } from "../src/lib/version-history"
 import { VERSION } from "../src/lib/version"
 
-const KEY = "openspec.lastVersion"
+const KEY = "last"
 
 function api(initial?: Record<string, unknown>) {
   const store: Record<string, unknown> = { ...initial }
   return {
     store,
-    api: { kv: { get: (k: string) => store[k], set: (k: string, v: unknown) => void (store[k] = v) } } as unknown as TuiPluginApi,
+    api: { storage: { store: () => [store, async (update: (draft: typeof store) => void) => update(store)] } } as unknown as Context,
   }
 }
 
@@ -20,9 +20,9 @@ test("reads a stored version and ignores a missing or corrupt one", () => {
   expect(readLastVersion(api({ [KEY]: "" }).api)).toBeNull()
 })
 
-test("recordVersion stamps the build constant", () => {
+test("recordVersion stamps the build constant", async () => {
   const { store, api: a } = api()
-  recordVersion(a)
+  expect(await recordVersion(a)).toBe(true)
   expect(store[KEY]).toBe(VERSION)
   expect(readLastVersion(a)).toBe(VERSION)
 })
@@ -119,4 +119,13 @@ describe("decideMigration", () => {
       expect(decide(null, "dev", notes, "dev")).toEqual({ show: "none", record: false })
     })
   })
+})
+
+
+test("storage failure is reported and remains retryable", async () => {
+  const warnings: unknown[] = []
+  const a = { storage: { store: () => [{ last: "1.0.0" }, async () => { throw new Error("disk full") }] }, ui: { toast: { show: (value: unknown) => warnings.push(value) } } } as unknown as Context
+  expect(await recordVersion(a)).toBe(false)
+  expect(readLastVersion(a)).toBe("1.0.0")
+  expect(warnings).toHaveLength(1)
 })

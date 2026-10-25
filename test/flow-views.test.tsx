@@ -1,10 +1,11 @@
 import { expect, test } from "bun:test"
 import { testRender } from "@opentui/solid"
-import type { TuiThemeCurrent } from "@opencode-ai/plugin/tui"
-import { EphemeralReloadBanner, InitBanner, InitScreen, InitStatus } from "../src/components/init-flow"
+import type { ThemeColors } from "../src/lib/theme"
+import { ToolingReloadBanner, InitBanner, InitScreen, InitStatus } from "../src/components/init-flow"
 import { PostUpdateBanner, UpdateBanner } from "../src/components/update-flow"
 import type { MigrationDecision } from "../src/lib/version-history"
 import type { Update } from "../src/lib/updates"
+import { SettingsView } from "../src/components/settings"
 
 const theme = () =>
   ({
@@ -17,7 +18,7 @@ const theme = () =>
     error: "#ff0000",
     background: "#000000",
     borderSubtle: "#444444",
-  }) as unknown as TuiThemeCurrent
+  }) as unknown as ThemeColors
 
 async function frame(node: () => any, width = 44, height = 12): Promise<string> {
   const { renderOnce, captureCharFrame, renderer } = await testRender(node, { width, height })
@@ -29,6 +30,22 @@ async function frame(node: () => any, width = 44, height = 12): Promise<string> 
 
 const noGate = {}
 const update = (current: string, next: string): Update => ({ current, next })
+
+for (const [plugin, cli] of [[false, false], [true, false], [false, true], [true, true]]) {
+  test(`settings avoid duplicate single-component updates (plugin=${plugin}, cli=${cli})`, async () => {
+    const out = await frame(() => <SettingsView
+      theme={theme}
+      cliCurrent={() => "1.14.2"}
+      pluginUpdate={() => plugin ? update("1.0.0", "2.0.0") : null}
+      cliUpdate={() => cli ? update("1.14.2", "1.14.3") : null}
+      onCheck={() => {}} onUpdate={() => {}} reloadPending={() => false} onReload={() => {}} gate={noGate}
+    />, 46, 22)
+    expect(out.includes("Update All")).toBe(plugin && cli)
+    expect(out.match(/version available/g) ?? []).toHaveLength(Number(plugin) + Number(cli))
+    expect(out).toContain("Check Versions")
+    expect(out).not.toContain("Reload OpenCode")
+  })
+}
 
 test("the status line names the running phase", async () => {
   const out = await frame(() => <InitStatus theme={theme} stage={() => "config"} dot={() => 1} />)
@@ -54,9 +71,9 @@ test("the Init screen shows the abort warning only after a failed turn", async (
   expect(fresh).toContain("Init")
 })
 
-test("the ephemeral bridge asks for a restart", async () => {
-  const out = await frame(() => <EphemeralReloadBanner theme={theme} onReload={() => {}} gate={noGate} />)
-  expect(out).toContain("Reload")
+test("failed native reload offers a retry", async () => {
+  const out = await frame(() => <ToolingReloadBanner theme={theme} onReload={() => {}} gate={noGate} />)
+  expect(out).toContain("Retry commands")
 })
 
 test("the update banner names which components are behind", async () => {

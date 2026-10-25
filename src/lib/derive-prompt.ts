@@ -13,9 +13,7 @@ const DEPTH_QUESTION = [
   "That answer is the depth for everything below.",
 ].join("\n")
 
-// The spec-derivation stage: reverse-engineer specs from existing code, staged with subagents so a
-// small model never has to hold the whole codebase at once. The depth is already chosen by the time
-// this runs.
+// Shared by Init/Resume and Baseline: the user chooses depth and bounded delegation separately.
 //
 // Stage order is load-bearing. Orient is deliberately cheap and Scan deliberately is not, with the
 // structure question between them: grouping decides how Scan and Detail are organised, so paying for
@@ -28,6 +26,7 @@ const DEPTH_QUESTION = [
 // the specs back afterwards to check the map was honoured – per area, then once across the run.
 export const SPEC_DERIVE_PROMPT = [
   "Reverse-engineer OpenSpec specs from the existing code – describe what the project does today. Write specs only: no changes, no code edits.",
+  "Do not launch subagents before the explicit execution choice in stage 4. Grounding, orientation and structure are done by the parent alone; Overview/Deep is not permission to delegate.",
   "",
   "Look for three things: what the project does for whoever uses it, the integrations and external systems it depends on, and the behavior it implements itself instead of taking from a library. All three are capabilities.",
   "",
@@ -77,9 +76,11 @@ export const SPEC_DERIVE_PROMPT = [
   "   e. Accepted: write `specStructure: hierarchical` into the `context` block of `openspec/config.yaml`, then continue in areas mode.",
   "",
   "**4. Scan** – now spend the depth, once, under the structure just settled.",
-  '   a. On "Overview" read entry points and main modules. On "Deep" follow the real code paths end to end, including error handling and edge cases, instead of guessing capabilities from folder names.',
-  "   b. Output the capability list: name, one-line purpose, main paths. In areas mode, group it under the candidate areas from stage 2.",
-  "   c. Hold it against the inventory from 1b. A capability that already exists is one to extend, not to reinvent under a second name; an area that already covers the ground is one to reuse, not to duplicate beside.",
+  '   a. Before reading code for this scan, ask once with the `question` tool (single, header "Subagents"): "Use subagents for scanning and deriving specs?" Offer "No subagents" (the parent works sequentially, lowest local load), "One at a time" (at most 1 live child) and "Up to 2 at once (Recommended)" (at most 2 live children). Explain that parallel agents increase local load and token usage. Accept an explicitly entered positive integer as a custom maximum. This choice is independent of depth and applies for this entire derivation run, through Scan, Detail and verification; do not ask again in Detail. Do not write this per-run choice into project or global configuration. If the question tool is unavailable, the answer is cancelled/missing or no valid mode or positive integer was chosen, continue with no subagents and say so; never infer permission from silence.',
+  "   b. Scheduling rule for every delegated scan and detail task: start a batch of at most the chosen maximum live children, wait for EVERY child in that batch to complete or fail, then start the next batch. With five tasks and a limit of two, use batches 2 + 2 + 1. A background launch returning a handle is not completion: it still occupies a slot until that child finishes. Do not queue all children at once or create waiting children. A failure releases only that finished child's slot, not the other live slots. Give every child an explicit instruction not to launch subagents of its own. In areas mode, never have children from two areas in flight together. If the available delegation tool cannot reliably await completion or no suitable agent is available, fall back to sequential parent work and report it. This is prompt-level scheduling for this run, not a host-enforced or machine-wide concurrency limit.",
+  '   c. On "Overview" read entry points and main modules. On "Deep" follow the real code paths end to end, including error handling and edge cases, instead of guessing capabilities from folder names. With no subagents, do this yourself sequentially. With delegation enabled, any read-only scan children obey 4b, receive the chosen depth, candidate boundaries and guardrails, and return evidence without writing specs; select their type only from the available tool\'s list.',
+  "   d. Output the capability list: name, one-line purpose, main paths. In areas mode, group it under the candidate areas from stage 2. Say which execution mode and maximum you are using.",
+  "   e. Hold it against the inventory from 1b. A capability that already exists is one to extend, not to reinvent under a second name; an area that already covers the ground is one to reuse, not to duplicate beside.",
   "",
   "**5. Confirm** – nothing is written or moved before this stage ends.",
   `   a. Flat mode: ask with the \`question\` tool which of the capabilities you just listed should get specs. One option per capability, named as in your list. Turn multiple selection ON: ${MULTI_SELECT_RULE}. Let them type capabilities of their own. Keep only what they pick.`,
@@ -99,17 +100,17 @@ export const SPEC_DERIVE_PROMPT = [
   "   g. A capability the confirmed picture leaves out of every area stays where it is.",
   "",
   "**7. Detail** – capability by capability, and in areas mode one area at a time.",
-  "   a. Spawn a subagent with the Task tool per capability, and let them run alongside each other. In areas mode the group is the area: fan out the capabilities of the area you are on, and never have capabilities from two areas in flight at once. Wait for the whole group to finish before moving on.",
-  '   b. Each subagent reads only its capability\'s code and writes that capability\'s `spec.md`. If the file already exists it reads it first and extends it: a requirement that is still true stays as it is, one the code has outgrown gets corrected, and what is missing gets added. Take the agent type from the list that tool itself offers and pick a general one – do not invent a type name. Pass it the name, purpose, paths, its area if it has one, the chosen depth, the specs rules from 1d and the guardrails. And pass the spec language together with the language rule above, copied out in full – naming the language alone is not enough, because the subagent is the one writing the headings and it never sees this prompt. On "Overview" it reads entry points and main modules; on "Deep" it follows that capability\'s code paths end to end and captures error handling and edge cases as their own scenarios. If the Task tool is missing or offers no general agent, do the capabilities one at a time yourself – do not retry with a guessed type.',
+  "   a. Follow the execution choice from 4a. With no subagents, read and write each capability yourself, one at a time, following the same depth, language, specs rules and guardrails. Otherwise use the available subagent/Task tool per capability and let them run alongside each other only inside the bounded batches of 4b; a limit of one means sequential children. In areas mode the group is the area: never have capabilities from two areas in flight at once. Wait for the whole group to finish before moving on.",
+  '   b. Each subagent reads only its capability\'s code and writes that capability\'s `spec.md`. If the file already exists it reads it first and extends it: a requirement that is still true stays as it is, one the code has outgrown gets corrected, and what is missing gets added. Take the agent type from the list that tool itself offers and pick a general one – do not invent a type name. Pass it the name, purpose, paths, its area if it has one, the chosen depth, the specs rules from 1d and the guardrails. And pass the spec language together with the language rule above, copied out in full – naming the language alone is not enough, because the subagent is the one writing the headings and it never sees this prompt. On "Overview" it reads entry points and main modules; on "Deep" it follows that capability\'s code paths end to end and captures error handling and edge cases as their own scenarios. If the available delegation tool is missing or offers no general agent, do the capabilities one at a time yourself – do not retry with a guessed type.',
   "   c. Give every subagent the whole confirmed list – each capability's name and one-line purpose, not their specs – and not only its own entry. Subagents can't see each other, so that list is what tells one where its capability ends and its neighbour begins, and keeps behavior sitting on a boundary out of two specs at once.",
-  "   d. Areas mode: before an area's subagents, announce it on a line of its own, exactly as `Area: **<name>** (<n> capabilities)`. The name is bold and nothing else on the line is: that is what makes it the same colour as the area headings of the final report, while the count stays plain. Don't wrap the line in a heading – a heading recolours everything inside it and the name stops standing out. Only that area is ever in play.",
+  "   d. Areas mode: before working on an area, announce it on a line of its own, exactly as `Area: **<name>** (<n> capabilities)`. The name is bold and nothing else on the line is: that is what makes it the same colour as the area headings of the final report, while the count stays plain. Don't wrap the line in a heading – a heading recolours everything inside it and the name stops standing out. Only that area is ever in play.",
   "   e. A subagent that failed or wrote nothing leaves an underived capability: say so, with whatever you know about why, and carry it to the summary. Never pass over one silently, and never let one failure abandon the rest of the group or the areas still to come.",
   "   f. Areas mode: when the group is done, check that area – 8b, and the overlap pass of 8c over that area's specs – and report it before you name the next one. Catching an overlap here, while the area is still the only thing in front of you, is cheaper than finding it at the end.",
   "",
   "**8. Verify.**",
   "   a. Run `openspec validate --specs` and fix what it reports.",
   "   b. Then open each confirmed capability's spec and count its requirements and its scenarios. Each needs at least one of both – a clean validate is not evidence that a capability was written, it says nothing about a file that never appeared. Every number that reaches your summary comes from this count. Never report what a subagent told you or what you remember: a subagent's message predates its last edit, and counts you carry in your head drift.",
-  "   c. Overlap. The subagents wrote at the same time and never saw each other, so read back the requirement names and SHALL statements of the specs this run touched, together with the specs already beside them in the inventory, and look for one behavior specified in two places. Judge behavior, not subject: two capabilities may both mention tokens while only one says who refreshes them, and that is correct. Where a behavior really is specified twice, keep it in the capability whose purpose owns it, drop it from the other, and name both the overlap and the call you made. Where ownership is genuinely unclear, leave both alone and report it as unsure – never delete a requirement you cannot confirm is a duplicate.",
+  "   c. Overlap. Whether specs were written by the parent or isolated children, read back the requirement names and SHALL statements of the specs this run touched, together with the specs already beside them in the inventory, and look for one behavior specified in two places. Judge behavior, not subject: two capabilities may both mention tokens while only one says who refreshes them, and that is correct. Where a behavior really is specified twice, keep it in the capability whose purpose owns it, drop it from the other, and name both the overlap and the call you made. Where ownership is genuinely unclear, leave both alone and report it as unsure – never delete a requirement you cannot confirm is a duplicate.",
   "   d. Anything moved in stage 6: confirm it is at its new path and gone from the old one.",
   "",
   "Output On Success – report in this shape. One area block per area, dropped entirely in flat mode; the Warnings block only when there is something to warn about; every count taken from 8b, not from memory; and nothing outside the shape below travels into your report.",
@@ -126,6 +127,8 @@ export const SPEC_DERIVE_PROMPT = [
   "- Updated: `<capability>` – <what changed>",
   "- Moved in: `<capability>` – was at `<old path>`",
   "",
+  "Execution: <parent only, or chosen maximum live subagents; note any sequential fallback>",
+  "",
   "**Warnings**",
   "- Underived: `<capability>` – <why>",
   "- Corrected: `<capability>` – <what no longer matched the code>",
@@ -137,6 +140,7 @@ export const SPEC_DERIVE_PROMPT = [
   "```",
   "",
   "Guardrails:",
+  "- Keep the execution choice and maximum from 4a throughout this run, including after context compaction. Nested delegation is forbidden. No-subagent mode still performs all verification and overlap checks.",
   "- Several cohesive specs, not one giant one, and not one per file.",
   "- Follow the language and context from `openspec/config.yaml`.",
   "- Don't duplicate existing capabilities and areas: extend what the inventory already has instead of adding a second one beside it. Correcting a spec that no longer matches the code is fine – say so in the summary.",

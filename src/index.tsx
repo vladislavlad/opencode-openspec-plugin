@@ -1,20 +1,20 @@
-import type { TuiPlugin, TuiPluginModule } from "@opencode-ai/plugin/tui"
+import { Plugin } from "@opencode/plugin/tui"
+import { Show } from "solid-js"
 import { registerCommands } from "./features/commands"
+import { projectLocation } from "./lib/location"
 import { OpenSpecSidebar } from "./sidebar"
 
-const tui: TuiPlugin = async (api) => {
-  const { baselineAvailable } = registerCommands(api)
-  api.slots.register({
-    order: 600,
-    slots: {
-      sidebar_content(_ctx, value) {
-        return <OpenSpecSidebar api={api} sessionId={value.session_id} baselineAvailable={baselineAvailable} />
-      },
-    },
-  })
-}
-
-export default {
+export default Plugin.define({
   id: "openspec-tui",
-  tui,
-} satisfies TuiPluginModule
+  setup(api) {
+    const { baselineAvailable } = registerCommands(api)
+    return api.ui.slot({
+      append: "sidebar.content",
+      render: (slot) => (
+        <Show when={JSON.stringify([slot.sessionID, projectLocation(api, slot.sessionID)])} keyed>
+          {(_key) => <OpenSpecSidebar api={api} sessionId={slot.sessionID} baselineAvailable={baselineAvailable} />}
+        </Show>
+      ),
+    })
+  },
+})

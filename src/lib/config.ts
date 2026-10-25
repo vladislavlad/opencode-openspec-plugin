@@ -2,7 +2,7 @@
 // post-update flag. Stage checkpoints and the post-update flag are written by the agent; the plugin
 // only stamps `in-progress` up front (see `writeInitMarker`).
 import { isMap, parseDocument, parse as parseYaml } from "yaml"
-import type { TuiPluginApi } from "@opencode-ai/plugin/tui"
+import type { Context } from "@opencode/plugin/tui/context"
 import { localRoot, readLocal, writeLocal } from "./local-fs"
 import { ROOT, type FileClient } from "./openspec"
 
@@ -75,7 +75,7 @@ export async function readPluginState(client: FileClient): Promise<PluginState> 
 
 // Where config.yaml lives and what's in it. Null when the project isn't reachable from this
 // process, so the caller falls back to the agent. Content is "" when the file doesn't exist yet.
-async function editable(api: TuiPluginApi): Promise<{ dir: string; path: string; content: string } | null> {
+async function editable(api: Context): Promise<{ dir: string; path: string; content: string } | null> {
   const dir = await localRoot(api)
   if (!dir) return null
 
@@ -92,7 +92,7 @@ function parseConfig(content: string) {
 // Stamp `in-progress` before the setup turn starts, so Resume works even if the agent dies on its
 // first tool call. `resetStages` clears the checkpoints – that's Init starting over, as opposed to
 // Resume, which must keep what's already done.
-export async function writeInitMarker(api: TuiPluginApi, resetStages: boolean): Promise<boolean> {
+export async function writeInitMarker(api: Context, resetStages: boolean): Promise<boolean> {
   const target = await editable(api)
   if (!target) return false
   try {
@@ -110,7 +110,7 @@ export async function writeInitMarker(api: TuiPluginApi, resetStages: boolean): 
 
 // Dismiss on the interrupted-setup banner. Dropping a yaml block needs no judgement, so it happens
 // here instead of costing the user a whole agent turn.
-export async function clearInitMarker(api: TuiPluginApi): Promise<boolean> {
+export async function clearInitMarker(api: Context): Promise<boolean> {
   const target = await editable(api)
   if (!target) return false
   if (!target.content) return true // no config at all – nothing to clear

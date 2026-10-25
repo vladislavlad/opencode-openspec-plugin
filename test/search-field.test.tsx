@@ -2,10 +2,11 @@ import { expect, test } from "bun:test"
 import { createSignal } from "solid-js"
 import { testRender } from "@opentui/solid"
 import { SearchField } from "../src/components/search"
-import type { CliRenderer, Renderable, TuiThemeCurrent } from "@opencode-ai/plugin/tui"
+import type { CliRenderer, Renderable } from "@opentui/core"
+import type { ThemeColors } from "../src/lib/theme"
 
 const theme = () =>
-  ({ text: "#ffffff", textMuted: "#888888", accent: "#00aaff" }) as unknown as TuiThemeCurrent
+  ({ text: "#ffffff", textMuted: "#888888", accent: "#00aaff" }) as unknown as ThemeColors
 
 const WIDTH = 40 // the "✕" sits in the last column of the row
 const FIELD_X = 5 // inside the input: past the "🔍" (two cells) and the gap

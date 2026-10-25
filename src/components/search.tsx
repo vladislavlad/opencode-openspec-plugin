@@ -1,5 +1,5 @@
 import { createSignal, onCleanup, Show } from "solid-js"
-import type { CliRenderer, KeyEvent, Renderable } from "@opencode-ai/plugin/tui"
+import type { CliRenderer, KeyEvent, Renderable } from "@opentui/core"
 import type { Theme } from "../lib/theme"
 import { ClearButton } from "./primitives"
 

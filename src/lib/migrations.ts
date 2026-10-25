@@ -71,6 +71,25 @@ export const MIGRATIONS: Record<string, Migration> = {
       "OpenSpec commands preserve arguments supplied by the command dispatcher.",
     ],
   },
+  "2.0.0": {
+    instructions: "",
+    releaseNotes: [
+      "The OpenSpec sidebar now works in OpenCode 2.",
+      "Active buttons and accents keep your theme's colors; busy actions stay muted.",
+      "Choose whether project scanning uses subagents, with one-at-a-time or bounded parallel batches.",
+      "The overview keeps command guidance in its dialog, and Update All appears only for two available updates.",
+      "Explore, Propose, Apply and Update open an editable command dialog.",
+      "Sidebar actions preserve your main draft and report submission errors.",
+      "The config and baseline slash commands accept arguments directly.",
+      "Setup activates new commands and skills without restarting OpenCode.",
+      "Repeated update clicks preserve the reload reminder and migration completion.",
+      "Explore runs in Plan; other OpenSpec actions run in Build.",
+      "Command dialogs show the agent and your selected model and variant.",
+      "Native command settings no longer override the sidebar's agent or your selected model.",
+      "Project command symlinks keep their templates; invalid frontmatter no longer overrides a valid command.",
+      "Unsupported command templates show an error before starting a turn; shell interpolation must be replaced with agent instructions.",
+    ],
+  },
 }
 
 // Migrations whose version is in (old, new], ordered oldest → newest, tagged with their version.
@@ -87,7 +106,7 @@ export const hasMigrations = (old: string, next: string) => collectMigrations(ol
 // Complete Update: agent actions first (migration steps, clear flag), then relayable content
 // (release notes). Each stage is delimited by `---` so the agent distinguishes private actions
 // from content to relay. `clearFlag` adds the instruction to drop `plugin.update-in-progress`;
-// a range detected from `kv` has no flag to drop.
+// a range detected from V2 storage has no flag to drop.
 export function buildMigrationPrompt(range: { old: string; new: string }, opts: { clearFlag?: boolean } = {}): string {
   const migrations = collectMigrations(range.old, range.new)
 

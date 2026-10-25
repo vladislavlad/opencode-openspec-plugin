@@ -1,5 +1,5 @@
 import { createEffect, createMemo, createSignal, For, Match, onCleanup, Show, Switch } from "solid-js"
-import type { TuiPluginApi } from "@opencode-ai/plugin/tui"
+import type { Context } from "@opencode/plugin/tui/context"
 import { hasOpenSpecTooling, isComplete, readOpenSpec, summaryEquals, type FileClient, type OpenSpecSummary } from "./lib/openspec"
 import { parseChangeDocs, readChangeArtifacts, type ChangeDocs } from "./lib/change-docs"
 import { clearInitMarker, readPluginState, writeInitMarker, type InitStage, type PluginState } from "./lib/config"
@@ -10,22 +10,23 @@ import { buildMigrationPrompt, hasMigrations } from "./lib/migrations"
 import { decideMigration, readLastVersion, recordVersion } from "./lib/version-history"
 import { deleteChange } from "./lib/delete-change"
 import { quitOpencode, sendPrompt, submitPrompt } from "./lib/send-prompt"
-import { registerOpsxFsCommands } from "./features/commands"
+import { projectLocation, sessionRunning } from "./lib/location"
+import { themeColors } from "./lib/theme"
 import { BackButton, Button, CollapsibleSection, Divider, ProgressBar, type Gate } from "./components/primitives"
 import { ChangeDetail, ChangeRow } from "./components/changes"
 import { RequirementDetail, SpecDetail, SpecNodeView, SpecRow, buildTree, findNode, parentArea } from "./components/specs"
 import { SearchField } from "./components/search"
 import { SettingsView } from "./components/settings"
 import {
-  EphemeralReloadBanner,
+  ToolingReloadBanner,
   InitBanner,
   InitScreen,
   InitStatus,
-  ephemeralBanner,
+  toolingBanner,
   initIncomplete,
   needsInit as needsInitDecision,
   setupStage,
-  type EphemeralResult,
+  type ToolingResult,
 } from "./components/init-flow"
 import { PostUpdateBanner, UpdateBanner } from "./components/update-flow"
 import { searchSpecs } from "./lib/search"
@@ -36,8 +37,8 @@ const NO_PLUGIN_STATE: PluginState = { update: null, init: { inProgress: false, 
 // The sidebar root: owns the single poll, every signal and the agent's busy state, and renders the
 // list or a drill-in detail view. The setup and update flows get their values from here – they never
 // poll or subscribe on their own.
-export function OpenSpecSidebar(props: { api: TuiPluginApi; sessionId: string; baselineAvailable: boolean }) {
-  const theme = () => props.api.theme.current
+export function OpenSpecSidebar(props: { api: Context; sessionId: string; baselineAvailable: boolean }) {
+  const theme = () => themeColors(props.api.theme)
   const [summary, setSummary] = createSignal<OpenSpecSummary | null>(null, { equals: summaryEquals })
   // null while the first load is in flight, so we don't flash the Init screen on startup.
   const [initialised, setInitialised] = createSignal<boolean | null>(null)
@@ -54,12 +55,12 @@ export function OpenSpecSidebar(props: { api: TuiPluginApi; sessionId: string; b
   const [changeDocs, setChangeDocs] = createSignal<ChangeDocs | null>(null)
   const [hovered, setHovered] = createSignal<string | null>(null)
   const [specQuery, setSpecQuery] = createSignal("")
-  // false once we know the init /opsx-* commands aren't loaded (written this session but pre-restart).
+  // false once we know the init /opsx-* commands aren't loaded (written this session but not loaded yet).
   const [commandsReady, setCommandsReady] = createSignal<boolean | null>(null)
   // Init pressed; hold the status line until the agent goes idle.
   const [setupInProgress, setSetupInProgress] = createSignal(false)
   const [setupFailed, setSetupFailed] = createSignal(false) // the init turn ended without tooling
-  const [ephemeralResult, setEphemeralResult] = createSignal<EphemeralResult>("idle")
+  const [toolingResult, setToolingResult] = createSignal<ToolingResult>("idle")
   const [showSettings, setShowSettings] = createSignal(false)
   const [headerHover, setHeaderHover] = createSignal(false)
   const [dot, setDot] = createSignal(0) // 0..2 – which of the "Initializing" dots is lit
@@ -71,15 +72,19 @@ export function OpenSpecSidebar(props: { api: TuiPluginApi; sessionId: string; b
   // The whole `plugin:` block from config.yaml, filled by one read per poll: the setup marker drives
   // the status line, the interrupted banner and Resume; the update flag drives the post-update banner.
   const [pluginState, setPluginState] = createSignal<PluginState>(NO_PLUGIN_STATE)
-  // Last version this plugin ran as, from `kv`. Filled in on the first poll where `kv` is ready.
+  // Last version from the synchronously hydrated durable V2 store.
   const [lastVersion, setLastVersion] = createSignal<string | null>(null)
-  let pendingEphemeral = false // register the /opsx-* files once the init turn ends
+  const [submitting, setSubmitting] = createSignal(false)
+  let pendingToolingReload = false // reload the native catalog once the init turn ends
   let pendingReload = false // show the reload prompt once an update turn ends
-  let pendingVersionRecord = false // stamp `kv` once the migration turn ends
+  let pendingVersionRecord = false // stamp storage once the migration turn ends
 
+  const location = projectLocation(props.api, props.sessionId)
+  let disposed = false
+  onCleanup(() => { disposed = true })
   const client: FileClient = {
-    list: (path) => props.api.client.file.list({ path }).then((r) => r?.data ?? []),
-    read: (path) => props.api.client.file.read({ path }).then((r) => r?.data?.content ?? ""),
+    list: (path) => props.api.client.file.list({ location, path }).then((r) => r.data.map((entry) => ({ name: entry.path.replace(/\/+$/, "").split("/").pop()!, type: entry.type }))),
+    read: (path) => props.api.client.file.read({ location, path }).then((bytes) => new TextDecoder().decode(bytes)),
   }
 
   // ---- derived state ------------------------------------------------------
@@ -99,19 +104,27 @@ export function OpenSpecSidebar(props: { api: TuiPluginApi; sessionId: string; b
   const activeDone = createMemo(() => activeList().reduce((sum, c) => sum + c.completedTasks, 0))
 
   // Agent mid-turn – used to disable actions and hide the reload prompt.
-  const busy = createMemo(() => {
-    const st = props.api.state.session.status(props.sessionId)
-    return st?.type === "busy" || st?.type === "retry"
-  })
-  const toastBusy = () => props.api.ui.toast({ variant: "info", message: "Wait until the agent finishes working" })
-  const gate: Gate = { disabled: busy, onDisabledClick: toastBusy }
+  const busy = createMemo(() => sessionRunning(props.api, props.sessionId))
+  const actionsDisabled = () => busy() || submitting()
+  const toastBusy = () => props.api.ui.toast.show({ variant: "info", message: "Wait until the agent finishes working" })
+  const gate: Gate = { disabled: actionsDisabled, onDisabledClick: toastBusy }
   const allowAction = () => {
-    if (!busy()) return true
+    if (disposed) return false
+    if (!actionsDisabled()) return true
     toastBusy()
     return false
   }
   // Runs `action` as an agent turn, unless one is already going.
   const whenIdle = (action: () => void) => { if (allowAction()) action() }
+  // Reserve the gate before touching completion flags. A rejected second click must not clear
+  // the first request's state while the host still reports idle. Keep host busy separate: only
+  // its running-to-idle transition means an agent turn completed.
+  const submitAction = async (action: () => Promise<void>) => {
+    if (!allowAction()) return
+    setSubmitting(true)
+    try { await action() }
+    finally { if (!disposed) setSubmitting(false) }
+  }
 
   const initState = () => pluginState().init
   const stage = createMemo(() => setupStage(initState()))
@@ -119,9 +132,9 @@ export function OpenSpecSidebar(props: { api: TuiPluginApi; sessionId: string; b
   const needsInit = createMemo(() => needsInitDecision({ initialised: initialised(), init: initState() }))
   const updateAvailable = createMemo(() => pluginUpdate() != null || cliUpdate() != null)
 
-  // Above the action row: the restart prompt for ephemerally bridged commands.
+  // Offer a retry when native tooling reload failed.
   const banner = createMemo(() =>
-    ephemeralBanner({ busy: busy(), commandsReady: commandsReady(), init: initState(), ephemeral: ephemeralResult() }),
+    toolingBanner({ busy: busy(), commandsReady: commandsReady(), init: initState(), tooling: toolingResult() }),
   )
 
   // What to do about the version we're running on. Two sources – the flag an update turn left in
@@ -131,20 +144,23 @@ export function OpenSpecSidebar(props: { api: TuiPluginApi; sessionId: string; b
     decideMigration({ flag: pluginState().update, last: lastVersion(), current: VERSION, hasEntries: hasMigrations }),
   )
 
-  // `kv` loads asynchronously, so read it on the poll rather than at mount – reading it too early
-  // looks like "no record" and would silently swallow the banner.
-  let kvRead = false
+  let historyRead = false
+  let recording = false
+  const saveVersion = async () => {
+    if (recording || disposed) return
+    recording = true
+    if (await recordVersion(props.api)) {
+      if (!disposed) setLastVersion(VERSION)
+    }
+    recording = false
+  }
   const syncVersionHistory = () => {
-    if (!props.api.kv.ready) return
-    if (!kvRead) {
-      kvRead = true
+    if (!historyRead) {
+      historyRead = true
       setLastVersion(readLastVersion(props.api))
     }
     const decision = migration()
-    if (decision.show === "none" && decision.record) {
-      recordVersion(props.api)
-      setLastVersion(VERSION)
-    }
+    if (decision.show === "none" && decision.record) void saveVersion()
   }
 
   // Resolved from the live summary so detail views keep updating while polling.
@@ -171,7 +187,7 @@ export function OpenSpecSidebar(props: { api: TuiPluginApi; sessionId: string; b
     setChangeDocs(null)
     if (!name) return
     void readChangeArtifacts(client, name).then((artifacts) => {
-      if (selected() === name) setChangeDocs(parseChangeDocs(artifacts))
+      if (!disposed && selected() === name) setChangeDocs(parseChangeDocs(artifacts))
     })
   })
 
@@ -193,23 +209,25 @@ export function OpenSpecSidebar(props: { api: TuiPluginApi; sessionId: string; b
   // `resume` keeps the recorded stages and skips them; Init starts over from scratch. The marker is
   // stamped and the state re-read before the turn is submitted, so Resume never builds its prompt
   // from a poll that's up to 3s stale – and survives an agent that dies on its first tool call.
-  const startInit = async (resume: boolean) => {
+  const startInit = (resume: boolean) => submitAction(async () => {
     setSetupInProgress(true)
-    setEphemeralResult("idle")
+    setToolingResult("idle")
     setSetupFailed(false)
-    pendingEphemeral = true
+    pendingToolingReload = true
 
     const marked = await writeInitMarker(props.api, !resume)
     const state = await readPluginState(client)
+    if (disposed) return
     setPluginState(state)
 
     const stageDone = (s: InitStage) => resume && state.init.done.includes(s)
     const done = { tooling: stageDone("tooling"), config: stageDone("config"), specs: stageDone("specs") }
-    void submitPrompt(
+    const sent = await submitPrompt(
       props.api,
       props.baselineAvailable ? buildInitPrompt(done, marked) : buildInitOnlyPrompt(marked),
     )
-  }
+    if (!sent) { setSetupInProgress(false); pendingToolingReload = false }
+  })
   const initOpenSpec = () => void startInit(false)
   const resumeInit = () => void startInit(true)
   // Dropping the marker is a plain yaml edit, so do it here and refresh – no agent turn needed.
@@ -220,16 +238,18 @@ export function OpenSpecSidebar(props: { api: TuiPluginApi; sessionId: string; b
     )
 
   const sendUpdate = (targets: UpdateTargets) =>
-    whenIdle(() => {
+    void submitAction(async () => {
       pendingReload = true
-      void submitPrompt(props.api, buildUpdatePrompt(targets))
+      const sent = await submitPrompt(props.api, buildUpdatePrompt(targets))
+      if (!sent) pendingReload = false
     })
   const completeUpdate = () => {
     const d = migration()
     if (d.show !== "migrate") return
-    whenIdle(() => {
+    void submitAction(async () => {
       pendingVersionRecord = true
-      void submitPrompt(props.api, buildMigrationPrompt(d.range, { clearFlag: d.fromFlag }))
+      const sent = await submitPrompt(props.api, buildMigrationPrompt(d.range, { clearFlag: d.fromFlag }))
+      if (!sent) pendingVersionRecord = false
     })
   }
 
@@ -237,44 +257,58 @@ export function OpenSpecSidebar(props: { api: TuiPluginApi; sessionId: string; b
   // check re-shows a dismissed banner. Available updates aren't toasted – they show in the banner.
   const runVersionCheck = async (notify = false) => {
     const s = await checkVersions(client)
+    if (disposed) return
     setCliCurrent(s.cliCurrent)
     setPluginUpdate(s.plugin)
     setCliUpdate(s.cli)
     setBannerDismissed(false)
     if (!notify) return
-    if (!s.reachable) props.api.ui.toast({ variant: "warning", message: "Couldn't reach npm registry" })
-    else if (!s.plugin && !s.cli) props.api.ui.toast({ variant: "success", message: "All versions are up to date" })
+    if (!s.reachable) props.api.ui.toast.show({ variant: "warning", message: "Couldn't reach npm registry" })
+    else if (!s.plugin && !s.cli) props.api.ui.toast.show({ variant: "success", message: "All versions are up to date" })
   }
 
-  // After the init turn the /opsx-* files are on disk; register them ephemerally to bridge the
-  // restart gap.
-  const installEphemeral = async () => {
-    if (commandsReady() === true) return // already loaded natively
-    const n = await registerOpsxFsCommands(props.api, client.read)
-    setEphemeralResult(n > 0 ? "loaded" : "failed")
+  // Ask the V2 host to rebuild its native catalog after tooling is written.
+  const reloadTooling = async () => {
+    try {
+      await props.api.client.location.reload()
+      const commands = await props.api.client.command.list({ location })
+      if (disposed) return
+      const ready = commands.data.some((c) => c.name === "opsx-propose")
+      setCommandsReady(ready)
+      setToolingResult(ready ? "loaded" : "failed")
+    } catch {
+      if (!disposed) setToolingResult("failed")
+    }
   }
 
   // ---- polling ------------------------------------------------------------
 
   let loading = false
   async function load() {
-    if (loading) return
+    if (loading || disposed) return
     loading = true
     try {
       const s = await readOpenSpec(client)
+      if (disposed) return
       setSummary(s)
-      setInitialised(s !== null && (await hasOpenSpecTooling(client)))
+      const initialized = s !== null && (await hasOpenSpecTooling(client))
+      if (disposed) return
+      setInitialised(initialized)
       // One read of the `plugin:` block per poll, feeding both flows, so the banners clear as soon
       // as the agent removes their markers.
-      setPluginState(await readPluginState(client))
+      const state = await readPluginState(client)
+      if (disposed) return
+      setPluginState(state)
       // Are the init commands actually loaded? Stay optimistic on a fetch error.
       const cmds = await props.api.client.command
-        .list()
+        .list({ location })
         .then((r) => r?.data ?? null)
         .catch(() => null)
+      if (disposed) return
       if (cmds) setCommandsReady(cmds.some((c) => c.name === "opsx-propose"))
       syncVersionHistory()
     } catch {
+      if (disposed) return
       setSummary(null)
       setInitialised(false)
     } finally {
@@ -283,7 +317,7 @@ export function OpenSpecSidebar(props: { api: TuiPluginApi; sessionId: string; b
   }
 
   createEffect(() => {
-    const dir = props.api.state.path.directory
+    const dir = location.directory
     if (!dir) return
     void load()
     void runVersionCheck()
@@ -305,9 +339,9 @@ export function OpenSpecSidebar(props: { api: TuiPluginApi; sessionId: string; b
     if (!sawBusy) return
     sawBusy = false
     setSetupInProgress(false)
-    if (pendingEphemeral) {
-      pendingEphemeral = false
-      void installEphemeral()
+    if (pendingToolingReload) {
+      pendingToolingReload = false
+      void reloadTooling()
       // Re-read before judging: the poll can be up to 3s stale right after the turn.
       void load().then(() => setSetupFailed(initialised() !== true))
     }
@@ -317,8 +351,7 @@ export function OpenSpecSidebar(props: { api: TuiPluginApi; sessionId: string; b
     }
     if (pendingVersionRecord) {
       pendingVersionRecord = false
-      recordVersion(props.api)
-      setLastVersion(VERSION)
+      void saveVersion()
     }
   })
 
@@ -356,10 +389,10 @@ export function OpenSpecSidebar(props: { api: TuiPluginApi; sessionId: string; b
       <PostUpdateBanner theme={theme} decision={migration} onComplete={completeUpdate} onReopen={() => quitOpencode(props.api)} gate={gate} />
 
       <Show when={banner() !== "none"}>
-        <EphemeralReloadBanner theme={theme} onReload={() => quitOpencode(props.api)} gate={gate} />
+        <ToolingReloadBanner theme={theme} onReload={() => whenIdle(() => void reloadTooling())} gate={gate} />
       </Show>
 
-      {/* Hidden when the bridge failed: the /opsx-* commands these fill in wouldn't resolve. */}
+      {/* Hidden when the native command reload failed. */}
       <Show when={banner() !== "error"}>
         <box flexDirection="row" gap={2}>
           <Button theme={theme} label="Explore" color={theme().accent} {...gate} onClick={() => void sendPrompt(props.api, "/opsx-explore ")} />
@@ -525,7 +558,7 @@ export function OpenSpecSidebar(props: { api: TuiPluginApi; sessionId: string; b
                 change={change()}
                 docs={changeDocs()}
                 onBack={backToList}
-                // Apply/Update fill the prompt; Archive submits.
+                // Apply/Update open an editable dialog; Archive submits.
                 onCommand={(text, submit) => void (submit ? submitPrompt(props.api, text) : sendPrompt(props.api, text))}
                 onDelete={(name) => void deleteChange(props.api, name, allowAction)}
                 gate={gate}

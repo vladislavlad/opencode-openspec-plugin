@@ -47,7 +47,7 @@ export function ChangeRow(props: HoverState & { theme: Theme; change: OpenSpecCh
   )
 }
 
-// Apply/Update only fill the prompt so the user can add context before sending.
+// Apply/Update open an editable dialog so the user can add context before sending.
 function ChangeActions(props: { theme: Theme; name: string; onCommand: (text: string, submit?: boolean) => void; onRequestDelete: () => void; gate: Gate }) {
   const theme = props.theme
   return (

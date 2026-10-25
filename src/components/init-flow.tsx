@@ -20,20 +20,17 @@ export const initIncomplete = (s: { init: InitState; busy: boolean; setupInProgr
 export const needsInit = (s: { initialised: boolean | null; init: InitState }) =>
   s.initialised === false || (s.initialised === true && s.init.inProgress && !s.init.done.includes("tooling"))
 
-export type EphemeralResult = "idle" | "loaded" | "failed"
+export type ToolingResult = "idle" | "loaded" | "failed"
 
-// The restart prompt above the action row: none while busy/native/mid-setup, warn if the /opsx-*
-// files were bridged ephemerally, error if that failed. Held back during setup so Reload and Resume
-// never compete.
-export const ephemeralBanner = (s: {
+// Setup owns the flow until it finishes; a failed native reload offers a retry.
+export const toolingBanner = (s: {
   busy: boolean
   commandsReady: boolean | null
   init: InitState
-  ephemeral: EphemeralResult
-}): "none" | "warn" | "error" => {
+  tooling: ToolingResult
+}): "none" | "error" => {
   if (s.busy || s.commandsReady === true || s.init.inProgress) return "none"
-  if (s.ephemeral === "loaded") return "warn"
-  if (s.ephemeral === "failed") return "error"
+  if (s.tooling === "failed") return "error"
   return "none"
 }
 
@@ -99,14 +96,14 @@ export function InitScreen(props: { theme: Theme; aborted: () => boolean; onInit
   )
 }
 
-// Same prompt whether the ephemeral bridge took or not – only a restart loads the commands properly.
-export function EphemeralReloadBanner(props: { theme: Theme; onReload: () => void; gate: Gate }) {
+// Retry native reload without closing the current session.
+export function ToolingReloadBanner(props: { theme: Theme; onReload: () => void; gate: Gate }) {
   const t = props.theme
   return (
     <box paddingBottom={1}>
-      <text fg={t().warning} wrapMode="word">Reload opencode to activate new commands and skills</text>
+      <text fg={t().warning} wrapMode="word">Could not activate OpenSpec commands. Retry loading commands and skills.</text>
       <box flexDirection="row" paddingTop={1}>
-        <Button theme={t} label="Reload OpenCode" color={t().error} {...props.gate} onClick={props.onReload} />
+        <Button theme={t} label="Retry commands" color={t().error} {...props.gate} onClick={props.onReload} />
       </box>
     </box>
   )

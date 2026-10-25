@@ -1,5 +1,47 @@
 import { describe, expect, test } from "bun:test"
 import { SPEC_BASELINE_PROMPT } from "../src/lib/derive-prompt"
+import { buildInitPrompt } from "../src/lib/init-prompts"
+
+describe("derivation resource choice", () => {
+  for (const [name, prompt] of [
+    ["Baseline", SPEC_BASELINE_PROMPT],
+    ["Init", buildInitPrompt()],
+    ["Resume unfinished specs", buildInitPrompt({ tooling: true, config: true, specs: false })],
+  ]) {
+    test(`${name} asks once before reading Scan code, independently of depth`, () => {
+      expect(prompt.match(/header "Subagents"/g)).toHaveLength(1)
+      expect(prompt.indexOf('header "Subagents"')).toBeGreaterThan(prompt.indexOf("**4. Scan**"))
+      expect(prompt.indexOf('header "Subagents"')).toBeLessThan(prompt.indexOf("4b, receive the chosen depth"))
+      for (const option of ['"No subagents"', '"One at a time"', '"Up to 2 at once (Recommended)"']) expect(prompt).toContain(option)
+      expect(prompt).toContain("explicitly entered positive integer")
+      expect(prompt).toContain("Do not launch subagents before the explicit execution choice")
+      expect(prompt).toContain("do not ask again in Detail")
+    })
+  }
+
+  test("completed specs do not ask for delegation again", () => {
+    expect(buildInitPrompt({ tooling: true, config: true, specs: true })).not.toContain('header "Subagents"')
+  })
+
+  test("batches count live background children and forbid nested delegation", () => {
+    expect(SPEC_BASELINE_PROMPT).toContain("wait for EVERY child in that batch to complete or fail")
+    expect(SPEC_BASELINE_PROMPT).toContain("batches 2 + 2 + 1")
+    expect(SPEC_BASELINE_PROMPT).toContain("still occupies a slot until that child finishes")
+    expect(SPEC_BASELINE_PROMPT).toContain("Do not queue all children at once or create waiting children")
+    expect(SPEC_BASELINE_PROMPT).toContain("not to launch subagents of its own")
+    expect(SPEC_BASELINE_PROMPT).toContain("including after context compaction")
+    expect(SPEC_BASELINE_PROMPT).toContain("not a host-enforced or machine-wide concurrency limit")
+  })
+
+  test("missing consent/tools fall back to sequential parent work with full verification", () => {
+    expect(SPEC_BASELINE_PROMPT).toContain("cancelled/missing or no valid mode or positive integer")
+    expect(SPEC_BASELINE_PROMPT).toContain("never infer permission from silence")
+    expect(SPEC_BASELINE_PROMPT).toContain("cannot reliably await completion")
+    expect(SPEC_BASELINE_PROMPT).toContain("read and write each capability yourself, one at a time")
+    expect(SPEC_BASELINE_PROMPT).toContain("No-subagent mode still performs all verification and overlap checks")
+    expect(SPEC_BASELINE_PROMPT).toContain("note any sequential fallback")
+  })
+})
 
 describe("what derivation looks for", () => {
   // Stage 5 is a multi-select over the capability list; an empty list needs an exit, not a question.

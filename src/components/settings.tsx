@@ -45,7 +45,7 @@ export function SettingsView(props: {
   gate: Gate
 }) {
   const t = props.theme
-  const anyUpdate = () => props.pluginUpdate() != null || props.cliUpdate() != null
+  const bothUpdates = () => props.pluginUpdate() != null && props.cliUpdate() != null
   const updateAll = () => {
     const p = props.pluginUpdate()
     const c = props.cliUpdate()
@@ -82,7 +82,7 @@ export function SettingsView(props: {
 
       <box flexDirection="row" gap={2} justifyContent="flex-end" paddingTop={1}>
         <Button theme={t} label="Check Versions" color={t().secondary} {...props.gate} onClick={props.onCheck} />
-        <Show when={anyUpdate()}>
+        <Show when={bothUpdates()}>
           <Button theme={t} label="Update All" color={t().success} {...props.gate} onClick={updateAll} />
         </Show>
       </box>

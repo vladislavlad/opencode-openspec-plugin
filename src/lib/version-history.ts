@@ -1,22 +1,33 @@
-// The plugin's own version, remembered across restarts in `kv`. Comparing it with the build
+// The plugin's own version, remembered across restarts in V2 storage. Comparing it with the build
 // constant catches an update that happened outside the sidebar's Update button – a manual
-// `npm i -g`, a hand-edited tui.json, or an unpinned specifier that opencode refreshed on launch.
+// `npm i -g`, a hand-edited cli.json, or an unpinned specifier that opencode refreshed on launch.
 // Those never leave the `plugin.update-in-progress` flag, so without this the migrations for them
 // would never run.
-import type { TuiPluginApi } from "@opencode-ai/plugin/tui"
+import type { Context } from "@opencode/plugin/tui/context"
 import { semverGt } from "./updates"
 import { VERSION } from "./version"
 
-const KEY = "openspec.lastVersion"
+const KEY = "version-history"
 
-// Null when there's no record, or the stored value isn't a version string.
-export function readLastVersion(api: TuiPluginApi): string | null {
-  const stored = api.kv.get<unknown>(KEY)
-  return typeof stored === "string" && stored ? stored : null
+function history(api: Context) {
+  return api.storage.store<{ last: unknown }>(KEY, { initial: { last: null } })
 }
 
-export function recordVersion(api: TuiPluginApi) {
-  api.kv.set(KEY, VERSION)
+// V2 hydrates durable stores synchronously. No V1 record is invented on first use.
+export function readLastVersion(api: Context): string | null {
+  const [state] = history(api)
+  return typeof state.last === "string" && state.last ? state.last : null
+}
+
+export async function recordVersion(api: Context): Promise<boolean> {
+  try {
+    const [, update] = history(api)
+    await update((draft) => { draft.last = VERSION })
+    return true
+  } catch {
+    api.ui.toast.show({ variant: "warning", message: "Couldn't save the OpenSpec version. It will be retried." })
+    return false
+  }
 }
 
 // The range to migrate, or null when there's nothing to do: no record yet (we don't know where the

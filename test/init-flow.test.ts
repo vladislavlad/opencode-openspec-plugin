@@ -1,6 +1,6 @@
 import { describe, expect, test } from "bun:test"
 import type { InitStage, InitState } from "../src/lib/config"
-import { ephemeralBanner, initIncomplete, needsInit, setupStage } from "../src/components/init-flow"
+import { toolingBanner, initIncomplete, needsInit, setupStage } from "../src/components/init-flow"
 
 const state = (inProgress: boolean, ...done: InitStage[]): InitState => ({ inProgress, done })
 const idle = state(false)
@@ -58,25 +58,25 @@ describe("needsInit", () => {
   })
 })
 
-describe("ephemeralBanner", () => {
-  const base = { busy: false, commandsReady: false, init: idle, ephemeral: "loaded" as const }
+describe("toolingBanner", () => {
+  const base = { busy: false, commandsReady: false, init: idle, tooling: "loaded" as const }
 
   test("prompts a restart whether the bridge took or not", () => {
-    expect(ephemeralBanner(base)).toBe("warn")
-    expect(ephemeralBanner({ ...base, ephemeral: "failed" })).toBe("error")
+    expect(toolingBanner(base)).toBe("none")
+    expect(toolingBanner({ ...base, tooling: "failed" })).toBe("error")
   })
 
   test("says nothing before anything was bridged", () => {
-    expect(ephemeralBanner({ ...base, ephemeral: "idle" })).toBe("none")
+    expect(toolingBanner({ ...base, tooling: "idle" })).toBe("none")
   })
 
   test("says nothing while the agent works or once the commands load natively", () => {
-    expect(ephemeralBanner({ ...base, busy: true })).toBe("none")
-    expect(ephemeralBanner({ ...base, commandsReady: true })).toBe("none")
+    expect(toolingBanner({ ...base, busy: true })).toBe("none")
+    expect(toolingBanner({ ...base, commandsReady: true })).toBe("none")
   })
 
   // Held back during setup so the Reload and Resume buttons never compete for the same spot.
   test("stays quiet until setup is finished or dismissed", () => {
-    expect(ephemeralBanner({ ...base, init: state(true, "tooling") })).toBe("none")
+    expect(toolingBanner({ ...base, init: state(true, "tooling") })).toBe("none")
   })
 })

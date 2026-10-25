@@ -9,7 +9,7 @@ OpenCode TUI plugin that embeds OpenSpec in the terminal sidebar: browse specs, 
 - `bun run test` – unit tests (needs `--preload @opentui/solid/preload` for the `.tsx` render tests)
 
 ## Layout
-- `src/index.tsx` – entry; registers the palette commands and the `sidebar_content` slot
+- `src/index.tsx` – V2 `Plugin.define` entry; registers native argument-aware commands and the `sidebar.content` slot; root `tui.js` exposes the local directory entrypoint
 - `src/features/commands.ts` – the plugin's own `/opsx-config` and `/opsx-baseline` palette commands; reports back whether baseline registered
 - `src/sidebar.tsx` – sidebar root: **the** poll, **the** owner of `busy`, every signal, plus navigation and the three sections
 - `src/components/` – UI on props, no polling of their own: `primitives` (Button, Divider, rows, gates), `changes`, `specs`, `search`, `settings`, `init-flow`, `update-flow`
@@ -21,8 +21,8 @@ OpenCode TUI plugin that embeds OpenSpec in the terminal sidebar: browse specs, 
   - `prompt-style` – rules every prompt obeys · `config-prompt` · `derive-prompt` · `init-prompts` · `update-prompt`
   - `updates` – npm version checks · `migrations` – the MIGRATIONS table and the post-update prompt
   - `local-fs` – guarded `node:fs` access · `delete-change`
-  - `version` / `version-history` – the build constant, the last version seen in `kv`, and `decideMigration`
-  - `search`, `send-prompt`, `theme`
+  - `version` / `version-history` – the build constant, the last version seen in V2 storage, and `decideMigration`
+  - `search`, `send-prompt`, `command-template` (configured command text and arguments), `command-markdown` (validated frontmatter; execution metadata is never applied), `theme`
 
 ## Capability ↔ module
 Specs live in `openspec/specs/`, one directory per capability, cut vertically: a feature owns its
@@ -34,7 +34,7 @@ mapping down.
 | Capability | Modules |
 | --- | --- |
 | `openspec-parsing` | `lib/openspec`, `lib/spec-driven`, `lib/change-docs` |
-| `plugin-lifecycle` | `index.tsx`, `lib/local-fs`, `lib/config`, `lib/delete-change` |
+| `plugin-lifecycle` | `index.tsx`, `lib/location`, `lib/local-fs`, `lib/config`, `lib/delete-change` |
 | `update-flow` | `lib/updates`, `lib/version`, `lib/version-history`, `lib/migrations`, `lib/update-prompt`, `components/update-flow` |
 | `init-flow` | `lib/init-prompts`, `components/init-flow` |
 | `project-config` | `lib/config-prompt` |
@@ -44,7 +44,7 @@ mapping down.
 | `sidebar-ui` | `sidebar.tsx` |
 | `settings-view` | `components/settings` |
 | `spec-search` | `lib/search`, `components/search` |
-| `change-tracking-ui` · `specs-browser-ui` · `ui-primitives` · `prompt-sending` | `components/changes` · `components/specs` · `components/primitives` · `lib/send-prompt` |
+| `change-tracking-ui` · `specs-browser-ui` · `ui-primitives` · `prompt-sending` | `components/changes` · `components/specs` · `components/primitives` · `lib/send-prompt`, `lib/command-template`, `lib/command-markdown` |
 
 ## Workflow
 - Build features as OpenSpec changes under `openspec/changes/`. Use the `/opsx-*` commands; follow `openspec/config.yaml` rules.
@@ -52,11 +52,14 @@ mapping down.
 - Не править файлы в `openspec/specs/` – это делают только `/opsx-sync-specs` и `/opsx-archive`, или по явной просьбе пользователя. Требования живут в дельтах change'а (`openspec/changes/<name>/specs/`) до синхронизации.
 
 ## Conventions
-- The plugin never shells out. The opencode API is read-only over files, so writes go through `node:fs` via `lib/local-fs.ts` – which only works when the TUI and the project share a filesystem. **Every fs write must degrade to a prompt**: `local-fs` returns `false`/`null` instead of throwing, and the caller hands the job to the agent, who always runs where the files are. Anything long-running, interactive or requiring a shell (npm install, `tui.json`, deriving specs) stays with the agent regardless.
+- The plugin never shells out. Plugin-managed writes go through `node:fs` via `lib/local-fs.ts` – which only works when the TUI and the project share a filesystem. **Every fs write must degrade to a prompt**: `local-fs` returns `false`/`null` instead of throwing, and the caller hands the job to the agent, who always runs where the files are. Anything long-running, interactive or requiring a shell (npm install, `cli.json`, deriving specs) stays with the agent regardless.
 - The plugin owns `plugin.init.in-progress`; the agent owns the stage checkpoints in `plugin.init.done` and the `update-in-progress` flag. Only the agent knows when a stage actually finished.
 - Shipping user-facing behavior → add a `MIGRATIONS` entry in `src/lib/migrations.ts`, keyed by the release version: `releaseNotes` (what's new, relayed to the user after update) + `instructions` (post-update steps for the agent, empty if none). Skip for internal-only changes. The file's header comment has the house style for notes. These now reach everyone, not only people who pressed the Update button – see below.
-- Two things track the plugin version: `plugin.update-in-progress` in config.yaml (written by an update turn, knows the exact `old`) and `openspec.lastVersion` in `api.kv` (written by the sidebar, catches updates that bypassed the button). The sidebar folds both into one pending range; the flag wins. The `kv` path is live in a dev checkout too – `build.ts` always bakes the `package.json` version in, so bumping it and rebuilding looks exactly like an update. The `"dev"` fallback in `version.ts` only shows up when the module is imported unbuilt, i.e. in tests.
-- Anything that hands the agent a turn goes through `submitPrompt` and is wrapped in the `busy` gate.
+- Two things track the plugin version: `plugin.update-in-progress` in config.yaml (written by an update turn, knows the exact `old`) and `version-history.last` in `api.storage.store` (written by the sidebar, catches updates that bypassed the button). The sidebar folds both into one pending range; the flag wins. The V2 storage path is live in a dev checkout too – `build.ts` always bakes the `package.json` version in, so bumping it and rebuilding looks exactly like an update. The `"dev"` fallback in `version.ts` only shows up when the module is imported unbuilt, i.e. in tests.
+- Anything that hands the agent a turn goes through `submitPrompt` (or the editable `sendPrompt` dialog using the same transport) and is wrapped in the `busy` gate.
+- The shared transport selects Plan for `/opsx-explore` and Build for every other agent action, using the user's selected model/variant captured before preparation. Dialogs show that selection; cancellation never changes session settings. Await agent/model selection before dispatch and never restore the old agent while the turn is running.
+- Plugin slash actions resolve configured templates through server APIs before session mutation, expand arguments and send text with `session.prompt`. Do not use `session.command`: native agent/model/subagent metadata overrides our policy after selection. Unavailable/empty templates and shell interpolation must fail visibly without a native fallback or temporary command registration.
+- Project command reads keep the captured project's scope so symlink targets inside the project stay readable. Validate markdown with gray-matter and the pinned V2 field rules before selecting a source; skip invalid definitions, and never execute JavaScript frontmatter. Keep native schema parity tests when changing this parser.
 
 ## Gotchas
 - Plugin version = `package.json` `version`, baked into `__PLUGIN_VERSION__` by `build.ts`. CLI version is read from `.opencode/skills/*/SKILL.md` `generatedBy`.

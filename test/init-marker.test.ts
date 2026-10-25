@@ -2,7 +2,7 @@ import { afterEach, beforeEach, describe, expect, test } from "bun:test"
 import { mkdtemp, mkdir, readFile, rm, writeFile } from "node:fs/promises"
 import { tmpdir } from "node:os"
 import { join } from "node:path"
-import type { TuiPluginApi } from "@opencode-ai/plugin/tui"
+import type { Context } from "@opencode/plugin/tui/context"
 import { clearInitMarker, readPluginState, writeInitMarker } from "../src/lib/config"
 
 let dir: string
@@ -15,7 +15,7 @@ afterEach(async () => {
 })
 
 // Writing only needs the project directory – the file itself is read and written through node:fs.
-const api = (directory = dir) => ({ state: { path: { directory } } }) as unknown as TuiPluginApi
+const api = (directory = dir) => ({ location: { directory }, ui: { router: { current: () => ({ type: "home" }) } } }) as unknown as Context
 
 const config = () => readFile(join(dir, "openspec/config.yaml"), "utf8")
 const state = () => readPluginState({ list: async () => [], read: async (p) => readFile(join(dir, p), "utf8").catch(() => "") })

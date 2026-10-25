@@ -1,74 +1,38 @@
-import type { TuiPluginApi } from "@opencode-ai/plugin/tui"
-import { OPSX_COMMANDS } from "../lib/openspec"
+import type { Context } from "@opencode/plugin/tui/context"
 import { CONFIG_PROMPT } from "../lib/config-prompt"
 import { SPEC_BASELINE_PROMPT } from "../lib/derive-prompt"
 import { submitPrompt } from "../lib/send-prompt"
 
-// Register one ephemeral palette command that submits `prompt`. Returns whether it registered.
+// Register one native argument-aware command that submits `prompt`. Returns whether it registered.
 function registerPromptCommand(
-  api: TuiPluginApi,
+  api: Context,
   cmd: { name: string; slashName: string; title: string; desc: string; prompt: string },
 ): boolean {
   try {
-    api.keymap.registerLayer({
-      commands: [
-        {
-          namespace: "palette",
-          name: cmd.name,
-          title: cmd.title,
-          desc: cmd.desc,
-          category: "OpenSpec",
-          slashName: cmd.slashName,
-          // V1 passes a CommandContext, with optional caller-supplied arguments in payload.
-          // Native palette selection has no payload; its filter text is not an argument.
-          run: (context) => {
-            const route = api.route.current
-            const sessionId = route.name === "session" ? route.params?.sessionID : undefined
-            const status = typeof sessionId === "string" ? api.state.session.status(sessionId) : undefined
-            if (status?.type === "busy" || status?.type === "retry") {
-              api.ui.toast({ variant: "info", message: "Wait until the agent finishes working" })
-              return
-            }
-            const typed = typeof context.payload === "string" ? context.payload.trim() : ""
-            void submitPrompt(api, typed ? `${cmd.prompt}\n\nArguments: ${typed}` : cmd.prompt)
-          },
+    api.keymap.layer(() => ({
+      mode: "global",
+      commands: [{
+        id: cmd.name,
+        title: cmd.title,
+        description: cmd.desc,
+        group: "OpenSpec",
+        palette: true,
+        slash: { name: cmd.slashName, arguments: true },
+        run: async (input) => {
+          const typed = input?.trim() ?? ""
+          await submitPrompt(api, typed ? `${cmd.prompt}\n\nArguments: ${typed}` : cmd.prompt)
         },
-      ],
-    })
+      }],
+    }))
     return true
   } catch (e) {
-    api.ui.toast({ variant: "error", message: `openspec: failed to register /${cmd.slashName} (${String(e)})` })
+    api.ui.toast.show({ variant: "error", message: `openspec: failed to register /${cmd.slashName} (${String(e)})` })
     return false
   }
 }
 
-// Drop a leading YAML frontmatter block, leaving the prompt body.
-function stripFrontmatter(md: string): string {
-  const m = md.match(/^---\n[\s\S]*?\n---\n?/)
-  return m ? md.slice(m[0].length).trimStart() : md
-}
-
-const registeredFsCommands = new Set<string>() // registered this session; re-registering would duplicate
-
-// opencode only loads the /opsx-* files `openspec init` writes at startup. Bridge the restart gap by
-// registering them as ephemeral commands. Idempotent; returns how many were newly registered.
-export async function registerOpsxFsCommands(api: TuiPluginApi, read: (path: string) => Promise<string>): Promise<number> {
-  let count = 0
-  for (const name of OPSX_COMMANDS) {
-    if (registeredFsCommands.has(name)) continue
-    const body = stripFrontmatter(await read(`.opencode/commands/${name}.md`).catch(() => ""))
-    if (!body.trim()) continue
-    const ok = registerPromptCommand(api, { name: `openspec.${name}`, slashName: name, title: `OpenSpec: ${name}`, desc: `Run /${name}`, prompt: body })
-    if (ok) {
-      registeredFsCommands.add(name)
-      count++
-    }
-  }
-  return count
-}
-
 // The plugin's own commands. `baselineAvailable` gates the Init spec-derivation stage.
-export function registerCommands(api: TuiPluginApi): { baselineAvailable: boolean } {
+export function registerCommands(api: Context): { baselineAvailable: boolean } {
   const baselineAvailable = registerPromptCommand(api, {
     name: "openspec.baseline",
     slashName: "opsx-baseline",

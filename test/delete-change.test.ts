@@ -2,7 +2,7 @@ import { expect, test } from "bun:test"
 import { mkdtemp, mkdir, readFile, rm, stat, writeFile } from "node:fs/promises"
 import { tmpdir } from "node:os"
 import { join } from "node:path"
-import type { TuiPluginApi } from "@opencode-ai/plugin/tui"
+import type { Context } from "@opencode/plugin/tui/context"
 import { deleteChange } from "../src/lib/delete-change"
 
 async function fixture() {
@@ -12,9 +12,10 @@ async function fixture() {
   await writeFile(join(change, "tasks.md"), "- [ ] Keep this task")
   const prompts: string[] = []
   const api = {
-    state: { path: { directory: dir } },
-    client: { tui: { appendPrompt: async ({ text }: { text: string }) => { prompts.push(text) } } },
-  } as unknown as TuiPluginApi
+    location: { directory: dir },
+    data: { session: { get: () => undefined, status: () => "idle" } },
+    ui: { router: { current: () => ({ type: "home" }) }, model: { current: () => ({ providerID: "provider", modelID: "model" }) }, dialog: { prompt: async ({ value }: { value: string }) => { prompts.push(value); return undefined } } },
+  } as unknown as Context
   return { dir, change, api, prompts, cleanup: () => rm(dir, { recursive: true, force: true }) }
 }
 
@@ -50,7 +51,7 @@ test("idle deletion removes local files and treats a missing change as success",
 
 test("remote deletion fills the prompt only if the session remains idle", async () => {
   const f = await fixture()
-  f.api.state.path.directory = join(f.dir, "unavailable")
+  f.api.location!.directory = join(f.dir, "unavailable")
   try {
     await deleteChange(f.api, "example", () => false)
     expect(f.prompts).toEqual([])

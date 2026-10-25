@@ -1,7 +1,7 @@
 import { expect, test } from "bun:test"
 import { testRender } from "@opentui/solid"
 import { createSignal } from "solid-js"
-import type { TuiThemeCurrent } from "@opencode-ai/plugin/tui"
+import type { ThemeColors } from "../src/lib/theme"
 import { ChangeDetail } from "../src/components/changes"
 import { Markdown, Paragraph } from "../src/components/primitives"
 import type { ChangeDocs } from "../src/lib/change-docs"
@@ -18,7 +18,7 @@ const theme = () =>
     error: "#ff0000",
     background: "#000000",
     borderSubtle: "#444444",
-  }) as unknown as TuiThemeCurrent
+  }) as unknown as ThemeColors
 
 // Lines trimmed right, so an indent is testable and a blank row reads as "". `flush` runs the
 // layout to a fixed point – a single pass leaves wrapped text a row off.

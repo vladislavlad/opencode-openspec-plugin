@@ -1,7 +1,10 @@
 import { afterAll, beforeAll, expect, test } from "bun:test"
 import { testRender } from "@opentui/solid"
-import type { TuiPluginApi, TuiThemeCurrent } from "@opencode-ai/plugin/tui"
+import { createSignal } from "solid-js"
+import type { Context } from "@opencode/plugin/tui/context"
+import type { ThemeColors } from "../src/lib/theme"
 import { OpenSpecSidebar } from "../src/sidebar"
+import { VERSION } from "../src/lib/version"
 
 // The poll asks npm for the latest versions. Left to the real network, an update banner appears
 // wherever the registry answers and not where it doesn't, so the frame differs between a laptop and
@@ -25,31 +28,34 @@ const theme = {
   error: "#ff0000",
   background: "#000000",
   borderSubtle: "#444444",
-} as unknown as TuiThemeCurrent
+} as unknown as ThemeColors
 
 // A project on disk, as the file API would report it. Paths not listed here read as missing.
 type Fs = { dirs: Record<string, { name: string; type: "file" | "directory" }[]>; files: Record<string, string> }
 
-function stubApi(fs: Fs, opts: { busy?: boolean; kv?: Record<string, unknown> } = {}): TuiPluginApi {
+function stubApi(fs: Fs, opts: { busy?: boolean; kv?: Record<string, unknown> } = {}): Context {
   const kv = opts.kv ?? {}
   return {
-    theme: { current: theme },
-    state: {
-      path: { directory: "/project" },
-      session: { status: () => ({ type: opts.busy ? "busy" : "idle" }) },
+    theme: {
+      hue: { interactive: { 200: theme.secondary }, accent: { 200: theme.accent } },
+      text: { base: theme.text, muted: theme.textMuted, action: { primary: { base: theme.accent }, secondary: { base: theme.secondary } }, feedback: { success: { base: theme.success }, warning: { base: theme.warning }, error: { base: theme.error } } },
+      background: { base: theme.background }, border: { base: theme.borderSubtle },
     },
+    location: { directory: "/project" },
+    data: { session: { get: () => ({ location: { directory: "/project" } }), status: () => opts.busy ? "running" : "idle" } },
     client: {
+      session: { switchAgent: async () => {}, switchModel: async () => {}, prompt: async () => {} },
       file: {
-        list: ({ path }: { path: string }) => Promise.resolve({ data: fs.dirs[path] ?? [] }),
-        read: ({ path }: { path: string }) => Promise.resolve({ data: { content: fs.files[path] ?? "" } }),
+        list: ({ path }: { path: string }) => Promise.resolve({ data: (fs.dirs[path] ?? []).map((entry) => ({ path: `${path}/${entry.name}${entry.type === "directory" ? "/" : ""}`, type: entry.type })) }),
+        read: ({ path }: { path: string }) => Promise.resolve(new TextEncoder().encode(fs.files[path] ?? "")),
       },
       command: { list: () => Promise.resolve({ data: [{ name: "opsx-propose" }] }) },
     },
-    kv: { ready: true, get: (k: string) => kv[k], set: (k: string, v: unknown) => void (kv[k] = v) },
-    ui: { toast: () => {} },
+    storage: { store: () => [kv, async (update: (draft: typeof kv) => void) => update(kv)] },
+    ui: { toast: { show: () => {} }, router: { current: () => ({ type: "session", sessionID: "s1" }) }, model: { current: () => ({ providerID: "provider", modelID: "model" }) } },
     renderer: { on: () => {}, off: () => {}, currentFocusedRenderable: null },
-    keymap: { registerLayer: () => {} },
-  } as unknown as TuiPluginApi
+    keymap: { layer: () => {} },
+  } as unknown as Context
 }
 
 const dir = (...names: string[]) => names.map((name) => ({ name, type: "directory" as const }))
@@ -77,9 +83,11 @@ const TOOLED: Fs["dirs"] = {
 
 // A mounted sidebar to drive: `settle` lets the async load and every later click land, `rows` is the
 // frame line by line so a row can be found and clicked by its text.
-async function mount(fs: Fs, opts?: { busy?: boolean; kv?: Record<string, unknown>; height?: number }) {
+async function mount(fs: Fs, opts?: { busy?: boolean; kv?: Record<string, unknown>; height?: number; configure?: (api: Context) => void }) {
+  const api = stubApi(fs, opts)
+  opts?.configure?.(api)
   const { renderOnce, captureCharFrame, renderer, mockMouse } = await testRender(
-    () => <OpenSpecSidebar api={stubApi(fs, opts)} sessionId="s1" baselineAvailable={true} />,
+    () => <OpenSpecSidebar api={api} sessionId="s1" baselineAvailable={true} />,
     // A test that walks into a tree needs room for the rows it clicks; a row pushed past the last
     // line is invisible to the frame and so to the assertions.
     { width: 46, height: opts?.height ?? 26 },
@@ -94,6 +102,7 @@ async function mount(fs: Fs, opts?: { busy?: boolean; kv?: Record<string, unknow
   await settle()
   return {
     rows,
+    settle,
     destroy: () => renderer.destroy(),
     // Clicks `text` where it is drawn. On the text itself, not somewhere on its row: a row can hold
     // a label and a control side by side, and only one of them is clickable.
@@ -139,6 +148,10 @@ test("a set-up project lists its changes and specs with the action row", async (
   })
   expect(out).toContain("Explore")
   expect(out).toContain("Propose")
+  expect(out).not.toContain("edit, then run")
+  expect(out).not.toContain("other actions: Build")
+  expect(out.match(/\bExplore\b/g)).toHaveLength(1)
+  expect(out.match(/\bPropose\b/g)).toHaveLength(1)
   expect(out).toContain("Active Changes")
   expect(out).toContain("add-search")
   expect(out).toContain("Specifications")
@@ -264,4 +277,154 @@ test("a flat project shows neither heading", async () => {
   expect(out).toContain("sidebar-ui")
   expect(out).not.toContain("Areas:")
   expect(out).not.toContain("Capabilities:")
+})
+
+
+test("setup reloads the native catalog and a failed reload can be retried", async () => {
+  const [busy, setBusy] = createSignal(false)
+  const fs: Fs = { dirs: {}, files: {} }
+  let reloads = 0
+  let registered = false
+  const view = await mount(fs, {
+    get busy() { return busy() },
+    height: 40,
+    configure(api) {
+      api.client.session.prompt = async () => { setBusy(true) }
+      api.client.command.list = async () => ({ data: registered ? [{ name: "opsx-propose" }] : [] }) as any
+      api.client.location = { reload: async () => {
+        reloads++
+        if (reloads === 1) throw new Error("temporarily offline")
+        registered = true
+      } } as any
+    },
+  })
+  try {
+    await view.click("Init")
+    expect(busy()).toBe(true)
+    fs.dirs = { ...TOOLED, openspec: [{ name: "config.yaml", type: "file" }] }
+    fs.files["openspec/config.yaml"] = "schema: spec-driven"
+    setBusy(false)
+    await view.settle()
+    expect(reloads).toBe(1)
+    expect(view.rows().join(" ")).toContain("Retry commands")
+    await view.click("Retry commands")
+    expect(reloads).toBe(2)
+    expect(view.rows().join(" ")).not.toContain("Retry commands")
+    expect(view.rows().join(" ")).toContain("Explore")
+  } finally { view.destroy() }
+})
+
+test("duplicate and competing update clicks keep the accepted turn's reload", async () => {
+  const [busy, setBusy] = createSignal(false)
+  const toasts: string[] = []
+  let sends = 0
+  let finish!: () => void
+  const previousFetch = globalThis.fetch
+  globalThis.fetch = (async () => new Response(JSON.stringify({ version: "9.9.9" }))) as typeof fetch
+  const view = await mount({
+    dirs: { ".opencode/skills": dir("openspec-explore") },
+    files: { ".opencode/skills/openspec-explore/SKILL.md": '---\nmetadata:\n  generatedBy: "1.14.3"\n---\n' },
+  }, {
+    get busy() { return busy() },
+    kv: { last: VERSION },
+    configure(api) {
+      api.client.session.prompt = () => {
+        sends++
+        return new Promise<void>((resolve) => { finish = resolve })
+      }
+      api.ui.toast.show = (toast) => { toasts.push(toast.message) }
+    },
+  })
+  try {
+    await view.click("Settings")
+    await view.click("Update")
+    await view.click("Update")
+    await view.click("Update All")
+    expect(sends).toBe(1)
+    expect(toasts).toHaveLength(2)
+    expect(toasts.every((message) => message.includes("Wait until"))).toBe(true)
+    expect(view.rows().join(" ")).not.toContain("Reload OpenCode")
+    setBusy(true)
+    await view.settle()
+    finish()
+    await view.settle()
+    setBusy(false)
+    await view.settle()
+    expect(view.rows().join(" ")).toContain("Reload OpenCode")
+  } finally {
+    view.destroy()
+    globalThis.fetch = previousFetch
+  }
+})
+
+test("duplicate Complete Update preserves the accepted turn's version record", async () => {
+  const [busy, setBusy] = createSignal(false)
+  const kv = { last: "1.0.0" }
+  let sends = 0
+  let finish!: () => void
+  const view = await mount({
+    dirs: { ...TOOLED, openspec: dir("specs"), "openspec/specs": [] },
+    files: { "openspec/config.yaml": `schema: spec-driven\nplugin:\n  update-in-progress:\n    old: 1.0.0\n    new: ${VERSION}\n` },
+  }, {
+    get busy() { return busy() },
+    kv,
+    height: 40,
+    configure(api) {
+      api.client.session.prompt = () => {
+        sends++
+        return new Promise<void>((resolve) => { finish = resolve })
+      }
+    },
+  })
+  try {
+    await view.click("Complete Update")
+    await view.click("Complete Update")
+    expect(sends).toBe(1)
+    expect(kv.last).toBe("1.0.0")
+    setBusy(true)
+    await view.settle()
+    finish()
+    await view.settle()
+    expect(kv.last).toBe("1.0.0")
+    setBusy(false)
+    await view.settle()
+    expect(kv.last).toBe(VERSION)
+  } finally { view.destroy() }
+})
+
+test("a failed update submission releases its gate without completing the update", async () => {
+  const [busy, setBusy] = createSignal(false)
+  let sends = 0
+  const previousFetch = globalThis.fetch
+  globalThis.fetch = (async () => new Response(JSON.stringify({ version: "9.9.9" }))) as typeof fetch
+  const view = await mount({ dirs: {}, files: {} }, {
+    get busy() { return busy() },
+    kv: { last: VERSION },
+    configure(api) {
+      api.client.session.prompt = async () => {
+        sends++
+        if (sends === 1) throw new Error("offline")
+        setBusy(true)
+      }
+    },
+  })
+  try {
+    await view.click("Settings")
+    await view.click("Update")
+    expect(sends).toBe(1)
+    // An unrelated agent turn must not complete the failed update.
+    setBusy(true)
+    await view.settle()
+    setBusy(false)
+    await view.settle()
+    expect(view.rows().join(" ")).not.toContain("Reload OpenCode")
+    await view.click("Update")
+    expect(sends).toBe(2)
+    setBusy(false)
+    await view.settle()
+    expect(view.rows().join(" ")).toContain("Reload OpenCode")
+  } finally {
+    view.destroy()
+    globalThis.fetch = previousFetch
+  }
 })

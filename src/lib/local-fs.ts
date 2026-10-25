@@ -1,15 +1,14 @@
-// opencode's plugin API can only READ files (`file.list` / `file.read`) – there is no write
-// endpoint. So writes go through `node:fs`, which works only while the TUI and the project share a
-// filesystem. That's the normal case, but not guaranteed: `state.path.directory` is just a string
-// the server reports, and against a remote server it names a path this process can't see.
+import { projectLocation } from "./location"
+// Plugin-managed writes stay local and guarded. Against a remote server, the reported
+// location may be inaccessible to this TUI; hand the edit to the agent in that case.
 //
 // Every helper here therefore returns null/false instead of throwing, so callers can fall back to
 // handing the job to the agent, who always runs where the files are.
-import type { TuiPluginApi } from "@opencode-ai/plugin/tui"
+import type { Context } from "@opencode/plugin/tui/context"
 
 // The project directory, but only when this process can actually see it.
-export async function localRoot(api: TuiPluginApi): Promise<string | null> {
-  const dir = api.state.path.directory
+export async function localRoot(api: Context): Promise<string | null> {
+  const dir = projectLocation(api).directory
   if (!dir) return null
   try {
     const { stat } = await import("node:fs/promises")

@@ -16,7 +16,7 @@ const result = await Bun.build({
   outdir: outDir,
   target: "bun",
   format: "esm",
-  external: ["@opencode-ai/*", "@opentui/*", "solid-js", "solid-js/*"],
+  external: ["@opencode/*", "@opentui/*", "solid-js", "solid-js/*"],
   define: { "__PLUGIN_VERSION__": JSON.stringify(pkg.version) },
   plugins: [createSolidTransformPlugin()],
 })
