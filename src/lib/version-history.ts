@@ -70,6 +70,10 @@ export function decideMigration(input: {
   // The flag wins: it's the only source that knows the exact version we left from. Nothing is
   // recorded while an update is in flight – that happens once the migration turn ends.
   if (flag) {
+    // A completed host upgrade supersedes a pending update to a pre-V2 build.
+    if (/^[01]\./.test(flag.new) && /^2\./.test(current) && semverGt(current, flag.old)) {
+      return { show: "migrate", range: { old: flag.old, new: current }, fromFlag: true }
+    }
     return flag.new === current ? { show: "migrate", range: flag, fromFlag: true } : { show: "reopen", range: flag }
   }
 

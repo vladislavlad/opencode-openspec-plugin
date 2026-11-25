@@ -2,9 +2,9 @@ name: CI
 
 on:
   push:
-    branches: [main]
+    branches: [main, release/v1]
   pull_request:
-    branches: [main]
+    branches: [main, release/v1]
 
 # Minimal default token scope; jobs opt into more only if they need it.
 permissions:
@@ -25,6 +25,10 @@ jobs:
         uses: oven-sh/setup-bun@v2
         with:
           bun-version: latest
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 24
 
       - name: Install dependencies
         run: bun install --frozen-lockfile

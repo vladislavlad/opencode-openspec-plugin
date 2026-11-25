@@ -36,6 +36,7 @@ function VersionRow(props: {
 export function SettingsView(props: {
   theme: Theme
   cliCurrent: () => string | null
+  cliLatest?: () => string | null
   pluginUpdate: () => Update | null
   cliUpdate: () => Update | null
   onCheck: () => void
@@ -70,8 +71,8 @@ export function SettingsView(props: {
       />
       <VersionRow
         theme={t}
-        label="OpenSpec CLI"
-        current={props.cliCurrent() ?? "unknown"}
+        label="OpenSpec tooling"
+        current={props.cliCurrent() ?? "version unavailable"}
         update={props.cliUpdate}
         onUpdate={() => {
           const c = props.cliUpdate()
@@ -80,6 +81,13 @@ export function SettingsView(props: {
         gate={props.gate}
       />
 
+      <Show when={!props.cliCurrent() && props.cliLatest?.()}>
+        {(next) => (
+          <box paddingTop={1}>
+            <Button theme={t} label="Refresh OpenSpec" color={t().secondary} {...props.gate} onClick={() => props.onUpdate({ cli: { next: next() } })} />
+          </box>
+        )}
+      </Show>
       <box flexDirection="row" gap={2} justifyContent="flex-end" paddingTop={1}>
         <Button theme={t} label="Check Versions" color={t().secondary} {...props.gate} onClick={props.onCheck} />
         <Show when={bothUpdates()}>
@@ -91,7 +99,7 @@ export function SettingsView(props: {
       <Show when={props.reloadPending()}>
         <box paddingTop={1}>
           <text fg={t().textMuted} wrapMode="word">
-            Reload opencode to update plugin
+            Reload OpenCode to apply updates
           </text>
           <box flexDirection="row" paddingTop={1}>
             <Button theme={t} label="Reload OpenCode" color={t().error} {...props.gate} onClick={props.onReload} />

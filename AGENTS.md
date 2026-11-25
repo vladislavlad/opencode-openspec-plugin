@@ -9,14 +9,14 @@ OpenCode TUI plugin that embeds OpenSpec in the terminal sidebar: browse specs, 
 - `bun run test` – unit tests (needs `--preload @opentui/solid/preload` for the `.tsx` render tests)
 
 ## Layout
-- `src/index.tsx` – V2 `Plugin.define` entry; registers native argument-aware commands and the `sidebar.content` slot; root `tui.js` exposes the local directory entrypoint
+- `src/index.tsx` – V2 `Plugin.define` entry; registers native argument-aware commands and the `sidebar.content` slot; the package `./tui` export exposes the built entrypoint
 - `src/features/commands.ts` – the plugin's own `/opsx-config` and `/opsx-baseline` palette commands; reports back whether baseline registered
 - `src/sidebar.tsx` – sidebar root: **the** poll, **the** owner of `busy`, every signal, plus navigation and the three sections
 - `src/components/` – UI on props, no polling of their own: `primitives` (Button, Divider, rows, gates), `changes`, `specs`, `search`, `settings`, `init-flow`, `update-flow`
 - `src/lib/` – logic:
   - `spec-driven` – the spec.md model + parser for that schema
   - `change-docs` – the markdown a change carries next to tasks.md (proposal.md, design.md): `##` sections and the collapsed teaser
-  - `openspec` – reads the openspec dir (tasks, specs, tooling) into the polled summary; `specs/` is walked recursively, so a spec's name is its path from `specs/` and the summary stays one flat list
+  - `openspec-tooling` – recognizes project workflow skills and legacy commands · `openspec` – reads the openspec dir (tasks, specs, tooling) into the polled summary; `specs/` is walked recursively, so a spec's name is its path from `specs/` and the summary stays one flat list
   - `config` – the plugin's `plugin:` block in `openspec/config.yaml` (init marker, update flag), read and written in one place
   - `prompt-style` – rules every prompt obeys · `config-prompt` · `derive-prompt` · `init-prompts` · `update-prompt`
   - `updates` – npm version checks · `migrations` – the MIGRATIONS table and the post-update prompt
@@ -47,7 +47,7 @@ mapping down.
 | `change-tracking-ui` · `specs-browser-ui` · `ui-primitives` · `prompt-sending` | `components/changes` · `components/specs` · `components/primitives` · `lib/send-prompt`, `lib/command-template`, `lib/command-markdown` |
 
 ## Workflow
-- Build features as OpenSpec changes under `openspec/changes/`. Use the `/opsx-*` commands; follow `openspec/config.yaml` rules.
+- Build features as OpenSpec changes under `openspec/changes/`. Use the OpenSpec skills; follow `openspec/config.yaml` rules.
 - `openspec validate <change> --strict` before a change is done.
 - Не править файлы в `openspec/specs/` – это делают только `/opsx-sync-specs` и `/opsx-archive`, или по явной просьбе пользователя. Требования живут в дельтах change'а (`openspec/changes/<name>/specs/`) до синхронизации.
 
@@ -62,7 +62,7 @@ mapping down.
 - Project command reads keep the captured project's scope so symlink targets inside the project stay readable. Validate markdown with gray-matter and the pinned V2 field rules before selecting a source; skip invalid definitions, and never execute JavaScript frontmatter. Keep native schema parity tests when changing this parser.
 
 ## Gotchas
-- Plugin version = `package.json` `version`, baked into `__PLUGIN_VERSION__` by `build.ts`. CLI version is read from `.opencode/skills/*/SKILL.md` `generatedBy`.
+- Plugin version = `package.json` `version`, baked into `__PLUGIN_VERSION__` by `build.ts`. Legacy tooling versions come from the `generatedBy` stamp. OpenSpec 2.2 skills are unstamped, so Settings offers a refresh that checks the actual CLI before installing.
 - Never import `@opentui/solid/jsx-runtime` – it spawns a second Solid instance whose effects never flush. JSX goes through `@opentui/solid`'s transform (see `build.ts`).
 - `spec-driven.ts` owns parsing the schema (`### Requirement:`, `#### Scenario:`) and `stripSyntax` for the search index. Another schema gets its own module. Components only know how to *highlight* SHALL / WHEN·THEN, not how to parse them.
 - The prompt modules (`prompt-style`, `config-prompt`, `derive-prompt`, `init-prompts`, `update-prompt`) may import from `lib/config.ts` and `lib/updates.ts`, never the other way – those two must stay free of prompt text. Among themselves only `init-prompts` imports the others, because the init turn embeds the config and derive bodies.

@@ -94,8 +94,19 @@ test("slot location changes dispose the old poll and scope all reads to the new 
 })
 
 
-test("the local directory exposes a physical V2 TUI entrypoint", () => {
+test("the local package exposes a TUI entrypoint without a server entrypoint", () => {
   const root = fileURLToPath(new URL("../", import.meta.url))
-  expect(Host.resolve({ directory: root }).tui).toBeDefined()
-  expect(Host.resolve({ directory: root }).tui).toContain("tui.js")
+  const entry = Host.resolve({ directory: root })
+  expect(entry.tui).toContain("dist/index.js")
+  expect(entry.server).toBeUndefined()
+})
+
+test("an older OpenCode 2 host gets the minimum version before any commands load", () => {
+  const { api, commands } = fixture()
+  let message = ""
+  Object.assign(api, { app: { version: "2.2.0" } })
+  api.ui.dialog.alert = async (input) => { message = input.message }
+  expect(plugin.setup(api)).toBeUndefined()
+  expect(message).toContain("2.4.1")
+  expect(commands).toHaveLength(0)
 })

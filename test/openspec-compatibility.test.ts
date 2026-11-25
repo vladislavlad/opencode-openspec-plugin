@@ -14,6 +14,7 @@ const { parseTaskLines, countTasksFromContent } = await import(
 )
 
 const cases = [
+  { name: "wrapped descriptions", content: "- [ ] wrap a task\n  continue it\n\n- [x] another\n## Next" },
   { name: "nested and ordered lists", content: "- [x] parent\n  - [ ] child\n\t+ [X] tab\n1. [ ] ordered\n42) [x] done\n999999999. [ ] limit\n1000000000. [ ] not a list" },
   { name: "empty, padded and unfinished markers", content: "- [] empty\n- [~] ongoing\n- [-] deferred\n- [!] unknown\n- [ x ] done\n* [ X] done\n+[ ] compact\n-[x]done" },
   { name: "links and multi-character labels", content: "- [A](./doc.md)\n- [1][ref]\n- [Some doc](./doc.md)\n- [WIP] ignored\n- [ ](pending)\n- [ ][pending]\n- [A] unfinished" },
@@ -22,7 +23,7 @@ const cases = [
   { name: "headings and non-task prose", content: "- [ ] loose\n## Backend\n1. [ x ] done\n  - [~] pending\n- plain bullet\n## Empty\n" },
 ]
 
-describe("task parsing matches OpenSpec 1.14.3", () => {
+describe("task parsing matches the pinned OpenSpec CLI", () => {
   test.each(cases)("$name", ({ content }) => {
     const parsed = parseTasks(content)
     expect({ total: parsed.total, completed: parsed.completed }).toEqual(countTasksFromContent(content))
@@ -101,9 +102,11 @@ test("detects tooling and reads progress from a project created by the pinned Op
     }),
   }
   try {
-    await run("init", "--tools", "opencode", "--profile", "core", "--no-animation")
+    await run("init", "--tools", "opencode", "--profile", "core", "--scope", "project", "--no-animation")
     expect(await hasOpenSpecTooling(client)).toBe(true)
-    expect(await readCliVersion(client)).toBe(pkg.devDependencies["@fission-ai/openspec"])
+    expect((await run("--version")).trim()).toBe(pkg.devDependencies["@fission-ai/openspec"])
+    // Modern OpenSpec skills omit the per-release generatedBy stamp.
+    expect(await readCliVersion(client)).toBeNull()
     expect((await readOpenSpec(client))?.changes).toEqual([])
 
     await run("new", "change", "compatibility-fixture", "--json")

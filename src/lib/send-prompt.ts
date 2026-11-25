@@ -1,6 +1,7 @@
 import type { Context } from "@opencode/plugin/tui/context"
 import { currentSession, projectLocation, sessionRunning } from "./location"
 import { commandText } from "./command-template"
+import { skillRequest, workflowSkill } from "./openspec-tooling"
 
 const pending = new WeakSet<Context>()
 const wait = (api: Context) => api.ui.toast.show({ variant: "info", message: "Wait until the agent finishes working" })
@@ -51,7 +52,7 @@ export async function sendPrompt(api: Context, text: string, opts: { submit?: bo
     if (!ready()) return false
     const agent = agentFor(body)
     const command = commandIn(body)
-    const prompt = command ? await commandText(api, location, command[1]!, command[2] ?? "") : body
+    const prompt = command ? await commandPrompt(api, location, command[1]!, command[2] ?? "") : { text: body }
     if (!ready()) return false
     let target = sessionID
     if (!target) {
@@ -65,7 +66,7 @@ export async function sendPrompt(api: Context, text: string, opts: { submit?: bo
       await api.client.session.switchModel({ sessionID: target, model })
       if (!ready()) return false
     }
-    await api.client.session.prompt({ sessionID: target, text: prompt })
+    await api.client.session.prompt({ sessionID: target, ...prompt })
     return true
   } catch (error) {
     api.ui.toast.show({ variant: "error", message: `OpenSpec request failed: ${String(error)}` })
@@ -73,6 +74,19 @@ export async function sendPrompt(api: Context, text: string, opts: { submit?: bo
   } finally {
     pending.delete(api)
   }
+}
+
+async function commandPrompt(api: Context, location: Context["location"], name: string, args: string) {
+  const text = await commandText(api, location, name, args)
+  if (text !== undefined) return { text }
+
+  const skillName = workflowSkill(name)
+  if (skillName) {
+    const { data } = await api.client.skill.list({ location })
+    const skill = data.find((entry) => entry.name === skillName)
+    if (skill) return { text: skillRequest(skillName, args), skills: [{ id: skill.id }] }
+  }
+  throw new Error(`No readable template or OpenSpec skill for /${name}. Run openspec update, then retry.`)
 }
 
 export const submitPrompt = (api: Context, text: string) => sendPrompt(api, text, { submit: true })

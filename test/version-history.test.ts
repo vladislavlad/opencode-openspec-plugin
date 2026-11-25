@@ -129,3 +129,12 @@ test("storage failure is reported and remains retryable", async () => {
   expect(readLastVersion(a)).toBe("1.0.0")
   expect(warnings).toHaveLength(1)
 })
+
+test("a pending V1 update completes against the running V2 plugin", () => {
+  expect(decideMigration({
+    flag: { old: "0.4.0", new: "1.0.1" },
+    last: null,
+    current: "2.0.0",
+    hasEntries: () => true,
+  })).toEqual({ show: "migrate", range: { old: "0.4.0", new: "2.0.0" }, fromFlag: true })
+})

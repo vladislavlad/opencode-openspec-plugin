@@ -49,6 +49,7 @@ function stubApi(fs: Fs, opts: { busy?: boolean; kv?: Record<string, unknown> } 
         list: ({ path }: { path: string }) => Promise.resolve({ data: (fs.dirs[path] ?? []).map((entry) => ({ path: `${path}/${entry.name}${entry.type === "directory" ? "/" : ""}`, type: entry.type })) }),
         read: ({ path }: { path: string }) => Promise.resolve(new TextEncoder().encode(fs.files[path] ?? "")),
       },
+      skill: { list: async () => ({ data: [] }) },
       command: { list: () => Promise.resolve({ data: [{ name: "opsx-propose" }] }) },
     },
     storage: { store: () => [kv, async (update: (draft: typeof kv) => void) => update(kv)] },
@@ -320,7 +321,7 @@ test("duplicate and competing update clicks keep the accepted turn's reload", as
   let sends = 0
   let finish!: () => void
   const previousFetch = globalThis.fetch
-  globalThis.fetch = (async () => new Response(JSON.stringify({ version: "9.9.9" }))) as typeof fetch
+  globalThis.fetch = (async (url) => new Response(JSON.stringify({ version: String(url).endsWith("/opencode-v2") ? "2.9.9" : "2.2.0" }))) as typeof fetch
   const view = await mount({
     dirs: { ".opencode/skills": dir("openspec-explore") },
     files: { ".opencode/skills/openspec-explore/SKILL.md": '---\nmetadata:\n  generatedBy: "1.14.3"\n---\n' },
@@ -396,7 +397,7 @@ test("a failed update submission releases its gate without completing the update
   const [busy, setBusy] = createSignal(false)
   let sends = 0
   const previousFetch = globalThis.fetch
-  globalThis.fetch = (async () => new Response(JSON.stringify({ version: "9.9.9" }))) as typeof fetch
+  globalThis.fetch = (async (url) => new Response(JSON.stringify({ version: String(url).endsWith("/opencode-v2") ? "2.9.9" : "2.2.0" }))) as typeof fetch
   const view = await mount({ dirs: {}, files: {} }, {
     get busy() { return busy() },
     kv: { last: VERSION },

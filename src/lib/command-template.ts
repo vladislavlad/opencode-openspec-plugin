@@ -4,8 +4,8 @@ import { commandMarkdown } from "./command-markdown"
 
 // V2's command executor applies agent/model/subagent metadata after session selection.
 // Resolve text only: plugin actions must keep the agent/model shown in their dialog.
-// Source order and argument expansion match OpenCode 2.1.3 config/plugin/command.ts.
-export async function commandText(api: Context, location: Context["location"], name: string, args: string): Promise<string> {
+// Source order and argument expansion follow the OpenCode command loader.
+export async function commandText(api: Context, location: Context["location"], name: string, args: string): Promise<string | undefined> {
   if (!/^opsx-[\w-]+$/.test(name)) throw new Error("Invalid OpenSpec command name")
   const entries = await api.client.config.get({ location })
   for (const entry of entries.toReversed()) {
@@ -28,7 +28,6 @@ export async function commandText(api: Context, location: Context["location"], n
       if (template !== undefined) return expand(template, args, name)
     }
   }
-  throw new Error(`No readable template for /${name}. Refresh OpenSpec tooling with openspec update, then retry.`)
 }
 
 function commandRead(location: Context["location"], source: string, file: string) {

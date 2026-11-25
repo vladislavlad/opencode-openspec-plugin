@@ -18,10 +18,12 @@ export function fixture() {
     config: async (_input: unknown): ReturnType<Context["client"]["config"]["get"]> => [{ type: "document", info: {
       commands: Object.fromEntries(["apply", "propose", "explore", "update", "archive", "sync"].map((action) => [`opsx-${action}`, { template: `Run ${action}: $ARGUMENTS` }])),
     } }],
+    skills: async (_input: unknown): Promise<{ data: { name: string; id: string }[] }> => ({ data: [] }),
     read: async (_input: unknown): Promise<Uint8Array> => { throw { _tag: "FileNotFoundError" } },
   }
   const location = () => ({ directory: state.directory })
   const api = {
+    app: { version: "2.4.1" },
     get location() { return location() },
     data: { session: { get: () => ({ location: location() }), status: () => state.busy ? "running" : "idle" }, location: { default: location } },
     keymap: {
@@ -35,6 +37,7 @@ export function fixture() {
       model: { current: () => state.model },
     },
     client: {
+      skill: { list: (input: unknown) => handlers.skills(input) },
       config: { get: async (input: unknown) => { calls.push({ kind: "config", input }); return handlers.config(input) } },
       file: { read: async (input: unknown) => { calls.push({ kind: "read", input }); return handlers.read(input) } },
       session: {

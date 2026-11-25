@@ -1,2 +1,2 @@
-// OpenCode V2 resolves local plugin directories through a physical tui entrypoint.
+// Conventional local TUI entrypoint for hosts that resolve by filename.
 export { default } from "./dist/index.js"

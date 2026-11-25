@@ -31,6 +31,7 @@ import {
 import { PostUpdateBanner, UpdateBanner } from "./components/update-flow"
 import { searchSpecs } from "./lib/search"
 import { VERSION } from "./lib/version"
+import { hasWorkflowSkills } from "./lib/openspec-tooling"
 
 const NO_PLUGIN_STATE: PluginState = { update: null, init: { inProgress: false, done: [] } }
 
@@ -66,6 +67,7 @@ export function OpenSpecSidebar(props: { api: Context; sessionId: string; baseli
   const [dot, setDot] = createSignal(0) // 0..2 – which of the "Initializing" dots is lit
   const [pluginUpdate, setPluginUpdate] = createSignal<Update | null>(null)
   const [cliUpdate, setCliUpdate] = createSignal<Update | null>(null)
+  const [cliLatest, setCliLatest] = createSignal<string | null>(null)
   const [cliCurrent, setCliCurrent] = createSignal<string | null>(null)
   const [bannerDismissed, setBannerDismissed] = createSignal(false)
   const [reloadPending, setReloadPending] = createSignal(false)
@@ -258,27 +260,36 @@ export function OpenSpecSidebar(props: { api: Context; sessionId: string; baseli
   const runVersionCheck = async (notify = false) => {
     const s = await checkVersions(client)
     if (disposed) return
+    setCliLatest(s.cliLatest)
     setCliCurrent(s.cliCurrent)
     setPluginUpdate(s.plugin)
     setCliUpdate(s.cli)
     setBannerDismissed(false)
     if (!notify) return
     if (!s.reachable) props.api.ui.toast.show({ variant: "warning", message: "Couldn't reach npm registry" })
-    else if (!s.plugin && !s.cli) props.api.ui.toast.show({ variant: "success", message: "All versions are up to date" })
+    else if (!s.plugin && !s.cli && s.cliCurrent) props.api.ui.toast.show({ variant: "success", message: "All versions are up to date" })
   }
 
   // Ask the V2 host to rebuild its native catalog after tooling is written.
   const reloadTooling = async () => {
     try {
       await props.api.client.location.reload()
-      const commands = await props.api.client.command.list({ location })
+      const catalogs = await readCatalogs()
       if (disposed) return
-      const ready = commands.data.some((c) => c.name === "opsx-propose")
+      const ready = catalogs.legacy === true || catalogs.skills === true
       setCommandsReady(ready)
       setToolingResult(ready ? "loaded" : "failed")
     } catch {
       if (!disposed) setToolingResult("failed")
     }
+  }
+
+  const readCatalogs = async () => {
+    const [legacy, skills] = await Promise.all([
+      props.api.client.command.list({ location }).then((r) => r.data.some((c) => c.name === "opsx-propose")).catch(() => null),
+      props.api.client.skill.list({ location }).then((r) => hasWorkflowSkills(r.data.map((skill) => skill.name))).catch(() => null),
+    ])
+    return { legacy, skills }
   }
 
   // ---- polling ------------------------------------------------------------
@@ -291,21 +302,18 @@ export function OpenSpecSidebar(props: { api: Context; sessionId: string; baseli
       const s = await readOpenSpec(client)
       if (disposed) return
       setSummary(s)
-      const initialized = s !== null && (await hasOpenSpecTooling(client))
+      const [catalogs, projectTooling, state] = await Promise.all([
+        readCatalogs(),
+        s && hasOpenSpecTooling(client),
+        readPluginState(client),
+      ])
       if (disposed) return
-      setInitialised(initialized)
+      setInitialised(s !== null && (catalogs.skills === true || projectTooling === true))
       // One read of the `plugin:` block per poll, feeding both flows, so the banners clear as soon
       // as the agent removes their markers.
-      const state = await readPluginState(client)
-      if (disposed) return
       setPluginState(state)
-      // Are the init commands actually loaded? Stay optimistic on a fetch error.
-      const cmds = await props.api.client.command
-        .list({ location })
-        .then((r) => r?.data ?? null)
-        .catch(() => null)
-      if (disposed) return
-      if (cmds) setCommandsReady(cmds.some((c) => c.name === "opsx-propose"))
+      if (catalogs.legacy === true || catalogs.skills === true) setCommandsReady(true)
+      else if (catalogs.legacy === false && catalogs.skills === false) setCommandsReady(false)
       syncVersionHistory()
     } catch {
       if (disposed) return
@@ -530,6 +538,7 @@ export function OpenSpecSidebar(props: { api: Context; sessionId: string; baseli
         <SettingsView
           theme={theme}
           cliCurrent={cliCurrent}
+          cliLatest={cliLatest}
           pluginUpdate={pluginUpdate}
           cliUpdate={cliUpdate}
           onCheck={() => void runVersionCheck(true)}

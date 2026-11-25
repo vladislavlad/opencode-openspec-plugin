@@ -145,3 +145,19 @@ test("template preparation holds the duplicate guard and captured model", async 
   expect(f.calls.filter((call) => call.kind === "prompt")).toHaveLength(1)
   expect(f.calls.find((call) => call.kind === "switchModel")?.input.model).toEqual({ providerID: "provider", id: "model", variant: "high" })
 })
+
+test("a modern OpenSpec workflow attaches the selected skill with the action arguments", async () => {
+  const f = fixture()
+  f.handlers.config = async () => []
+  f.handlers.skills = async (input) => {
+    expect(input).toEqual({ location: { directory: "/project" } })
+    return { data: [{ id: "skill-explore", name: "openspec-explore" }] }
+  }
+  expect(await submitPrompt(f.api, "/opsx-explore task A\ninspect both options")).toBe(true)
+  expect(f.calls.find((call) => call.kind === "switchAgent")?.input.agent).toBe("plan")
+  expect(f.calls.find((call) => call.kind === "prompt")?.input).toEqual({
+    sessionID: "session-a",
+    text: "Follow the openspec-explore skill for this OpenSpec project.\n\ntask A\ninspect both options",
+    skills: [{ id: "skill-explore" }],
+  })
+})
