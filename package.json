@@ -1,6 +1,6 @@
 {
   "name": "@vladislavlad/opencode-openspec-plugin",
-  "version": "1.0.0",
+  "version": "1.0.1",
   "description": "OpenSpec TUI sidebar plugin for opencode – browse specs, review change proposals, and drive the OpenSpec flow from the terminal.",
   "type": "module",
   "license": "MIT",
@@ -21,9 +21,7 @@
     "sidebar",
     "solid-js"
   ],
-  "main": "./dist/index.js",
   "exports": {
-    ".": "./dist/index.js",
     "./tui": "./dist/index.js"
   },
   "files": [
@@ -33,7 +31,8 @@
     "node": ">=18"
   },
   "publishConfig": {
-    "access": "public"
+    "access": "public",
+    "tag": "latest"
   },
   "scripts": {
     "build": "NODE_ENV=production bun run build.ts",
@@ -51,7 +50,7 @@
   "devDependencies": {
     "@babel/core": "7",
     "@babel/preset-typescript": "7",
-    "@fission-ai/openspec": "1.14.3",
+    "@fission-ai/openspec": "2.2.0",
     "@opencode-ai/plugin": "1.19.4",
     "@opentui/keymap": "0.4.5",
     "@opentui/solid": "0.4.5",

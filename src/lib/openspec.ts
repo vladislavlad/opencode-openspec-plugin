@@ -1,6 +1,7 @@
 // Reads the openspec directory: task counts, capability discovery and the summary the sidebar polls.
 // The spec.md model and its parser live in `spec-driven.ts`.
 import { parseSpec, specEquals } from "./spec-driven"
+export { hasOpenSpecTooling, OPSX_COMMANDS } from "./openspec-tooling"
 export { parseSpec } from "./spec-driven"
 export type { OpenSpecSpec, Requirement, Scenario } from "./spec-driven"
 import type { OpenSpecSpec } from "./spec-driven"
@@ -37,11 +38,13 @@ export interface FileClient {
   read(path: string): Promise<string>
 }
 
-// Mirrors OpenSpec 1.14.3 parseTaskLines: nested/ordered list items and a padded single-character
+// Mirrors OpenSpec 2.2 parseTaskLines: nested/ordered list items and a padded single-character
 // marker. Only x/X is done; links are excluded except for whitespace-only unfinished checkboxes.
 // Keep the task matcher aligned with the CLI; line endings are normalized before matching.
 const TASK_LINE = /^(\s*)([-*+]|\d{1,9}[.)])\s*\[(?:\s*([^\]\s]?)\s*\](?![([])|\s+\])\s*(.*)/
 const HEADING_LINE = /^#{1,6}\s+(.*)$/
+const TASK_TEXT_BREAK = /^\s*(?:$|#{1,6}(?:\s|$)|```|~~~|>|<[!?]|(?:=+|-+)\s*$|([-*_])(?:\s*\1){2,}\s*$|(?:[-*+]|\d{1,9}[.)])(?:\s|$))/
+const HARD_BREAK = /(?<!\\)(?:\\\\)*\\$/
 
 export function parseTasks(content: string): { total: number; completed: number; groups: TaskGroup[] } {
   let total = 0
@@ -49,6 +52,7 @@ export function parseTasks(content: string): { total: number; completed: number;
   const groups: TaskGroup[] = []
   let current: TaskGroup | null = null
   const indents: number[] = []
+  let lastTask: Task | undefined
   for (const raw of content.split(/\r?\n/)) {
     const task = TASK_LINE.exec(raw)
     if (task) {
@@ -62,9 +66,16 @@ export function parseTasks(content: string): { total: number; completed: number;
       total++
       if (done) completed++
       if (!current) groups.push((current = { title: "", tasks: [] }))
-      current.tasks.push({ done, text: task[4].trim(), depth: indents.length - 1, marker, number: /^\d/.test(task[2]) ? task[2] : "" })
+      lastTask = { done, text: task[4].trim(), depth: indents.length - 1, marker, number: /^\d/.test(task[2]) ? task[2] : "" }
+      current.tasks.push(lastTask)
       continue
     }
+    if (lastTask && !TASK_TEXT_BREAK.test(raw)) {
+      const head = HARD_BREAK.test(lastTask.text) ? lastTask.text.slice(0, -1).trimEnd() : lastTask.text
+      lastTask.text = head ? `${head} ${raw.trim()}` : raw.trim()
+      continue
+    }
+    lastTask = undefined
     const heading = HEADING_LINE.exec(raw)
     if (heading) {
       groups.push((current = { title: heading[1].trim(), tasks: [] }))
@@ -95,32 +106,6 @@ export const ROOT = "openspec"
 async function isRoot(client: FileClient, path: string): Promise<boolean> {
   const entries = await listEntries(client, path)
   return entries.some((e) => isSubdir(e) || (e.type === "file" && e.name === "config.yaml"))
-}
-
-// The commands and skills `openspec init --tools opencode` writes into `.opencode`.
-export const OPSX_COMMANDS = ["opsx-apply", "opsx-archive", "opsx-explore", "opsx-propose", "opsx-sync", "opsx-update"]
-const REQUIRED_SKILLS = [
-  "openspec-apply-change",
-  "openspec-archive-change",
-  "openspec-explore",
-  "openspec-propose",
-  "openspec-sync-specs",
-  "openspec-update-change",
-]
-
-// True only when every one of them is present.
-export async function hasOpenSpecTooling(client: FileClient): Promise<boolean> {
-  let commands: { name: string }[]
-  try {
-    commands = await client.list(".opencode/commands")
-  } catch {
-    return false
-  }
-  const commandNames = new Set(commands.map((e) => e.name))
-  if (!OPSX_COMMANDS.every((c) => commandNames.has(`${c}.md`))) return false
-
-  const skillNames = new Set(await listSubdirs(client, ".opencode/skills"))
-  return REQUIRED_SKILLS.every((s) => skillNames.has(s))
 }
 
 export const isComplete = (change: OpenSpecChange) =>

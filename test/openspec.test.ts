@@ -79,10 +79,10 @@ describe("parseTasks", () => {
     expect(r.groups[0].tasks).toEqual([])
   })
 
-  test("non-task, non-heading lines are ignored", () => {
+  test("a wrapped description continues until a Markdown paragraph boundary", () => {
     const r = parseTasks("intro text\n- [ ] real\nmore prose")
     expect(r.total).toBe(1)
-    expect(r.groups[0].tasks[0].text).toBe("real")
+    expect(r.groups[0].tasks[0].text).toBe("real more prose")
   })
 
   test("empty content yields nothing", () => {

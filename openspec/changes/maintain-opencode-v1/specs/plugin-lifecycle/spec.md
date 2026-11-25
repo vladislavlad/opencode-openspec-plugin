@@ -1,0 +1,9 @@
+## ADDED Requirements
+
+### Requirement: Required upgrade notice in OpenCode 2
+The V1 plugin SHALL show a dialog with the minimum V2 plugin version and the cli.json replacement when OpenCode 2 loads its TUI entrypoint. The plugin SHALL withhold the legacy sidebar and its workflow commands on that host.
+
+#### Scenario: OpenCode migrates the global V1 plugin entry
+- **WHEN** OpenCode 2.4.1 loads the migrated V1 maintenance package
+- **THEN** the dialog says that plugin 2.0.0 or a later 2.x is required
+- **AND** it shows how to replace the package while keeping its options

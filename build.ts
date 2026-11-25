@@ -5,17 +5,18 @@ import pkg from "./package.json"
 const outDir = "dist"
 rmSync(outDir, { recursive: true, force: true })
 
-// Bundle into a single ESM file. JSX is transformed with @opentui/solid's own Solid
+// Bundle the notice and the lazy legacy UI as ESM. JSX is transformed with @opentui/solid's own Solid
 // transform → universal codegen that imports the renderer from "@opentui/solid" (its main
 // entry). opencode rewrites the bare "@opentui/solid" and "solid-js" specifiers to its own
 // running instances at plugin load, so the plugin shares the host's single Solid runtime.
 // (The "@opentui/solid/jsx-runtime" subpath is NOT rewritten – going through it gives the
 // plugin a second Solid instance whose effects never flush, so we must avoid it.)
 const result = await Bun.build({
-  entrypoints: ["src/index.tsx"],
+  entrypoints: ["src/index.ts"],
   outdir: outDir,
   target: "bun",
   format: "esm",
+  splitting: true,
   external: ["@opencode-ai/*", "@opentui/*", "solid-js", "solid-js/*"],
   define: { "__PLUGIN_VERSION__": JSON.stringify(pkg.version) },
   plugins: [createSolidTransformPlugin()],

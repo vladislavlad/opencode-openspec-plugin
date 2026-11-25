@@ -17,7 +17,7 @@ export function buildUpdatePrompt(t: UpdateTargets): string {
     parts.push(
       "",
       "## Update the plugin",
-      `1. Find the \`tui.json\` that registers this plugin – check \`<project>/.opencode/tui.json\` first, then \`~/.config/opencode/tui.json\`. Its \`"plugin"\` array contains \`"${PLUGIN_PKG}"\` (optionally with a \`@version\` suffix). The entry may be a plain string or a \`["${PLUGIN_PKG}", { …options }]\` tuple – edit the string part.`,
+      `1. Find the \`tui.json\` that registers this plugin – check the project \`tui.json(c)\` and the global OpenCode config directory (\`OPENCODE_CONFIG_DIR\`, \`$XDG_CONFIG_HOME/opencode\`, or \`~/.config/opencode\`). Its \`"plugin"\` array contains \`"${PLUGIN_PKG}"\` (optionally with a \`@version\` suffix). The entry may be a plain string or a \`["${PLUGIN_PKG}", { …options }]\` tuple – edit the string part.`,
       `   - If that entry is a local filesystem path (e.g. it ends in \`dist/index.js\`), this is a dev checkout: SKIP the plugin update and tell me so.`,
       `2. Set the specifier to \`"${PLUGIN_PKG}@${t.plugin.next}"\`.`,
       "3. In `openspec/config.yaml`, add this block (keep `schema`, `context`, `rules` intact; create the file with `schema: spec-driven` if it doesn't exist yet):",
@@ -33,9 +33,10 @@ export function buildUpdatePrompt(t: UpdateTargets): string {
     parts.push(
       "",
       "## Update the openspec CLI",
-      "1. Detect which package manager owns the global `openspec` binary (`npm -v`, `pnpm -v`, `yarn -v`, `bun --version`) and install the new version globally:",
+      `1. Run \`openspec --version\`. If it is already ${t.cli.next} or newer, keep the installed version and continue to step 2. Otherwise detect how the existing binary was installed and upgrade it using the same method. For npm use Node.js 22.20.0 or newer.`,
+      "   For a standalone OpenSpec binary, use its official installer. For a package-managed binary, use the matching installer:",
       `   npm: \`npm i -g ${CLI_PKG}@${t.cli.next}\` · pnpm/bun: \`add -g\` · yarn: \`global add\`.`,
-      "2. Run `openspec update --force` to regenerate the `.opencode` commands and skills.",
+      "2. Run `openspec update --dry-run` and inspect the planned changes. Preserve any customized commands and skills. Run `openspec update` to refresh the project tooling. If workflow skills are missing after the update, run `openspec init --tools opencode --profile core --scope project`.",
     )
   }
   parts.push("", "## Finally", "Tell me to reopen opencode to apply the update.")

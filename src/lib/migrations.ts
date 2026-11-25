@@ -71,6 +71,14 @@ export const MIGRATIONS: Record<string, Migration> = {
       "OpenSpec commands preserve arguments supplied by the command dispatcher.",
     ],
   },
+  "1.0.1": {
+    instructions: "",
+    releaseNotes: [
+      "Sidebar actions work with OpenSpec 2.2 workflow skills.",
+      "Wrapped task descriptions are visible in full.",
+      "OpenCode 2 shows how to install the required plugin version.",
+    ],
+  },
 }
 
 // Migrations whose version is in (old, new], ordered oldest → newest, tagged with their version.

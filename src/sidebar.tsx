@@ -30,6 +30,7 @@ import {
 import { PostUpdateBanner, UpdateBanner } from "./components/update-flow"
 import { searchSpecs } from "./lib/search"
 import { VERSION } from "./lib/version"
+import { hasWorkflowSkills, skillRequest, workflowSkill } from "./lib/openspec-tooling"
 
 const NO_PLUGIN_STATE: PluginState = { update: null, init: { inProgress: false, done: [] } }
 
@@ -55,6 +56,8 @@ export function OpenSpecSidebar(props: { api: TuiPluginApi; sessionId: string; b
   const [hovered, setHovered] = createSignal<string | null>(null)
   const [specQuery, setSpecQuery] = createSignal("")
   // false once we know the init /opsx-* commands aren't loaded (written this session but pre-restart).
+  let loadedCommands = new Set<string>()
+  let loadedSkills = new Set<string>()
   const [commandsReady, setCommandsReady] = createSignal<boolean | null>(null)
   // Init pressed; hold the status line until the agent goes idle.
   const [setupInProgress, setSetupInProgress] = createSignal(false)
@@ -65,6 +68,7 @@ export function OpenSpecSidebar(props: { api: TuiPluginApi; sessionId: string; b
   const [dot, setDot] = createSignal(0) // 0..2 – which of the "Initializing" dots is lit
   const [pluginUpdate, setPluginUpdate] = createSignal<Update | null>(null)
   const [cliUpdate, setCliUpdate] = createSignal<Update | null>(null)
+  const [cliLatest, setCliLatest] = createSignal<string | null>(null)
   const [cliCurrent, setCliCurrent] = createSignal<string | null>(null)
   const [bannerDismissed, setBannerDismissed] = createSignal(false)
   const [reloadPending, setReloadPending] = createSignal(false)
@@ -237,13 +241,22 @@ export function OpenSpecSidebar(props: { api: TuiPluginApi; sessionId: string; b
   // check re-shows a dismissed banner. Available updates aren't toasted – they show in the banner.
   const runVersionCheck = async (notify = false) => {
     const s = await checkVersions(client)
+    setCliLatest(s.cliLatest)
     setCliCurrent(s.cliCurrent)
     setPluginUpdate(s.plugin)
     setCliUpdate(s.cli)
     setBannerDismissed(false)
     if (!notify) return
     if (!s.reachable) props.api.ui.toast({ variant: "warning", message: "Couldn't reach npm registry" })
-    else if (!s.plugin && !s.cli) props.api.ui.toast({ variant: "success", message: "All versions are up to date" })
+    else if (!s.plugin && !s.cli && s.cliCurrent) props.api.ui.toast({ variant: "success", message: "All versions are up to date" })
+  }
+
+  const sendWorkflow = (text: string, submit = false) => {
+    if (!allowAction()) return
+    const [command, args = ""] = text.slice(1).split(/\s+([\s\S]*)/, 2)
+    const skill = workflowSkill(command)
+    const prompt = skill && !loadedCommands.has(command) && loadedSkills.has(skill) ? skillRequest(skill, args) : text
+    return submit ? submitPrompt(props.api, prompt) : sendPrompt(props.api, prompt)
   }
 
   // After the init turn the /opsx-* files are on disk; register them ephemerally to bridge the
@@ -263,16 +276,18 @@ export function OpenSpecSidebar(props: { api: TuiPluginApi; sessionId: string; b
     try {
       const s = await readOpenSpec(client)
       setSummary(s)
-      setInitialised(s !== null && (await hasOpenSpecTooling(client)))
-      // One read of the `plugin:` block per poll, feeding both flows, so the banners clear as soon
-      // as the agent removes their markers.
-      setPluginState(await readPluginState(client))
-      // Are the init commands actually loaded? Stay optimistic on a fetch error.
-      const cmds = await props.api.client.command
-        .list()
-        .then((r) => r?.data ?? null)
-        .catch(() => null)
-      if (cmds) setCommandsReady(cmds.some((c) => c.name === "opsx-propose"))
+      const [tooling, state, commands, skills] = await Promise.all([
+        s && hasOpenSpecTooling(client),
+        readPluginState(client),
+        props.api.client.command.list().then((r) => r?.data ?? null).catch(() => null),
+        props.api.client.app?.skills({ directory: props.api.state.path.directory }).then((r) => r?.data ?? null).catch(() => null),
+      ])
+      if (commands) loadedCommands = new Set(commands.map((command) => command.name))
+      if (skills) loadedSkills = new Set(skills.map((skill) => skill.name))
+      const skillsReady = hasWorkflowSkills(loadedSkills)
+      setInitialised(s !== null && (tooling === true || skillsReady))
+      setPluginState(state)
+      if (commands || skills) setCommandsReady(loadedCommands.has("opsx-propose") || skillsReady)
       syncVersionHistory()
     } catch {
       setSummary(null)
@@ -362,8 +377,8 @@ export function OpenSpecSidebar(props: { api: TuiPluginApi; sessionId: string; b
       {/* Hidden when the bridge failed: the /opsx-* commands these fill in wouldn't resolve. */}
       <Show when={banner() !== "error"}>
         <box flexDirection="row" gap={2}>
-          <Button theme={theme} label="Explore" color={theme().accent} {...gate} onClick={() => void sendPrompt(props.api, "/opsx-explore ")} />
-          <Button theme={theme} label="Propose" color={theme().secondary} {...gate} onClick={() => void sendPrompt(props.api, "/opsx-propose ")} />
+          <Button theme={theme} label="Explore" color={theme().accent} {...gate} onClick={() => void sendWorkflow("/opsx-explore ")} />
+          <Button theme={theme} label="Propose" color={theme().secondary} {...gate} onClick={() => void sendWorkflow("/opsx-propose ")} />
           <Show when={completedList().length > 0}>
             {/* One completed change → archive it directly; several → let the command prompt. */}
             <Button
@@ -372,10 +387,7 @@ export function OpenSpecSidebar(props: { api: TuiPluginApi; sessionId: string; b
               color={theme().success}
               {...gate}
               onClick={() =>
-                void submitPrompt(
-                  props.api,
-                  completedList().length === 1 ? `/opsx-archive ${completedList()[0].name}` : "/opsx-archive",
-                )
+                void sendWorkflow(completedList().length === 1 ? `/opsx-archive ${completedList()[0].name}` : "/opsx-archive", true)
               }
             />
           </Show>
@@ -497,6 +509,7 @@ export function OpenSpecSidebar(props: { api: TuiPluginApi; sessionId: string; b
         <SettingsView
           theme={theme}
           cliCurrent={cliCurrent}
+          cliLatest={cliLatest}
           pluginUpdate={pluginUpdate}
           cliUpdate={cliUpdate}
           onCheck={() => void runVersionCheck(true)}
@@ -526,7 +539,7 @@ export function OpenSpecSidebar(props: { api: TuiPluginApi; sessionId: string; b
                 docs={changeDocs()}
                 onBack={backToList}
                 // Apply/Update fill the prompt; Archive submits.
-                onCommand={(text, submit) => void (submit ? submitPrompt(props.api, text) : sendPrompt(props.api, text))}
+                onCommand={(text, submit) => void sendWorkflow(text, submit)}
                 onDelete={(name) => void deleteChange(props.api, name, allowAction)}
                 gate={gate}
               />

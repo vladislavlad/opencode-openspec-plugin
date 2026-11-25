@@ -39,33 +39,21 @@ CLI, configures the project and derives specs from your existing code. Settings
 shows the installed plugin and CLI versions, checks npm for newer ones, and can
 apply the update for you.
 
-## Requirements
+## Requirements and installation
 
-- [opencode](https://opencode.ai) `>= 1.18.0 < 2.0.0` (OpenCode 1)
-- The [OpenSpec CLI](https://github.com/Fission-AI/OpenSpec), installed globally –
-  the `/opsx-*` commands shell out to the `openspec` binary. Either install it
-  yourself (`npm install -g @fission-ai/openspec`) or let the **Init** button do it.
-
-Plugin **1.0.0** targets OpenCode V1; its compatibility baseline is
-**OpenCode 1.19.4** with **OpenSpec 1.14.3**.
-OpenCode 2 uses a different plugin API and is not supported by this release.
-Its port is planned as plugin **2.0.0**; see the official
-[V1 plugin migration guide](https://opencode.ai/v2/docs/build/plugins/migrate-v1/).
-
-## Install
-
-TUI plugins are configured in opencode's **`tui.json`**, not `opencode.json`.
-Add the plugin to `~/.config/opencode/tui.json`:
+Plugin **1.0.1** is the maintenance release for OpenCode 1, tested on
+**OpenCode 1.19.6** and **OpenSpec 2.2.0**. Add it to `tui.json`:
 
 ```json
 {
-  "plugin": ["@vladislavlad/opencode-openspec-plugin"]
+  "plugin": ["@vladislavlad/opencode-openspec-plugin@1.0.1"]
 }
 ```
 
-opencode resolves the package from npm on the next launch. The sidebar appears in
-the session panel – open it in a project that has, or is about to have, an
-`openspec/` directory.
+For an unpinned installation, npm `latest` stays on the V1 line. OpenCode 2
+uses the `opencode-v2` npm channel. Install OpenSpec 2.2.0 with the
+[OpenSpec installation guide](https://openspec.dev/start/installation) or the
+plugin's **Init** action.
 
 ## First run
 
@@ -73,8 +61,8 @@ In a project with no OpenSpec set up, the sidebar shows an **Init** button. It
 hands the agent one turn that:
 
 1. installs the OpenSpec CLI if it's missing (it'll ask which package manager to use);
-2. runs `openspec init --tools opencode`, which writes the `/opsx-*` commands and
-   skills into `.opencode/`;
+2. runs `openspec init --tools opencode --profile core --scope project`,
+   which installs project skills under `.agents/skills/`;
 3. asks about your stack, spec language and project context, and writes them to
    `openspec/config.yaml`;
 4. offers to reverse-engineer baseline specs from your existing code – and asks how
@@ -99,36 +87,31 @@ The plugin registers two of its own (type `/` in opencode):
 | `/opsx-config` | Configure project context – stack, spec language, rules – in `openspec/config.yaml`. |
 | `/opsx-baseline` | Derive or refresh `openspec/specs` from the existing implementation. Needs a configured project – run `/opsx-config` first. |
 
-The rest come from the OpenSpec CLI after `openspec init`:
+OpenSpec 2.2 installs workflow skills under `.agents/skills/`. The sidebar
+uses these skills when the matching legacy `/opsx-*` command is absent.
+To upgrade an existing project, run `openspec update --dry-run` and then
+`openspec update`. Save any local skill customizations before updating.
 
-| Command | What it does |
-| --- | --- |
-| `/opsx-propose <feature>` | Create a change proposal for a new feature or change. |
-| `/opsx-apply <change>` | Implement an approved change. |
-| `/opsx-update <change>` | Revise an existing change proposal. |
-| `/opsx-archive <change>` | Fold a completed change back into the specs. |
-| `/opsx-explore` | Explore the specs and codebase before proposing. |
-| `/opsx-sync` | Reconcile specs with the current state. |
+## Updates and OpenCode 2 migration
 
-## Staying up to date
+Settings checks npm `latest` for plugin updates within 1.x. Use
+**Refresh OpenSpec** to check the CLI and refresh the project skills when no
+tooling version is recorded. Restart OpenCode to load newly installed skills.
 
-The sidebar checks npm once per project for a newer plugin or CLI version. When
-there is one, a banner appears above the actions and the **Settings** button turns
-accent-coloured. From Settings you can update either component or both; the agent
-edits your `tui.json`, installs the new CLI, and tells you to reload. After the
-restart, **Complete Update** runs any migration steps and summarises what changed.
-
-You get that summary however you updated. The sidebar also remembers which plugin
-version last ran, so an update that bypassed the button entirely – `npm i -g`, a
-hand-edited `tui.json`, or an unpinned specifier that opencode refreshed on its own –
-still offers **Complete Update** on the next launch.
+When OpenCode 2.4.1 migrates a global `tui.json` with plugin 1.0.1, its
+TUI loads an update dialog. Replace the OpenSpec entry in the global
+`cli.json` under `plugins` with
+`@vladislavlad/opencode-openspec-plugin@opencode-v2`, preserving any options, then
+reopen OpenCode. If `cli.json` already exists or you used a project-local
+V1 config, add the V2 entry there manually. The minimum V2 plugin is
+`2.0.0`. An OpenCode upgrade keeps the project files and setup checkpoints.
 
 ## Development
 
-Built with [Bun](https://bun.sh). Sources in `src/` are bundled into a single
-`dist/index.js` using `@opentui/solid`'s Solid transform (universal codegen).
-Development pins OpenTUI to 0.4.5, the version used by the OpenCode 1.19.4 host,
-and OpenSpec to 1.14.3 for CLI compatibility tests. These checks exercise real
+Built with [Bun](https://bun.sh). Sources in `src/` are bundled into a TUI entry and renderer chunk in
+`dist/` using `@opentui/solid`'s Solid transform (universal codegen).
+Development pins OpenTUI to 0.4.5, the version used by the OpenCode 1.19.6 host,
+and OpenSpec to 2.2.0 for CLI compatibility tests. These checks exercise real
 OpenSpec initialization and compare task progress with its parser, including
 nested and ordered tasks and unfinished checkbox markers.
 `@opentui/*` and `solid-js` stay external, so the plugin shares opencode's single

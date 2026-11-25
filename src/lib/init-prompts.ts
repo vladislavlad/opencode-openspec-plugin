@@ -5,9 +5,10 @@ import { INIT_STAGES, type InitStage } from "./config"
 import { configPrompt } from "./config-prompt"
 import { DEPTH_OPTIONS, SPEC_DERIVE_PROMPT } from "./derive-prompt"
 import { SPEAK_THE_USER_LANGUAGE } from "./prompt-style"
+import { CLI_PKG, MIN_CLI_VERSION } from "./updates"
 
-// Scaffolds openspec/ + the opencode /opsx-* commands and skills (CLI must be on PATH – see preflight).
-export const OPENSPEC_INIT_CMD = `openspec init --tools opencode`
+// Scaffolds openspec/ and its project workflow skills.
+export const OPENSPEC_INIT_CMD = "openspec init --tools opencode --profile core --scope project"
 
 // ---- the pieces -----------------------------------------------------------
 
@@ -31,16 +32,16 @@ const markerStep = (written: boolean) =>
       ].join("\n")
 
 // Install the `openspec` CLI globally if missing, then run init. A `npx` one-shot wouldn't leave the
-// binary on PATH for the generated /opsx-* commands to shell out to.
+// binary on PATH for workflow skills to use.
 const initPreflight = (markerWritten: boolean) =>
   [
-    "Set up OpenSpec in this project. First make sure the `openspec` CLI is installed – the generated /opsx-* commands run it.",
+    "Set up OpenSpec in this project. First make sure the `openspec` CLI is installed for the workflow skills.",
     "",
     markerStep(markerWritten),
-    "2. Run `openspec --version`. If it succeeds, the CLI is installed – skip to step 6.",
-    "3. If the CLI is missing, detect which package managers exist: run `npm -v`, `pnpm -v`, `yarn -v`, `bun --version` and keep the ones that succeed.",
-    '4. Ask with the `question` tool (single-select), header "Install": "The OpenSpec CLI is required but not installed. It will be installed globally. Choose a package manager:". Offer one option per detected manager, plus "Cancel". If the user picks "Cancel", clean up and end the turn right there – nothing below this step runs. Cleaning up means: remove the `init:` block from `openspec/config.yaml`; if the file then holds nothing but `schema`, delete it; if `openspec/` is then empty, remove the directory too.',
-    "5. Install `@fission-ai/openspec@latest` globally using the chosen package manager (npm: `install -g`, pnpm/bun: `add -g`, yarn: `global add`).",
+    `2. Run \`openspec --version\`. If it reports ${MIN_CLI_VERSION} or newer, skip to step 6. Otherwise upgrade it.`,
+    "3. If the CLI is missing or too old, identify its installation method. Use the official installer for a standalone binary. For a package-managed install, detect available package managers. For npm use Node.js 22.20.0 or newer.",
+    '4. Ask with the `question` tool (single-select), header "Install": "OpenSpec 2.2 or newer is required. Choose a package manager for the global installation:". Offer one option per detected manager, plus "Cancel". If the user picks "Cancel", clean up and end the turn right there – nothing below this step runs. Cleaning up means: remove the `init:` block from `openspec/config.yaml`; if the file then holds nothing but `schema`, delete it; if `openspec/` is then empty, remove the directory too.',
+    `5. Install or upgrade \`${CLI_PKG}@${MIN_CLI_VERSION}\` globally using the chosen package manager (npm: \`install -g\`, pnpm/bun: \`add -g\`, yarn: \`global add\`).`,
     `6. Run \`${OPENSPEC_INIT_CMD}\`. If it fails: report the error, leave \`openspec/config.yaml\` and its marker as they are (the sidebar will offer Resume), and stop. Re-running it on an already set up project is safe – it refreshes the tooling and leaves config.yaml, specs and changes alone.`,
   ].join("\n")
 
@@ -73,8 +74,8 @@ const initFinally = (has: { install: boolean; specs: boolean }) =>
     "2. If validation still fails after your fixes: leave the `init:` block in place (the sidebar will offer Resume), report what is broken, and end the turn.",
     `3. Then ${CLEAR_MARKER}.`,
     "4. Tell the user OpenSpec is set up and ready. Then show the two ways to start – both buttons are in the sidebar:",
-    "   - **Explore** – describe an idea and OpenSpec explores it with you. Similar to `/opsx-explore <describe your idea>`.",
-    "   - **Propose** – describe a feature and OpenSpec drafts the change proposal. Similar to `/opsx-propose <describe the feature to implement>`.",
+    "   - **Explore** – describe an idea and OpenSpec explores it with you. It uses the OpenSpec Explore skill.",
+    "   - **Propose** – describe a feature and OpenSpec drafts the change proposal. It uses the OpenSpec Propose skill.",
     "   Also point at `/opsx-baseline`: if the specs don't cover the whole project yet, running it again refines and extends what is there instead of duplicating it.",
   ].join("\n")
 
@@ -92,7 +93,7 @@ export function buildInitPrompt(done: InitDone = NO_STAGES_DONE, markerWritten =
     parts.push("Resume the interrupted OpenSpec setup. Do not redo anything listed as already done.", "")
   }
 
-  if (done.tooling) parts.push("Already done: the OpenSpec CLI and its `.opencode` tooling are installed – do NOT run `openspec init` again.", "")
+  if (done.tooling) parts.push("Already done: the OpenSpec CLI and its project tooling are installed – do NOT run `openspec init` again.", "")
   else parts.push("## Install step", "", initPreflight(markerWritten), "", recordStage("tooling"), "")
 
   if (done.config) parts.push("Already done: `openspec/config.yaml` is configured – leave its `context` and `rules` as they are.", "")
