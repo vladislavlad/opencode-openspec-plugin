@@ -5,7 +5,7 @@ workflows. Users moving to OpenCode 2 need an actionable notice.
 ## What Changes
 - Publish 1.x maintenance updates on npm latest.
 - Use OpenSpec 2.2 workflow skills in the V1 sidebar.
-- Show the required plugin version when OpenCode 2 loads the V1 package.
+- Show the required plugin version and dedicated npm package when OpenCode 2 loads the V1 package.
 
 ## Capabilities
 - `plugin-lifecycle`, `openspec-parsing`, `prompt-sending`, `update-flow`.

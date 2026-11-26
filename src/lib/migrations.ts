@@ -75,6 +75,12 @@ export const MIGRATIONS: Record<string, Migration> = {
       "The plugin installs in a fresh OpenCode 1 profile without a peer dependency conflict.",
     ],
   },
+  "1.0.2": {
+    instructions: "",
+    releaseNotes: [
+      "The OpenCode 2 upgrade dialog points to the dedicated V2 npm package.",
+    ],
+  },
 }
 
 // Migrations whose version is in (old, new], ordered oldest → newest, tagged with their version.

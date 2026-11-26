@@ -51,8 +51,8 @@ dependencies when it loads the plugin. Add it to `tui.json`:
 }
 ```
 
-For an unpinned installation, npm `latest` stays on the V1 line. OpenCode 2
-uses the `opencode-v2` npm channel. Install OpenSpec 2.2.0 with the
+The npm package for OpenCode 1 follows 1.x on `latest`. OpenCode 2
+uses `@vladislavlad/opencode-v2-openspec-plugin`. Install OpenSpec 2.2.0 with the
 [OpenSpec installation guide](https://openspec.dev/start/installation) or the
 plugin's **Init** action.
 
@@ -99,13 +99,14 @@ Settings checks npm `latest` for plugin updates within 1.x. Use
 **Refresh OpenSpec** to check the CLI and refresh the project skills when no
 tooling version is recorded. Restart OpenCode to load newly installed skills.
 
-When OpenCode 2.4.1 migrates a global `tui.json` with plugin 1.0.0, its
-TUI loads an update dialog. Replace the OpenSpec entry in the global
-`cli.json` under `plugins` with
-`@vladislavlad/opencode-openspec-plugin@opencode-v2`, preserving any options, then
-reopen OpenCode. If `cli.json` already exists or you used a project-local
-V1 config, add the V2 entry there manually. The minimum V2 plugin is
-`2.0.0`. An OpenCode upgrade keeps the project files and setup checkpoints.
+When you move to OpenCode 2.4.1 or newer, use the dedicated V2 package.
+Replace the OpenSpec entry in the global `cli.json` under `plugins` with
+`@vladislavlad/opencode-v2-openspec-plugin@latest`, keeping any options. Add it
+if there is no entry, then reopen OpenCode.
+
+The V1 1.0.2 maintenance patch shows this package name if OpenCode 2 migrates
+your global `tui.json`. With V1 1.0.0, use the package name above. The V2
+sidebar opens your existing project and setup checkpoints.
 
 ## Development
 

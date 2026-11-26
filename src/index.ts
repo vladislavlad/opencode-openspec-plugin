@@ -10,7 +10,7 @@ const notice = {
     "OpenCode 2 requires OpenSpec plugin 2.0.0 or a later 2.x release.",
     "The new plugin requires OpenCode 2.4.1 or newer.",
     "Replace the OpenSpec package in cli.json’s plugins array with:",
-    "@vladislavlad/opencode-openspec-plugin@opencode-v2",
+    "@vladislavlad/opencode-v2-openspec-plugin@latest",
     "Keep any existing options and reopen OpenCode.",
   ].join("\n\n"),
 }
