@@ -77,3 +77,15 @@ describe("readUpdateFlag", () => {
     expect(await readUpdateFlag(mockClient({ "openspec/config.yaml": "schema: spec-driven\n" }))).toBeNull()
   })
 })
+
+test("reads the verified tooling version without changing the setup and update markers", async () => {
+  const client = mockClient({
+    "openspec/config.yaml": 'plugin:\n  tooling-version: "2.2.0"\n  update-in-progress:\n    old: 2.0.0\n    new: 2.0.1\n  init:\n    in-progress: true\n    done: ["tooling"]\n',
+  })
+  expect(await readPluginState(client)).toEqual({
+    toolingVersion: "2.2.0",
+    update: { old: "2.0.0", new: "2.0.1" },
+    init: { inProgress: true, done: ["tooling"] },
+  })
+  expect((await readPluginState(mockClient({ "openspec/config.yaml": "plugin:\n  tooling-version: latest\n" }))).toolingVersion).toBeNull()
+})

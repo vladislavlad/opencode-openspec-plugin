@@ -80,6 +80,8 @@ describe("standalone init prompts", () => {
   test("the no-baseline fallback installs and still clears the marker", () => {
     const p = buildInitOnlyPrompt()
     expect(p).toContain(INIT_CMD)
+    expect(p).toContain("run `openspec --version` again")
+    expect(p).toContain("`plugin.tooling-version`")
     expect(p).toContain(CLEAR)
     expect(p).not.toContain(SPECS_STEP)
   })

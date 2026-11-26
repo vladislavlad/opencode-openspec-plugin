@@ -16,12 +16,10 @@ export interface Update {
 }
 
 export interface VersionState {
-  pluginCurrent: string
-  cliCurrent: string | null // null when the `generatedBy` stamp can't be found
+  pluginLatest: string | null
+  legacyToolingVersion: string | null
   cliLatest: string | null
-  reachable: boolean // at least one registry call returned – tells "up to date" from "couldn't check"
   plugin: Update | null
-  cli: Update | null
 }
 
 // Strictly higher semver, comparing major.minor.patch only – enough to decide "an update exists".
@@ -54,7 +52,7 @@ export async function fetchLatest(pkg: string): Promise<string | null> {
   }
 }
 
-// Report the version that generated this project's skills. The binary may run elsewhere.
+// Legacy fallback for projects the agent hasn't verified yet. Modern skills omit this stamp.
 export async function readCliVersion(client: FileClient): Promise<string | null> {
   for (const path of [MODERN_SKILL_DIR, LEGACY_SKILL_DIR]) {
     const entries = await client.list(path).catch(() => [])
@@ -72,17 +70,15 @@ export async function readCliVersion(client: FileClient): Promise<string | null>
 const hasKnownSkill = (name: string) => OPENSPEC_SKILLS.some((skill) => skill === name)
 
 export async function checkVersions(client: FileClient): Promise<VersionState> {
-  const [pluginLatest, cliCurrent, cliLatest] = await Promise.all([
+  const [pluginLatest, legacyToolingVersion, cliLatest] = await Promise.all([
     fetchLatest(PLUGIN_PKG),
     readCliVersion(client),
     fetchLatest(CLI_PKG),
   ])
   return {
-    pluginCurrent: VERSION,
-    cliCurrent,
+    pluginLatest,
+    legacyToolingVersion,
     cliLatest,
-    reachable: pluginLatest !== null || cliLatest !== null,
     plugin: pluginLatest?.startsWith("2.") && semverGt(pluginLatest, VERSION) ? { current: VERSION, next: pluginLatest } : null,
-    cli: cliCurrent && cliLatest && semverGt(cliLatest, cliCurrent) ? { current: cliCurrent, next: cliLatest } : null,
   }
 }

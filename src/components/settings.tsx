@@ -1,6 +1,6 @@
 import { Show } from "solid-js"
 import type { Theme } from "../lib/theme"
-import type { Update } from "../lib/updates"
+import { MIN_CLI_VERSION, type Update } from "../lib/updates"
 import type { UpdateTargets } from "../lib/update-prompt"
 import { VERSION } from "../lib/version"
 import { Button, Divider, type Gate } from "./primitives"
@@ -72,7 +72,7 @@ export function SettingsView(props: {
       <VersionRow
         theme={t}
         label="OpenSpec tooling"
-        current={props.cliCurrent() ?? "version unavailable"}
+        current={props.cliCurrent() ?? "Not checked"}
         update={props.cliUpdate}
         onUpdate={() => {
           const c = props.cliUpdate()
@@ -81,12 +81,10 @@ export function SettingsView(props: {
         gate={props.gate}
       />
 
-      <Show when={!props.cliCurrent() && props.cliLatest?.()}>
-        {(next) => (
-          <box paddingTop={1}>
-            <Button theme={t} label="Refresh OpenSpec" color={t().secondary} {...props.gate} onClick={() => props.onUpdate({ cli: { next: next() } })} />
-          </box>
-        )}
+      <Show when={!props.cliUpdate()}>
+        <box paddingTop={1}>
+          <Button theme={t} label="Refresh OpenSpec" color={t().secondary} {...props.gate} onClick={() => props.onUpdate({ cli: { next: props.cliLatest?.() ?? MIN_CLI_VERSION } })} />
+        </box>
       </Show>
       <box flexDirection="row" gap={2} justifyContent="flex-end" paddingTop={1}>
         <Button theme={t} label="Check Versions" color={t().secondary} {...props.gate} onClick={props.onCheck} />

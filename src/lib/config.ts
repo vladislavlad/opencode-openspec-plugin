@@ -1,6 +1,5 @@
-// The plugin's own `plugin:` block inside openspec/config.yaml – the setup marker and the
-// post-update flag. Stage checkpoints and the post-update flag are written by the agent; the plugin
-// only stamps `in-progress` up front (see `writeInitMarker`).
+// The plugin's `plugin:` block in openspec/config.yaml. The agent records stage checkpoints,
+// update flags and the verified tooling version. The sidebar writes and clears the setup marker.
 import { isMap, parseDocument, parse as parseYaml } from "yaml"
 import type { Context } from "@opencode/plugin/tui/context"
 import { localRoot, readLocal, writeLocal } from "./local-fs"
@@ -28,11 +27,13 @@ export interface InitState {
 export interface PluginState {
   update: UpdateFlag | null
   init: InitState
+  toolingVersion: string | null
 }
 
 interface RawConfig {
   plugin?: {
     "update-in-progress"?: { old?: unknown; new?: unknown }
+    "tooling-version"?: unknown
     init?: { "in-progress"?: unknown; done?: unknown }
   }
 }
@@ -48,14 +49,15 @@ async function readConfig(client: FileClient): Promise<RawConfig | null> {
   }
 }
 
-// Both flags from a single read – the sidebar polls this every few seconds so the banners clear as
-// soon as the agent drops their markers.
+// The sidebar polls this once so the banners and tooling version reflect the same project state.
 export async function readPluginState(client: FileClient): Promise<PluginState> {
   const plugin = (await readConfig(client))?.plugin
   const update = plugin?.["update-in-progress"]
   const init = plugin?.init
   const inProgress = init?.["in-progress"]
+  const tooling = plugin?.["tooling-version"]
   return {
+    toolingVersion: typeof tooling === "string" && /^\d+\.\d+\.\d+$/.test(tooling) ? tooling : null,
     update:
       update && (update.old != null || update.new != null)
         ? { old: String(update.old ?? ""), new: String(update.new ?? "") }

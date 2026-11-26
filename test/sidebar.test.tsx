@@ -186,6 +186,65 @@ test("an interrupted setup past tooling offers Resume above the browser", async 
   expect(out).toContain("Dismiss")
 })
 
+test.each(["complete", "incomplete"])("setup waits for all subagents and the parent turn before showing %s state", async (outcome) => {
+  const [busy, setBusy] = createSignal(false)
+  const subagent = (id: string): ReturnType<Context["data"]["job"]["list"]>[number] => ({
+    kind: "subagent", id, sessionID: "s1", childSessionID: id,
+    status: "running", agent: "general", description: id, time: { started: 10 },
+  })
+  const first = subagent("first")
+  const second = subagent("second")
+  const [jobs, setJobs] = createSignal([first, second])
+  const [pendingReport, setPendingReport] = createSignal(false)
+  const [lastIdle, setLastIdle] = createSignal(20)
+  const fs: Fs = {
+    dirs: { ...TOOLED, openspec: dir("specs"), "openspec/specs": [] },
+    files: { "openspec/config.yaml": 'schema: spec-driven\nplugin:\n  init:\n    in-progress: true\n    done: ["tooling", "config"]\n' },
+  }
+  const view = await mount(fs, {
+    get busy() { return busy() },
+    configure(api) {
+      Object.assign(api.data, { job: { list(sessionID: string) { return sessionID === "s1" ? jobs() : [] } } })
+      Object.assign(api.data.session, {
+        pending: { list: () => pendingReport() ? [{ type: "synthetic", payload: { metadata: { source: "subagent" } }, time: { created: 30 } }] : [] },
+        message: { list: () => [{ type: "idle", time: { created: lastIdle() } }] },
+      })
+    },
+  })
+  const visible = () => view.rows().join(" ")
+  const expectRunning = () => {
+    expect(visible()).toContain("Deriving specs")
+    expect(visible()).not.toContain("Initialization stopped")
+    expect(visible()).not.toContain("Resume")
+    expect(visible()).not.toContain("Dismiss")
+  }
+  try {
+    expectRunning()
+    setJobs([second])
+    await view.settle()
+    expectRunning()
+
+    setPendingReport(true)
+    setJobs([])
+    await view.settle()
+    expectRunning()
+
+    setBusy(true)
+    await view.settle()
+    expectRunning()
+
+    if (outcome === "complete") fs.files["openspec/config.yaml"] = "schema: spec-driven"
+    setLastIdle(40)
+    setBusy(false)
+    await view.settle()
+    expect(visible()).not.toContain("Deriving specs")
+    if (outcome === "complete") expect(visible()).not.toContain("Initialization stopped")
+    else expect(visible()).toContain("Initialization stopped")
+  } finally {
+    view.destroy()
+  }
+})
+
 // The flag names the version an update turn was heading to; when it isn't the running one, the
 // sidebar waits for the restart instead of migrating.
 test("an update flag for another build asks for a reopen", async () => {
@@ -390,6 +449,39 @@ test("duplicate Complete Update preserves the accepted turn's version record", a
     setBusy(false)
     await view.settle()
     expect(kv.last).toBe(VERSION)
+  } finally { view.destroy() }
+})
+
+test("an offline OpenSpec refresh records the verified version and reloads the catalog in place", async () => {
+  const [busy, setBusy] = createSignal(false)
+  const fs: Fs = {
+    dirs: { openspec: dir("specs"), ".agents/skills": TOOLED[".opencode/skills"] },
+    files: { "openspec/config.yaml": "schema: spec-driven\n" },
+  }
+  let request = ""
+  let reloads = 0
+  const view = await mount(fs, {
+    get busy() { return busy() },
+    height: 32,
+    configure(api) {
+      api.client.session.prompt = async (input) => { request = input.text; setBusy(true) }
+      api.client.location = { reload: async () => { reloads++ } } as Context["client"]["location"]
+    },
+  })
+  try {
+    await view.click("Settings")
+    expect(view.rows().join(" ")).toContain("Not checked")
+    await view.click("Refresh OpenSpec")
+    expect(request).toContain("`plugin.tooling-version`")
+    expect(request).toContain("@fission-ai/openspec@2.2.0")
+
+    fs.files["openspec/config.yaml"] = 'schema: spec-driven\nplugin:\n  tooling-version: "2.2.0"\n'
+    setBusy(false)
+    await view.settle()
+    expect(view.rows().join(" ")).toContain("2.2.0")
+    expect(view.rows().join(" ")).not.toContain("Not checked")
+    expect(view.rows().join(" ")).not.toContain("Reload OpenCode")
+    expect(reloads).toBe(1)
   } finally { view.destroy() }
 })
 

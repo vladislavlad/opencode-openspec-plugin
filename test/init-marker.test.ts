@@ -29,7 +29,7 @@ describe("writeInitMarker", () => {
   test("creates the directory and file when the project has no openspec/ yet", async () => {
     expect(await writeInitMarker(api(), true)).toBe(true)
     expect(await config()).toContain("schema: spec-driven")
-    expect(await state()).toEqual({ init: { inProgress: true, done: [] }, update: null })
+    expect(await state()).toEqual({ init: { inProgress: true, done: [] }, update: null, toolingVersion: null })
   })
 
   test("keeps existing context, rules and comments intact", async () => {
@@ -56,7 +56,7 @@ describe("writeInitMarker", () => {
   test("leaves the post-update flag alone", async () => {
     await seed("plugin:\n  update-in-progress:\n    old: 0.2.1\n    new: 0.3.0\n")
     await writeInitMarker(api(), true)
-    expect(await state()).toEqual({ update: { old: "0.2.1", new: "0.3.0" }, init: { inProgress: true, done: [] } })
+    expect(await state()).toEqual({ update: { old: "0.2.1", new: "0.3.0" }, init: { inProgress: true, done: [] }, toolingVersion: null })
   })
 
 
@@ -79,13 +79,13 @@ describe("clearInitMarker", () => {
     const out = await config()
     expect(out).toContain("Tech stack: TypeScript")
     expect(out).not.toContain("plugin:")
-    expect(await state()).toEqual({ init: { inProgress: false, done: [] }, update: null })
+    expect(await state()).toEqual({ init: { inProgress: false, done: [] }, update: null, toolingVersion: null })
   })
 
-  test("keeps the plugin block when the post-update flag is still in it", async () => {
-    await seed('plugin:\n  init:\n    in-progress: true\n    done: ["tooling"]\n  update-in-progress:\n    old: 0.2.1\n    new: 0.3.0\n')
+  test("preserves the post-update flag and verified tooling version when clearing the init marker", async () => {
+    await seed('plugin:\n  init:\n    in-progress: true\n    done: ["tooling"]\n  tooling-version: "2.2.0"\n  update-in-progress:\n    old: 0.2.1\n    new: 0.3.0\n')
     expect(await clearInitMarker(api())).toBe(true)
-    expect(await state()).toEqual({ init: { inProgress: false, done: [] }, update: { old: "0.2.1", new: "0.3.0" } })
+    expect(await state()).toEqual({ init: { inProgress: false, done: [] }, update: { old: "0.2.1", new: "0.3.0" }, toolingVersion: "2.2.0" })
   })
 
   test("is a no-op when there is no config or no marker", async () => {

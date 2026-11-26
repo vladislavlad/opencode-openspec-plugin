@@ -166,10 +166,11 @@ OpenCode, use `/openspec` to route a request or choose a skill such as
 
 The sidebar checks the dedicated V2 package's npm `latest` tag for updates. In Settings,
 **Update** can pin a newer plugin release in `cli.json`. **Refresh OpenSpec**
-checks the installed CLI version and refreshes project skills when the skill
-files carry no version stamp. For older tooling with a version stamp, Settings
-shows an available upgrade. After reopening, **Complete Update** runs any
-migration steps and summarises the plugin changes.
+refreshes project skills and reloads the OpenCode catalog in the current session.
+Settings shows the last verified project tooling version recorded by Init or
+Refresh OpenSpec. Run Refresh OpenSpec once if an existing project shows **Not checked**.
+After reopening with a new plugin build, **Complete Update** runs any migration
+steps and summarises the plugin changes.
 
 ## Development
 

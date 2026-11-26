@@ -6,7 +6,17 @@ test("V2 updater preserves CLI config objects and guards host compatibility", ()
   const text = buildUpdatePrompt({ plugin: { current: "2.0.0", next: "2.0.1" } })
   for (const token of ["cli.json", "XDG_CONFIG_HOME", "OPENCODE_CONFIG_DIR", "OPENCODE_CLI_CONFIG_CONTENT", '"plugins"', "package", "preserve options", "comments", "SKIP", ">=2.4.1", "old: 2.0.0", "new: 2.0.1"]) expect(text).toContain(token)
   expect(text).toContain("@vladislavlad/opencode-v2-openspec-plugin@2.0.1")
+  expect(text).toContain("reopen OpenCode")
   expect(text).not.toContain("tuple")
+})
+
+test("CLI-only refresh records the version verified after updating without asking for a restart", () => {
+  const text = buildUpdatePrompt({ cli: { next: "2.2.0" } })
+  expect(text).toContain("already up to date")
+  expect(text).toContain("run `openspec --version` again")
+  expect(text).toContain("`plugin.tooling-version`")
+  expect(text).not.toContain("reopen OpenCode")
+  expect(text).not.toContain("update-in-progress")
 })
 
 test("the V2 release has one set of user-facing notes without data migration", () => {

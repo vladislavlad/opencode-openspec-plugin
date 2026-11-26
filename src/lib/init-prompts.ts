@@ -43,6 +43,7 @@ const initPreflight = (markerWritten: boolean) =>
     '4. Ask with the `question` tool (single-select), header "Install": "OpenSpec 2.2 or newer is required. Choose a package manager for the global installation:". Offer one option per detected manager, plus "Cancel". If the user picks "Cancel", clean up and end the turn right there – nothing below this step runs. Cleaning up means: remove the `init:` block from `openspec/config.yaml`; if the file then holds nothing but `schema`, delete it; if `openspec/` is then empty, remove the directory too.',
     `5. Install or upgrade \`${CLI_PKG}@${MIN_CLI_VERSION}\` globally using the chosen package manager (npm: \`install -g\`, pnpm/bun: \`add -g\`, yarn: \`global add\`).`,
     `6. Run \`${OPENSPEC_INIT_CMD}\`. If it fails: report the error, leave \`openspec/config.yaml\` and its marker as they are (the sidebar will offer Resume), and stop. Re-running it on an already set up project is safe – it refreshes the tooling and leaves config.yaml, specs and changes alone.`,
+    "7. After successful initialization, run `openspec --version` again and record the actual `X.Y.Z` result as `plugin.tooling-version` in `openspec/config.yaml`. Preserve the setup marker and all other config fields. If the version check fails, preserve the previous value and report that it could not be verified.",
   ].join("\n")
 
 // The cumulative checkpoint written to `plugin.init.done` after a stage completes.

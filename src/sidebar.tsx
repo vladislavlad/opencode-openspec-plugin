@@ -5,7 +5,7 @@ import { parseChangeDocs, readChangeArtifacts, type ChangeDocs } from "./lib/cha
 import { clearInitMarker, readPluginState, writeInitMarker, type InitStage, type PluginState } from "./lib/config"
 import { INIT_DISMISS_PROMPT, buildInitOnlyPrompt, buildInitPrompt } from "./lib/init-prompts"
 import { buildUpdatePrompt, type UpdateTargets } from "./lib/update-prompt"
-import { checkVersions, type Update } from "./lib/updates"
+import { checkVersions, semverGt, type Update } from "./lib/updates"
 import { buildMigrationPrompt, hasMigrations } from "./lib/migrations"
 import { decideMigration, readLastVersion, recordVersion } from "./lib/version-history"
 import { deleteChange } from "./lib/delete-change"
@@ -33,7 +33,7 @@ import { searchSpecs } from "./lib/search"
 import { VERSION } from "./lib/version"
 import { hasWorkflowSkills } from "./lib/openspec-tooling"
 
-const NO_PLUGIN_STATE: PluginState = { update: null, init: { inProgress: false, done: [] } }
+const NO_PLUGIN_STATE: PluginState = { update: null, init: { inProgress: false, done: [] }, toolingVersion: null }
 
 // The sidebar root: owns the single poll, every signal and the agent's busy state, and renders the
 // list or a drill-in detail view. The setup and update flows get their values from here – they never
@@ -58,7 +58,7 @@ export function OpenSpecSidebar(props: { api: Context; sessionId: string; baseli
   const [specQuery, setSpecQuery] = createSignal("")
   // false once we know the init /opsx-* commands aren't loaded (written this session but not loaded yet).
   const [commandsReady, setCommandsReady] = createSignal<boolean | null>(null)
-  // Init pressed; hold the status line until the agent goes idle.
+  // Hold the status line until the foreground and its background subagents settle.
   const [setupInProgress, setSetupInProgress] = createSignal(false)
   const [setupFailed, setSetupFailed] = createSignal(false) // the init turn ended without tooling
   const [toolingResult, setToolingResult] = createSignal<ToolingResult>("idle")
@@ -66,9 +66,8 @@ export function OpenSpecSidebar(props: { api: Context; sessionId: string; baseli
   const [headerHover, setHeaderHover] = createSignal(false)
   const [dot, setDot] = createSignal(0) // 0..2 – which of the "Initializing" dots is lit
   const [pluginUpdate, setPluginUpdate] = createSignal<Update | null>(null)
-  const [cliUpdate, setCliUpdate] = createSignal<Update | null>(null)
   const [cliLatest, setCliLatest] = createSignal<string | null>(null)
-  const [cliCurrent, setCliCurrent] = createSignal<string | null>(null)
+  const [legacyToolingVersion, setLegacyToolingVersion] = createSignal<string | null>(null)
   const [bannerDismissed, setBannerDismissed] = createSignal(false)
   const [reloadPending, setReloadPending] = createSignal(false)
   // The whole `plugin:` block from config.yaml, filled by one read per poll: the setup marker drives
@@ -77,8 +76,8 @@ export function OpenSpecSidebar(props: { api: Context; sessionId: string; baseli
   // Last version from the synchronously hydrated durable V2 store.
   const [lastVersion, setLastVersion] = createSignal<string | null>(null)
   const [submitting, setSubmitting] = createSignal(false)
-  let pendingToolingReload = false // reload the native catalog once the init turn ends
-  let pendingReload = false // show the reload prompt once an update turn ends
+  let pendingToolingReload = false // refresh the native catalog after Init or Refresh OpenSpec
+  let pendingReload = false // offer to restart after a plugin update
   let pendingVersionRecord = false // stamp storage once the migration turn ends
 
   const location = projectLocation(props.api, props.sessionId)
@@ -132,6 +131,12 @@ export function OpenSpecSidebar(props: { api: Context; sessionId: string; baseli
   const stage = createMemo(() => setupStage(initState()))
   const initStopped = createMemo(() => initIncomplete({ init: initState(), busy: busy(), setupInProgress: setupInProgress() }))
   const needsInit = createMemo(() => needsInitDecision({ initialised: initialised(), init: initState() }))
+  const cliCurrent = createMemo(() => pluginState().toolingVersion ?? legacyToolingVersion())
+  const cliUpdate = createMemo(() => {
+    const current = cliCurrent()
+    const next = cliLatest()
+    return current && next && semverGt(next, current) ? { current, next } : null
+  })
   const updateAvailable = createMemo(() => pluginUpdate() != null || cliUpdate() != null)
 
   // Offer a retry when native tooling reload failed.
@@ -241,9 +246,13 @@ export function OpenSpecSidebar(props: { api: Context; sessionId: string; baseli
 
   const sendUpdate = (targets: UpdateTargets) =>
     void submitAction(async () => {
-      pendingReload = true
+      if (targets.plugin) pendingReload = true
+      if (targets.cli) pendingToolingReload = true
       const sent = await submitPrompt(props.api, buildUpdatePrompt(targets))
-      if (!sent) pendingReload = false
+      if (!sent) {
+        if (targets.plugin) pendingReload = false
+        if (targets.cli) pendingToolingReload = false
+      }
     })
   const completeUpdate = () => {
     const d = migration()
@@ -261,13 +270,12 @@ export function OpenSpecSidebar(props: { api: Context; sessionId: string; baseli
     const s = await checkVersions(client)
     if (disposed) return
     setCliLatest(s.cliLatest)
-    setCliCurrent(s.cliCurrent)
+    setLegacyToolingVersion(s.legacyToolingVersion)
     setPluginUpdate(s.plugin)
-    setCliUpdate(s.cli)
     setBannerDismissed(false)
     if (!notify) return
-    if (!s.reachable) props.api.ui.toast.show({ variant: "warning", message: "Couldn't reach npm registry" })
-    else if (!s.plugin && !s.cli && s.cliCurrent) props.api.ui.toast.show({ variant: "success", message: "All versions are up to date" })
+    if (!s.pluginLatest && !s.cliLatest) props.api.ui.toast.show({ variant: "warning", message: "Couldn't reach npm registry" })
+    else if (s.pluginLatest && s.cliLatest && !s.plugin && !cliUpdate() && cliCurrent()) props.api.ui.toast.show({ variant: "success", message: "All versions are up to date" })
   }
 
   // Ask the V2 host to rebuild its native catalog after tooling is written.
@@ -294,10 +302,13 @@ export function OpenSpecSidebar(props: { api: Context; sessionId: string; baseli
 
   // ---- polling ------------------------------------------------------------
 
-  let loading = false
-  async function load() {
-    if (loading || disposed) return
-    loading = true
+  let loading: Promise<void> | undefined
+  function load() {
+    return loading ??= readSidebar().finally(() => { loading = undefined })
+  }
+
+  async function readSidebar() {
+    if (disposed) return
     try {
       const s = await readOpenSpec(client)
       if (disposed) return
@@ -319,8 +330,6 @@ export function OpenSpecSidebar(props: { api: Context; sessionId: string; baseli
       if (disposed) return
       setSummary(null)
       setInitialised(false)
-    } finally {
-      loading = false
     }
   }
 
@@ -340,18 +349,37 @@ export function OpenSpecSidebar(props: { api: Context; sessionId: string; baseli
     onCleanup(() => clearInterval(id))
   })
 
-  // The init/update turn ends on busy→idle. sawBusy guards against firing before it has started.
-  let sawBusy = false
-  createEffect(() => {
-    if (busy()) return void (sawBusy = true)
-    if (!sawBusy) return
-    sawBusy = false
+  // Read after the idle transition, even if a poll that started before it is still in flight.
+  const finishSetup = async (isCurrent: () => boolean) => {
+    if (loading) await loading
+    if (!isCurrent()) return
+    await load()
+    if (!isCurrent()) return
     setSetupInProgress(false)
+    setSetupFailed(initialised() !== true)
     if (pendingToolingReload) {
       pendingToolingReload = false
       void reloadTooling()
-      // Re-read before judging: the poll can be up to 3s stale right after the turn.
-      void load().then(() => setSetupFailed(initialised() !== true))
+    }
+  }
+
+  // The init/update turn ends on busy→idle. sawBusy guards against firing before it has started.
+  let sawBusy = false
+  createEffect(() => {
+    if (busy()) {
+      sawBusy = true
+      if (initState().inProgress) setSetupInProgress(true)
+      return
+    }
+    if (!sawBusy) return
+    sawBusy = false
+    if (setupInProgress()) {
+      let cancelled = false
+      onCleanup(() => { cancelled = true })
+      void finishSetup(() => !cancelled && !disposed && !busy())
+    } else if (pendingToolingReload) {
+      pendingToolingReload = false
+      void reloadTooling().then(load)
     }
     if (pendingReload) {
       pendingReload = false

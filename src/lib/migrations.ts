@@ -93,6 +93,14 @@ export const MIGRATIONS: Record<string, Migration> = {
       "Unsupported command templates show an error before starting a turn; shell interpolation must be replaced with agent instructions.",
     ],
   },
+  "2.0.1": {
+    instructions: "",
+    releaseNotes: [
+      "Setup keeps showing progress until background subagents finish and the parent session settles.",
+      "Settings shows your project's verified OpenSpec tooling version after Init or Refresh OpenSpec.",
+      "Refresh OpenSpec reloads project tooling in the current session.",
+    ],
+  },
 }
 
 // Migrations whose version is in (old, new], ordered oldest → newest, tagged with their version.

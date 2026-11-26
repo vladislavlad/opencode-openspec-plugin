@@ -37,8 +37,9 @@ export function buildUpdatePrompt(t: UpdateTargets): string {
       "   For a standalone OpenSpec binary, use its official installer. For a package-managed binary, use the matching installer:",
       `   npm: \`npm i -g ${CLI_PKG}@${t.cli.next}\` · pnpm/bun: \`add -g\` · yarn: \`global add\`.`,
       "2. Run `openspec update --dry-run` and inspect the planned changes. Preserve any customized commands and skills. Run `openspec update` to refresh the project tooling. If workflow skills are missing after the update, run `openspec init --tools opencode --profile core --scope project`.",
+      "3. After a successful refresh (including when the tooling was already up to date), run `openspec --version` again and record the actual `X.Y.Z` result as `plugin.tooling-version` in `openspec/config.yaml`. Preserve all existing config fields and comments. If that file is missing, create it with `schema: spec-driven`. If any refresh step or the version check fails, leave the previous recorded version in place and report the failure.",
     )
   }
-  parts.push("", "## Finally", "Tell me to reopen opencode to apply the update.")
+  if (t.plugin) parts.push("", "## Finally", "If you updated the plugin specifier, tell me to reopen OpenCode to load the new plugin.")
   return parts.join("\n")
 }
