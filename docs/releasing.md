@@ -21,8 +21,8 @@ host-independent fixes into `release/v1`, then test that branch.
 
 ```sh
 git fetch origin
-git tag -a v1.0.1 origin/release/v1 -m "OpenCode 1 maintenance release"
-git push origin refs/tags/v1.0.1
+git tag -a v1.0.2 origin/release/v1 -m "OpenCode 1 maintenance release"
+git push origin refs/tags/v1.0.2
 npm view @vladislavlad/opencode-openspec-plugin dist-tags
 ```
 
@@ -32,7 +32,7 @@ git push origin refs/tags/v2.0.0
 npm view @vladislavlad/opencode-openspec-plugin dist-tags
 ```
 
-Expected first publication is `latest: 1.0.1` and `opencode-v2: 2.0.0`. The
+Expected first publication is `latest: 1.0.2` and `opencode-v2: 2.0.0`. The
 old local `v1.0.0` tag predates this release and can stay local.
 
 ## Subsequent patches

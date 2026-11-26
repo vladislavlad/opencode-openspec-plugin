@@ -13,3 +13,10 @@ The V2 plugin SHALL recognize an existing V1 update flag as a pending migration 
 #### Scenario: The host changes before a V1 update finishes
 - **WHEN** V2 reads an update flag whose target belongs to the older plugin line
 - **THEN** Complete Update uses the running V2 version as the migration destination
+
+### Requirement: Host-provided runtime dependencies
+The published TUI package SHALL let OpenCode provide its SDK and renderer at runtime.
+
+#### Scenario: OpenCode installs the plugin in a clean profile
+- **WHEN** a compatible OpenCode host installs the npm package for the first time
+- **THEN** the package installs and loads using the host runtime
