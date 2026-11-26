@@ -21,7 +21,9 @@ jobs:
       contents: read
       id-token: write # required for OIDC trusted publishing + provenance
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v7.0.1
+        with:
+          persist-credentials: false
 
       - name: Setup Bun
         uses: oven-sh/setup-bun@v2
@@ -29,27 +31,28 @@ jobs:
           bun-version: latest
 
       - name: Setup Node
-        uses: actions/setup-node@v4
+        uses: actions/setup-node@v7.1.0
         with:
           node-version: 24 # ships npm >= 11.5, required for trusted publishing
+          package-manager-cache: false
 
       - name: Install dependencies
         run: bun install --frozen-lockfile
 
-      - name: Verify release tag and npm channel
-        id: release
+      - name: Verify release tag and npm package
         run: |
           bun -e '
-            const { version, publishConfig } = await Bun.file("package.json").json();
+            const { name, version, publishConfig } = await Bun.file("package.json").json();
             if (process.env.GITHUB_REF_TYPE !== "tag" || process.env.GITHUB_REF_NAME !== `v${version}`) {
               throw new Error(`Release must run from tag v${version}, matching package.json`);
             }
-            const major = version.split(".")[0];
-            const tag = { "1": "latest", "2": "opencode-v2" }[major];
-            if (!tag || publishConfig.tag !== tag) {
-              throw new Error(`Invalid npm channel for ${version}`);
+            const packages = {
+              "1": "@vladislavlad/opencode-openspec-plugin",
+              "2": "@vladislavlad/opencode-v2-openspec-plugin",
+            };
+            if (packages[version.split(".")[0]] !== name || publishConfig.tag !== "latest" || publishConfig.access !== "public") {
+              throw new Error(`Invalid npm package or release settings for ${name}@${version}`);
             }
-            await Bun.write(process.env.GITHUB_OUTPUT, `npm-tag=${tag}\n`);
           '
 
       - name: Lint
@@ -70,9 +73,28 @@ jobs:
       - name: Inspect package contents
         run: npm pack --dry-run
 
-      # No token: authentication is via GitHub OIDC (configured as a Trusted
-      # Publisher on npmjs.com). Provenance is attached automatically.
+      - name: Check published revision
+        id: registry
+        run: |
+          REVISION="$(git rev-parse HEAD)" bun -e '
+            const { name, version } = await Bun.file("package.json").json();
+            const url = `https://registry.npmjs.org/${encodeURIComponent(name)}/${version}`;
+            const response = await fetch(url, { signal: AbortSignal.timeout(10000) });
+            if (response.status === 404) {
+              await Bun.write(process.env.GITHUB_OUTPUT, "publish=true\n");
+            } else if (!response.ok) {
+              throw new Error(`Could not check ${name}@${version} (HTTP ${response.status})`);
+            } else {
+              const { gitHead } = await response.json();
+              if (gitHead !== process.env.REVISION) {
+                throw new Error(`${name}@${version} is already published from a different revision`);
+              }
+              console.log(`${name}@${version} is already published from this revision`);
+            }
+          '
+
+      # The initial V2 publication uses an authenticated npm account. Later
+      # versions use GitHub OIDC with the trusted publisher for this package.
       - name: Publish to npm
-        env:
-          NPM_TAG: ${{ steps.release.outputs.npm-tag }}
-        run: npm publish --access public --tag "$NPM_TAG"
+        if: steps.registry.outputs.publish == 'true'
+        run: npm publish --access public --tag latest

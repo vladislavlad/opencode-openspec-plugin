@@ -321,7 +321,7 @@ test("duplicate and competing update clicks keep the accepted turn's reload", as
   let sends = 0
   let finish!: () => void
   const previousFetch = globalThis.fetch
-  globalThis.fetch = (async (url) => new Response(JSON.stringify({ version: String(url).endsWith("/opencode-v2") ? "2.9.9" : "2.2.0" }))) as typeof fetch
+  globalThis.fetch = (async (url) => new Response(JSON.stringify({ version: String(url).endsWith("opencode-v2-openspec-plugin/latest") ? "2.9.9" : "2.2.0" }))) as typeof fetch
   const view = await mount({
     dirs: { ".opencode/skills": dir("openspec-explore") },
     files: { ".opencode/skills/openspec-explore/SKILL.md": '---\nmetadata:\n  generatedBy: "1.14.3"\n---\n' },
@@ -397,7 +397,7 @@ test("a failed update submission releases its gate without completing the update
   const [busy, setBusy] = createSignal(false)
   let sends = 0
   const previousFetch = globalThis.fetch
-  globalThis.fetch = (async (url) => new Response(JSON.stringify({ version: String(url).endsWith("/opencode-v2") ? "2.9.9" : "2.2.0" }))) as typeof fetch
+  globalThis.fetch = (async (url) => new Response(JSON.stringify({ version: String(url).endsWith("opencode-v2-openspec-plugin/latest") ? "2.9.9" : "2.2.0" }))) as typeof fetch
   const view = await mount({ dirs: {}, files: {} }, {
     get busy() { return busy() },
     kv: { last: VERSION },

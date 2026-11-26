@@ -1,49 +1,65 @@
 # Release runbook
 
-| Git branch | Git tags | npm channel | Supported TUI |
+| Git branch | Git tags | npm package | npm tag |
 | --- | --- | --- | --- |
-| `release/v1` | `v1.x.y` | `latest` | OpenCode 1 |
-| `main` | `v2.x.y` | `opencode-v2` | OpenCode 2 |
+| `release/v1` | `v1.x.y` | `@vladislavlad/opencode-openspec-plugin` | `latest` |
+| `main` | `v2.x.y` | `@vladislavlad/opencode-v2-openspec-plugin` | `latest` |
 
-Keep npm `latest` on 1.x while supporting installations on earlier
-plugin releases. Those releases check `latest` without checking the major.
-V2 uses the separate `opencode-v2` dist-tag. Use independent patches or cherry-pick
-host-independent fixes into `release/v1`, then test that branch.
+Both branches use `.github/workflows/release.yml`. It checks the Git tag
+against the manifest version and verifies that the npm package matches the
+major version. A version already in the registry passes only when its
+recorded Git revision matches the checked-out commit.
 
-## First two releases
+## First V2 publication
 
-1. Verify npm Trusted Publishing for
-   `@vladislavlad/opencode-openspec-plugin` points at
-   `vladislavlad/opencode-openspec-plugin` and workflow `release.yml`.
-2. Push `release/v1`. Merge the V2 change into `main` and wait for CI on both.
-3. Tag the reviewed branch tips with the matching `package.json` versions.
-   Push V1 first. Wait until it is available on npm before publishing V2.
+Trusted Publishing settings belong to an existing npm package. For the first
+V2 release, publish from the reviewed, clean `main` checkout with an
+authenticated npm account that owns the scope.
 
 ```sh
-git fetch origin
-git tag -a v1.0.0 origin/release/v1 -m "OpenCode 1 maintenance release"
-git push origin refs/tags/v1.0.0
-npm view @vladislavlad/opencode-openspec-plugin dist-tags
+git switch main
+git pull --ff-only
+bun install --frozen-lockfile
+npm login
+npm publish --access public --tag latest
 ```
 
+Wait for `npm view @vladislavlad/opencode-v2-openspec-plugin@latest version gitHead`
+to show `2.0.0` and the checked-out commit. Then add a GitHub Actions trusted
+publisher in the **V2 package** settings. Use owner `vladislavlad`, repository
+`opencode-openspec-plugin` and workflow filename `release.yml`. Enable direct
+publishing for that workflow.
+
 ```sh
-git tag -a v2.0.0 origin/main -m "OpenCode 2 release"
+git tag -a v2.0.0 -m "OpenCode 2 release"
 git push origin refs/tags/v2.0.0
-npm view @vladislavlad/opencode-openspec-plugin dist-tags
 ```
 
-Expected publication is `latest: 1.0.0` and `opencode-v2: 2.0.0`.
+The workflow validates the release and verifies the existing npm package.
+The first V2 version can also be created with npm staged publishing and
+approved by the maintainer before pushing its tag.
 
-## Subsequent patches
+## Later releases
 
-Update `package.json` on the target branch, add the release notes under that
-version in `src/lib/migrations.ts`, and verify with CI. Push only the
-version-matching tag for the release you intend. The workflow checks the npm
-channel against the version before publishing.
+Update the manifest version and release notes on the target branch. Wait for
+CI before tagging and pushing the matching version. Use `release/v1` for
+OpenCode 1 maintenance and `main` for OpenCode 2 releases.
 
-After publication, open a session with the released package on each supported
-host. For migration, start OpenCode 2.4.1 with a fresh profile containing only
-the V1 global `tui.json` entry, acknowledge the update dialog, replace the
-entry in `cli.json` with `@opencode-v2`, and reopen the same fixture project. Check
-that the sidebar reads the existing specs and that a workflow action is
-available.
+For releases after the first V2 publication, GitHub Actions publishes to the
+appropriate package using its Trusted Publishing configuration. Verify the
+new version on that package's npm `latest` tag before updating installation
+instructions that pin it.
+
+```sh
+npm view @vladislavlad/opencode-openspec-plugin dist-tags
+npm view @vladislavlad/opencode-v2-openspec-plugin dist-tags
+```
+
+## Migration smoke test
+
+Open a project with OpenCode 1.19.6 and the V1 package. In OpenCode 2.4.1
+or newer, replace the migrated package entry in `cli.json` with
+`@vladislavlad/opencode-v2-openspec-plugin@latest`, keeping any options.
+Reopen the same project and check that its specs and workflow actions
+are available. The V1 1.0.2 maintenance patch displays the new package name
+in the update dialog.

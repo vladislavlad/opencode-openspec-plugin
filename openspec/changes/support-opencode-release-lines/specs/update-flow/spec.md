@@ -1,7 +1,11 @@
 ## ADDED Requirements
 
 ### Requirement: Compatible plugin update channel
-The sidebar SHALL offer only newer plugin releases in its supported major from the designated npm channel.
+The sidebar SHALL offer only newer plugin releases in its supported major from its own npm package and designated channel.
+
+#### Scenario: Both OpenCode lines are available
+- **WHEN** the V2 sidebar checks for a plugin update
+- **THEN** it reads the dedicated V2 package's `latest` tag
 
 #### Scenario: The configured channel points to another major
 - **WHEN** the registry returns a plugin version outside the supported major

@@ -4,11 +4,10 @@ import { VERSION } from "./version"
 import { LEGACY_SKILL_DIR, MODERN_SKILL_DIR, OPENSPEC_SKILLS } from "./openspec-tooling"
 
 // Scoped names are URL-encoded (`/` → `%2F`) when hitting the registry.
-export const PLUGIN_PKG = "@vladislavlad/opencode-openspec-plugin"
+export const PLUGIN_PKG = "@vladislavlad/opencode-v2-openspec-plugin"
 export const CLI_PKG = "@fission-ai/openspec"
 export const MIN_CLI_VERSION = "2.2.0"
 export const MIN_OPENCODE_VERSION = "2.4.1"
-export const PLUGIN_CHANNEL = "opencode-v2"
 
 // A pending update: the version on disk vs. the newer one on npm.
 export interface Update {
@@ -39,8 +38,8 @@ export function semverGt(a: string, b: string): boolean {
 }
 
 // Aborts after 3s; any failure yields null so a slow or offline registry never blocks the sidebar.
-export async function fetchLatest(pkg: string, tag = "latest"): Promise<string | null> {
-  const url = `https://registry.npmjs.org/${pkg.replace("/", "%2F")}/${tag}`
+export async function fetchLatest(pkg: string): Promise<string | null> {
+  const url = `https://registry.npmjs.org/${pkg.replace("/", "%2F")}/latest`
   const ctrl = new AbortController()
   const timer = setTimeout(() => ctrl.abort(), 3000)
   try {
@@ -74,7 +73,7 @@ const hasKnownSkill = (name: string) => OPENSPEC_SKILLS.some((skill) => skill ==
 
 export async function checkVersions(client: FileClient): Promise<VersionState> {
   const [pluginLatest, cliCurrent, cliLatest] = await Promise.all([
-    fetchLatest(PLUGIN_PKG, PLUGIN_CHANNEL),
+    fetchLatest(PLUGIN_PKG),
     readCliVersion(client),
     fetchLatest(CLI_PKG),
   ])

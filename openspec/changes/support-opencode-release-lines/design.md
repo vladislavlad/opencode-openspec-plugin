@@ -4,8 +4,10 @@ different TUI SDK. Its loader recognizes a TUI export alongside an optional
 server part. OpenSpec 2.2 moved project skills to `.agents/skills`.
 
 ## Decisions
-- Keep `latest` on 1.x and publish 2.x on `opencode-v2`. The V1 branch ships a V2
-  upgrade dialog whose entrypoint does not load the V1 renderer.
+- Give each line its own npm package and its own `latest` tag. The V1 branch
+  ships an upgrade dialog that points to the V2 package without loading the V1 renderer.
+- Validate the package name, major version and Git tag in the shared release workflow.
+  Verify an already published version against the checked-out commit.
 - Ship only a TUI export in V2. Reject unsupported host versions before
   registering commands or slots.
 - Prefer configured legacy command text, then attach the scoped skill on the

@@ -62,10 +62,10 @@ apply the update for you.
 
 ## Requirements and installation
 
-| OpenCode | Plugin | Configuration |
+| OpenCode | npm package | Configuration |
 | --- | --- | --- |
-| 2.4.1 | `2.0.0`, npm channel `opencode-v2` | Global `cli.json`, key `plugins` |
-| 1.19.6 | `1.0.0`, npm channel `latest` | `tui.json`, key `plugin` |
+| 2.4.1 and later 2.x | `@vladislavlad/opencode-v2-openspec-plugin@2.0.0` | Global `cli.json`, key `plugins` |
+| 1.19.6 | `@vladislavlad/opencode-openspec-plugin@1.0.0` | `tui.json`, key `plugin` |
 
 OpenCode supplies the runtime dependencies when it loads the plugin. Both
 releases support OpenSpec CLI 2.2.0. The npm build of OpenSpec requires
@@ -75,7 +75,7 @@ for standalone binaries, and [V1 usage](docs/v1.md) for OpenCode 1.
 For a fresh OpenCode 2 installation:
 
 ```sh
-opencode plugin add @vladislavlad/opencode-openspec-plugin@opencode-v2
+opencode plugin add @vladislavlad/opencode-v2-openspec-plugin@latest
 ```
 
 Alternatively, add this package to the existing `plugins` array in
@@ -83,7 +83,7 @@ Alternatively, add this package to the existing `plugins` array in
 
 ```json
 {
-  "plugins": ["@vladislavlad/opencode-openspec-plugin@opencode-v2"]
+  "plugins": ["@vladislavlad/opencode-v2-openspec-plugin@latest"]
 }
 ```
 
@@ -94,25 +94,23 @@ development can use the absolute path to this package directory.
 
 ## Upgrade from OpenCode 1
 
-1. On OpenCode 1, first update the plugin to `1.0.0`. Then upgrade OpenCode
-   to at least `2.4.1`. If OpenCode transfers the global `tui.json` entry
-   to `cli.json`, the V1 plugin opens an **OpenSpec plugin update required**
-   dialog. The sidebar and its plugin commands become available after installing
-   plugin `2.0.0` or a later `2.x` release.
-2. In `cli.json`, replace the existing OpenSpec package specifier with
-   `@vladislavlad/opencode-openspec-plugin@opencode-v2`. Keep other plugins and any
-   `options` on the entry. If there is no entry, add it to `plugins`. For
-   example, a migrated entry with options uses
-   `{"package":"@vladislavlad/opencode-openspec-plugin@opencode-v2","options":{}}`.
+1. Upgrade OpenCode to at least `2.4.1`. On first startup, OpenCode can
+   transfer the global V1 `tui.json` entry to `cli.json`.
+2. In `cli.json`, replace the OpenSpec entry in `plugins` with
+   `@vladislavlad/opencode-v2-openspec-plugin@latest`. Keep any `options` on
+   the entry. If there is no entry, add it to `plugins`. For example:
+
+   ```json
+   {"package":"@vladislavlad/opencode-v2-openspec-plugin@latest","options":{}}
+   ```
+
+   Use this package name when migrating from plugin `1.0.0`. The V1 `1.0.2`
+   maintenance patch includes the dedicated package in its upgrade dialog.
 3. Reopen OpenCode. The sidebar reads the existing `openspec/` directory
    and setup checkpoints. A pending V1 update can be completed in the V2 sidebar.
 4. To upgrade a project to OpenSpec 2.2, install the CLI and run
    `openspec update --dry-run`, then `openspec update` from the project.
    Review the planned skill changes and save any local customizations first.
-
-Users coming from a release earlier than `1.0.0`, or from a project-local
-`tui.json`, can start directly at step 2. OpenCode 2 applies automatic config
-migration only to the global V1 config on first startup without `cli.json`.
 
 See the [release runbook](docs/releasing.md) and
 [OpenCode migration guide](https://opencode.ai/docs/migrate-v1).
@@ -166,7 +164,7 @@ OpenCode, use `/openspec` to route a request or choose a skill such as
 
 ## Staying up to date
 
-The sidebar checks the `opencode-v2` npm channel for plugin updates. In Settings,
+The sidebar checks the dedicated V2 package's npm `latest` tag for updates. In Settings,
 **Update** can pin a newer plugin release in `cli.json`. **Refresh OpenSpec**
 checks the installed CLI version and refreshes project skills when the skill
 files carry no version stamp. For older tooling with a version stamp, Settings

@@ -1,5 +1,5 @@
 {
-  "name": "@vladislavlad/opencode-openspec-plugin",
+  "name": "@vladislavlad/opencode-v2-openspec-plugin",
   "version": "2.0.0",
   "description": "OpenSpec TUI sidebar plugin for opencode – browse specs, review change proposals, and drive the OpenSpec flow from the terminal.",
   "type": "module",
@@ -35,7 +35,7 @@
   },
   "publishConfig": {
     "access": "public",
-    "tag": "opencode-v2"
+    "tag": "latest"
   },
   "scripts": {
     "build": "NODE_ENV=production bun run build.ts",

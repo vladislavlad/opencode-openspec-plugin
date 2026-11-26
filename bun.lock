@@ -3,7 +3,7 @@
   "configVersion": 1,
   "workspaces": {
     "": {
-      "name": "@vlad/openspec-tui",
+      "name": "@vladislavlad/opencode-v2-openspec-plugin",
       "devDependencies": {
         "@babel/core": "7",
         "@babel/preset-typescript": "7",

@@ -74,7 +74,8 @@ export const MIGRATIONS: Record<string, Migration> = {
   "2.0.0": {
     instructions: "",
     releaseNotes: [
-      "The OpenSpec sidebar works in OpenCode 2.4.1.",
+      "The OpenSpec sidebar works in OpenCode 2.4.1 and later OpenCode 2 releases.",
+      "OpenCode 2 has a dedicated npm package and its own update channel.",
       "Sidebar actions work with OpenSpec 2.2 workflow skills.",
       "Wrapped task descriptions are visible in full.",
       "Active buttons and accents keep your theme's colors; busy actions stay muted.",

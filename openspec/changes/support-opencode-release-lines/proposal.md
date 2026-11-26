@@ -4,7 +4,7 @@ workflow skills in place of generated slash commands. Existing installations
 also need a safe route from the V1 maintenance line to the V2 plugin.
 
 ## What Changes
-- Target OpenCode 2.4.1 and separate the two npm channels.
+- Target OpenCode 2.4.1 or newer and publish V2 under its own npm package.
 - Load workflow skills for OpenSpec 2.2 sidebar actions.
 - Document the required V1 plugin replacement and resume pending migration.
 
