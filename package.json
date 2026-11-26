@@ -1,6 +1,6 @@
 {
   "name": "@vladislavlad/opencode-openspec-plugin",
-  "version": "1.0.1",
+  "version": "1.0.2",
   "description": "OpenSpec TUI sidebar plugin for opencode – browse specs, review change proposals, and drive the OpenSpec flow from the terminal.",
   "type": "module",
   "license": "MIT",
@@ -41,11 +41,6 @@
     "lint:fix": "oxlint --fix",
     "test": "bun test --preload @opentui/solid/preload",
     "prepublishOnly": "bun run build"
-  },
-  "peerDependencies": {
-    "@opencode-ai/plugin": ">=1.18.0 <2.0.0",
-    "@opentui/solid": ">=0.4.5 <0.5.0",
-    "solid-js": ">=1.9.0"
   },
   "devDependencies": {
     "@babel/core": "7",
