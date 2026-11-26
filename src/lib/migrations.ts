@@ -62,26 +62,16 @@ export const MIGRATIONS: Record<string, Migration> = {
   "1.0.0": {
     instructions: "",
     releaseNotes: [
-      "Change progress now counts every checkbox recognized by OpenSpec 1.14.3.",
+      "Change progress matches the OpenSpec 2.2 task parser.",
       "The Tasks section shows nested tasks, list numbers and unfinished markers.",
       "Tasks without descriptions remain visible as Untitled task.",
       "Completed task lists remind you to review before archiving.",
       "Task groups stay intact in Windows CRLF files.",
       "Delete confirmation and OpenSpec palette commands now wait for the agent to finish.",
       "OpenSpec commands preserve arguments supplied by the command dispatcher.",
-    ],
-  },
-  "1.0.1": {
-    instructions: "",
-    releaseNotes: [
       "Sidebar actions work with OpenSpec 2.2 workflow skills.",
       "Wrapped task descriptions are visible in full.",
       "OpenCode 2 shows how to install the required plugin version.",
-    ],
-  },
-  "1.0.2": {
-    instructions: "",
-    releaseNotes: [
       "The plugin installs in a fresh OpenCode 1 profile without a peer dependency conflict.",
     ],
   },

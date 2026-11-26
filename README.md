@@ -41,13 +41,13 @@ apply the update for you.
 
 ## Requirements and installation
 
-Plugin **1.0.2** is the maintenance release for OpenCode 1, tested on
+Plugin **1.0.0** is the maintenance release for OpenCode 1, tested on
 **OpenCode 1.19.6** and **OpenSpec 2.2.0**. OpenCode supplies the runtime
 dependencies when it loads the plugin. Add it to `tui.json`:
 
 ```json
 {
-  "plugin": ["@vladislavlad/opencode-openspec-plugin@1.0.2"]
+  "plugin": ["@vladislavlad/opencode-openspec-plugin@1.0.0"]
 }
 ```
 
@@ -99,7 +99,7 @@ Settings checks npm `latest` for plugin updates within 1.x. Use
 **Refresh OpenSpec** to check the CLI and refresh the project skills when no
 tooling version is recorded. Restart OpenCode to load newly installed skills.
 
-When OpenCode 2.4.1 migrates a global `tui.json` with plugin 1.0.2, its
+When OpenCode 2.4.1 migrates a global `tui.json` with plugin 1.0.0, its
 TUI loads an update dialog. Replace the OpenSpec entry in the global
 `cli.json` under `plugins` with
 `@vladislavlad/opencode-openspec-plugin@opencode-v2`, preserving any options, then
